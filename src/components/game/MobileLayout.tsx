@@ -1,21 +1,12 @@
 import { ClientOnly } from "@tanstack/react-router";
 import { useGame } from "@/game/store";
-import { clock, isDay, LH2_CAP, LOX_CAP } from "@/game/sim";
+import { LH2_CAP, LOX_CAP } from "@/game/sim";
 import { sfx } from "@/game/audio";
 import { GameCanvas } from "./GameCanvas";
 import { Countdown, Overlays, Hotbar } from "./HUD";
 import { NavCard, DialogBox, EventBanner, EffectsBar, QuestTracker } from "./StoryUI";
 import { DPad, ActionPad, MenuBar, MC_BTN } from "./TouchControls";
-
-/** Minecraft-style rows of 10 icons (hearts for health, bubbles for suit O2). */
-function IconRow({ value, full, empty, label }: { value: number; full: string; empty: string; label: string }) {
-  const n = Math.round(Math.max(0, Math.min(100, value)) / 10);
-  return (
-    <div className="flex gap-[1px] text-[11px] leading-none" aria-label={`${label} ${Math.round(value)}%`}>
-      {Array.from({ length: 10 }, (_, i) => <span key={i} className={i < n ? "" : "opacity-30 grayscale"}>{i < n ? full : empty}</span>)}
-    </div>
-  );
-}
+import { Vitals } from "./Vitals";
 
 function MiniBar({ label, v, max, color }: { label: string; v: number; max: number; color: string }) {
   const pct = Math.max(0, Math.min(100, (v / max) * 100));
@@ -39,9 +30,7 @@ export function MobileGame() {
 
       {/* top-left: vitals */}
       <div className="pointer-events-none absolute left-[max(env(safe-area-inset-left),8px)] top-2 flex flex-col gap-1">
-        <IconRow value={s.health} full="❤️" empty="🖤" label="Health" />
-        <IconRow value={s.suitO2} full="🫧" empty="⚪" label="Suit O2" />
-        <span className={`text-[7px] ${s.temp < 5 ? "text-suit-light" : "text-white/90"}`}>{s.temp.toFixed(0)}°C</span>
+        <Vitals className="rounded-[10px] bg-black/25 p-1" />
       </div>
 
       {/* top-center: menu buttons, alerts below */}
@@ -55,14 +44,13 @@ export function MobileGame() {
 
       {/* top-right: power, fuel, clock */}
       <div className="pointer-events-none absolute right-[max(env(safe-area-inset-right),8px)] top-2 flex flex-col items-end gap-1 bg-black/25 p-1">
-        <span className={`text-[7px] ${isDay(s) ? "text-gold" : "text-suit-light"}`}>{clock(s)}</span>
         <span className={`text-[6px] ${net >= 0 ? "text-ok" : "text-destructive"}`}>⚡ +{s.energyIn.toFixed(0)}/-{s.energyOut.toFixed(0)}</span>
         <MiniBar label="LH2" v={s.lh2} max={LH2_CAP} color="var(--color-suit-light)" />
         <MiniBar label="LOX" v={s.lox} max={LOX_CAP} color="var(--color-suit)" />
       </div>
 
       {/* left, below vitals: GPS card */}
-      <NavCard className="absolute left-[max(env(safe-area-inset-left),8px)] top-16 !w-40 scale-90 origin-top-left short:scale-75" />
+      <NavCard className="absolute left-[max(env(safe-area-inset-left),8px)] top-[62px]" />
 
       <Countdown />
 

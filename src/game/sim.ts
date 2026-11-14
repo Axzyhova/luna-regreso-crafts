@@ -45,6 +45,8 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     // --- historia, efectos, eventos y botín ---
     effects: [] as string[],
     fatigue: 0,
+    coldT: 0,
+    heatT: 0,
     dose: 0,
     equip: [] as string[],
     capsules: [] as { id: number; x: number; y: number }[],

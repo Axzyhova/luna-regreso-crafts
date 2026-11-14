@@ -36,11 +36,22 @@ export function stepEffects(s: Sim, dt: number, w: World, inShadow: boolean) {
   else s.dose = Math.max(0, s.dose - (w.inHabitat ? 2 : 0.4) * dt);
   if (flare && s.event) s.event.maxDose = Math.max(s.event.maxDose, s.dose);
 
+  // Exposure: time spent with the suit in the blue (cold) or orange (hot) zone.
+  // Health only starts dropping after a grace period, then faster the longer it lasts.
+  const cold = s.temp < UMBRALES.frio_temp && !has(s, "traje_termico");
+  const hot = s.temp > UMBRALES.calor_temp && !has(s, "capa_reflectante");
+  s.coldT = cold ? s.coldT + dt : Math.max(0, s.coldT - 2 * dt);
+  s.heatT = hot ? s.heatT + dt : Math.max(0, s.heatT - 2 * dt);
+
   const before = new Set(s.effects);
   const now = activeEffects(s, w, inShadow);
   for (const e of now) {
     const c = EFECTOS[e];
-    if (c.salud_s) s.health = Math.max(0, s.health - c.salud_s * dt);
+    const exposure = e === "frio" ? s.coldT : e === "calor" ? s.heatT : null;
+    if (c.salud_s && exposure !== null) {
+      const over = exposure - UMBRALES.gracia_s;
+      if (over > 0) s.health = Math.max(0, s.health - c.salud_s * Math.min(3, 1 + over / 10) * dt);
+    } else if (c.salud_s) s.health = Math.max(0, s.health - c.salud_s * dt);
     if (c.o2_extra && !w.inHabitat) s.suitO2 = Math.max(0, s.suitO2 - c.o2_extra * dt);
     if (!before.has(e)) addLog(s, `${c.icono} ${c.nombre}: ${c.remedio}`);
   }

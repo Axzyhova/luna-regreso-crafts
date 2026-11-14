@@ -5,6 +5,7 @@ import { useGame, sim, saveGame } from "@/game/store";
 import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft, PLACEABLE, SUBSISTEMAS, UMBRAL_VERDE, repairBlock, repairSubsystem, subCap } from "@/game/sim";
 import { launchBlockers, startLaunch, countdownLength, currentWindow, nextWindow, windowSecondsLeft, windowsUntil, VENTANAS_PROVISIONALES } from "@/game/mission";
 import { CubeSatDesigner } from "./CubeSatDesigner";
+import { Vitals } from "./Vitals";
 import { EventBanner, EffectsBar, QuestTracker, QuestLog } from "./StoryUI";
 import { GEAR, CONSUMIBLES, toggleEquip, consumeItem } from "@/game/effects";
 import { ITEMS } from "@/game/items";
@@ -40,16 +41,14 @@ export function HUDTop({ className = "", touch = false }: { className?: string; 
   return (
       <div className={`pointer-events-none space-y-1 bg-background/80 p-2 ${className}`}>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <Bar label="O2" v={s.suitO2} tone="bg-suit-light" />
-          <Bar label="HEALTH" v={s.health} />
-          <span className={`text-[8px] ${s.temp < 5 ? "text-suit-light" : "text-foreground"}`}>{s.temp.toFixed(0)}°C</span>
+          <Vitals />
           <span className={`ml-auto text-[8px] ${isDay(s) ? "text-gold" : "text-suit-light"}`}>{clock(s)}</span>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <span className="text-[7px]"><span className="text-muted-foreground">POWER</span> <span className={net >= 0 ? "text-ok" : "text-destructive"}>+{s.energyIn.toFixed(0)} / -{s.energyOut.toFixed(0)}</span> <span className="text-muted-foreground">BAT</span> {s.battery.toFixed(0)}/{batteryCap(s)}</span>
           <Bar label="LH2" v={s.lh2} max={LH2_CAP} tone="bg-suit-light" warn={0} />
           <Bar label="LOX" v={s.lox} max={LOX_CAP} tone="bg-suit" warn={0} />
-          <span className="text-[7px]"><span className="text-muted-foreground">MEZCLA O2:H2</span> <span className={Math.abs(ratio - 6) < 0.5 ? "text-ok" : "text-alert"}>{ratio.toFixed(1)}:1</span> <span className="text-muted-foreground">(obj 6:1)</span></span>
+          <span className="text-[7px]"><span className="text-muted-foreground">MIX O2:H2</span> <span className={Math.abs(ratio - 6) < 0.5 ? "text-ok" : "text-alert"}>{ratio.toFixed(1)}:1</span> <span className="text-muted-foreground">(target 6:1)</span></span>
         </div>
         {s.alert && <div className="animate-blink text-center text-[9px] text-alert">⚠ {s.alert}</div>}
         <EventBanner />
