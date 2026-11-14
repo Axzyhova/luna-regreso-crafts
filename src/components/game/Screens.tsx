@@ -39,12 +39,12 @@ export function Intro() {
     <div className="relative flex h-full flex-col items-center justify-center gap-8 p-6 text-center">
       <Stars />
       <h1 className="max-w-3xl text-xl leading-relaxed text-suit-light drop-shadow-[4px_4px_0_var(--color-suit)] sm:text-4xl sm:leading-snug">{GAME_TITLE}</h1>
-      <p className="max-w-xl text-[11px] leading-6 text-foreground">Bienvenido a la experiencia… ¿estás preparado para vivir una historia en el espacio?</p>
+      <p className="max-w-xl text-[11px] leading-6 text-foreground">Welcome to the experience… are you ready to live a story in space?</p>
       <div className="flex gap-4">
-        <PixelButton onClick={() => go("modo")}>Aceptar</PixelButton>
-        <PixelButton tone="ghost" onClick={() => go("rechazo")}>Rechazar</PixelButton>
+        <PixelButton onClick={() => go("modo")}>Accept</PixelButton>
+        <PixelButton tone="ghost" onClick={() => go("rechazo")}>Decline</PixelButton>
       </div>
-      <button className="text-[8px] text-muted-foreground underline" onClick={() => go("fuentes")}>Fuentes y créditos</button>
+      <button className="text-[8px] text-muted-foreground underline" onClick={() => go("fuentes")}>Sources & credits</button>
     </div>
   );
 }
@@ -54,8 +54,8 @@ export function Rechazo() {
   return (
     <div className="relative flex h-full flex-col items-center justify-center gap-8 text-center">
       <Stars />
-      <p className="text-sm text-suit-light">Hasta la próxima, astronauta</p>
-      <PixelButton tone="ghost" onClick={() => go("intro")}>Volver al inicio</PixelButton>
+      <p className="text-sm text-suit-light">See you next time, astronaut</p>
+      <PixelButton tone="ghost" onClick={() => go("intro")}>Back to title</PixelButton>
     </div>
   );
 }
@@ -67,7 +67,7 @@ export function ModeSelect() {
   return (
     <div className="relative flex h-full flex-col items-center justify-center gap-6 overflow-auto p-6">
       <Stars />
-      <h2 className="text-sm text-gold">ELIGE TU EXPERIENCIA</h2>
+      <h2 className="text-sm text-gold">CHOOSE YOUR EXPERIENCE</h2>
       <div className="grid w-full max-w-3xl gap-3 sm:grid-cols-3">
         {(Object.keys(modos.modos) as Mode[]).map((m) => {
           const c = modos.modos[m];
@@ -77,7 +77,6 @@ export function ModeSelect() {
               className={`relative border-4 bg-card p-4 text-left ${mode === m ? tone : "border-border opacity-70"}`}>
               <div className="text-[11px] text-foreground">{c.nombre}</div>
               <div className="mt-3 text-[8px] leading-4 text-muted-foreground">{c.desc}</div>
-              {m !== "realista" && <div className="mt-2 text-[7px] text-alert">Aliens en la próxima versión</div>}
             </button>
           );
         })}
@@ -91,18 +90,18 @@ export function ModeSelect() {
         ))}
       </div>
       <div className="flex gap-3">
-        <PixelButton onClick={() => { newGame(mode, diff); go("cinematica"); }}>Comenzar</PixelButton>
-        {hasSave() && <PixelButton tone="ghost" onClick={() => { if (loadGame()) go("juego"); }}>Continuar</PixelButton>}
+        <PixelButton onClick={() => { newGame(mode, diff); go("cinematica"); }}>Start</PixelButton>
+        {hasSave() && <PixelButton tone="ghost" onClick={() => { if (loadGame()) go("juego"); }}>Continue</PixelButton>}
       </div>
     </div>
   );
 }
 
 const PANELS = [
-  { text: "Año 2026. Despegas rumbo a una misión de rutina más allá de la órbita terrestre.", art: "launch" },
-  { text: "Una alarma. Un fallo en los tanques: el combustible escapa al vacío.", art: "fail" },
-  { text: "Sin opciones, apuntas al polo sur de la Luna y desciendes de emergencia.", art: "fall" },
-  { text: "Sobreviviste. Pero estás VARADO. Para volver tendrás que fabricar tu propio combustible.", art: "land" },
+  { text: "Year 2026. You lift off on a routine mission beyond Earth orbit.", art: "launch" },
+  { text: "An alarm. A tank failure: the fuel is venting into space.", art: "fail" },
+  { text: "Out of options, you aim for the Moon's south pole and make an emergency descent.", art: "fall" },
+  { text: "You survived. But you're STRANDED. To get home you'll have to make your own fuel.", art: "land" },
 ];
 export function Cinematic() {
   const go = useGame((s) => s.go);
@@ -117,8 +116,8 @@ export function Cinematic() {
         <div className="mt-2 text-[8px] text-muted-foreground">{i + 1}/4</div>
       </div>
       <div className="flex gap-3">
-        <PixelButton tone="ghost" onClick={() => go("juego")}>Saltar</PixelButton>
-        <PixelButton onClick={() => (i < 3 ? setI(i + 1) : go("juego"))}>{i < 3 ? "Siguiente" : "Comenzar"}</PixelButton>
+        <PixelButton tone="ghost" onClick={() => go("juego")}>Skip</PixelButton>
+        <PixelButton onClick={() => (i < 3 ? setI(i + 1) : go("juego"))}>{i < 3 ? "Next" : "Start"}</PixelButton>
       </div>
     </div>
   );
@@ -128,19 +127,19 @@ export function Fuentes() {
   const go = useGame((s) => s.go);
   return (
     <div className="flex h-full flex-col items-center gap-6 overflow-auto p-8">
-      <h2 className="text-sm text-gold">FUENTES Y CRÉDITOS</h2>
-      <p className="max-w-2xl text-[7px] leading-4 text-muted-foreground"><span className="text-ok">NASA-LISTA</span>: recurso oficial del reto · <span className="text-gold">EXTERNO</span>: dato real fuera de la lista · <span className="text-alert">FICCIÓN</span>: inventado para el juego</p>
+      <h2 className="text-sm text-gold">SOURCES & CREDITS</h2>
+      <p className="max-w-2xl text-[7px] leading-4 text-muted-foreground"><span className="text-ok">NASA-LIST</span>: official challenge resource · <span className="text-gold">EXTERNAL</span>: real data outside the list · <span className="text-alert">FICTION</span>: made up for the game</p>
       <ul className="max-w-2xl space-y-4">
         {fuentes.map((f) => (
           <li key={f.titulo} className="border-l-4 border-suit pl-3 text-[9px] leading-5">
-            <span className={f.tipo === "NASA-LISTA" ? "text-ok" : f.tipo === "EXTERNO" ? "text-gold" : f.tipo === "FICCIÓN" ? "text-alert" : "text-suit-light"}>[{f.tipo}]</span> {f.titulo}
+            <span className={f.tipo === "NASA-LIST" ? "text-ok" : f.tipo === "EXTERNAL" ? "text-gold" : f.tipo === "FICTION" ? "text-alert" : "text-suit-light"}>[{f.tipo}]</span> {f.titulo}
             <div className="text-muted-foreground">{f.nota}</div>
             {f.url && <a href={f.url} target="_blank" rel="noopener noreferrer" className="break-all text-[7px] text-suit-light underline">{f.url}</a>}
           </li>
         ))}
       </ul>
-      <p className="max-w-2xl text-[8px] leading-5 text-muted-foreground">NASA se menciona solo como fuente de datos. Este juego no está afiliado ni respaldado por NASA.</p>
-      <PixelButton tone="ghost" onClick={() => go("intro")}>Volver</PixelButton>
+      <p className="max-w-2xl text-[8px] leading-5 text-muted-foreground">NASA is mentioned only as a data source. This game is not affiliated with or endorsed by NASA.</p>
+      <PixelButton tone="ghost" onClick={() => go("intro")}>Back</PixelButton>
     </div>
   );
 }
@@ -153,18 +152,18 @@ export function Final() {
   return (
     <div className="relative flex h-full flex-col items-center justify-center gap-6 overflow-auto p-6 text-center">
       <Stars />
-      <h2 className="text-2xl text-ok drop-shadow-[3px_3px_0_var(--color-moon-0)]">¡REGRESO A CASA!</h2>
+      <h2 className="text-2xl text-ok drop-shadow-[3px_3px_0_var(--color-moon-0)]">BACK HOME!</h2>
       {r && (
         <div className="max-w-xl space-y-2 text-[9px] leading-5">
           {MISIONES.final.map((l) => <p key={l} className="text-suit-light">{l}</p>)}
-          <p className="pt-2">Despegaste el día {r.dia} en la ventana {r.ventana}.</p>
-          <p>Misiones secundarias: {s.quest.sideDone.length}/{sideAvailable(s).length} · Cápsulas abiertas: {s.stats.capsulas} · Reparaciones: {s.stats.reparaciones}</p>
-          <p>Combustible de sobra: LH2 {r.lh2Sobra.toFixed(1)} kg · LOX {r.loxSobra.toFixed(1)} kg</p>
-          <p className="text-gold">Logros: {s.logros.join(" · ") || "—"}</p>
-          <p className="text-[7px] text-muted-foreground">Las ventanas y el combustible requerido son provisionales hasta calcularlos con GMAT.</p>
+          <p className="pt-2">You launched on day {r.dia} in window {r.ventana}.</p>
+          <p>Side missions: {s.quest.sideDone.length}/{sideAvailable(s).length} · Capsules opened: {s.stats.capsulas} · Repairs: {s.stats.reparaciones}</p>
+          <p>Fuel left over: LH2 {r.lh2Sobra.toFixed(1)} kg · LOX {r.loxSobra.toFixed(1)} kg</p>
+          <p className="text-gold">Achievements: {s.logros.join(" · ") || "—"}</p>
+          <p className="text-[7px] text-muted-foreground">Return windows and required fuel are provisional until computed with GMAT.</p>
         </div>
       )}
-      <PixelButton onClick={() => go("intro")}>Volver al inicio</PixelButton>
+      <PixelButton onClick={() => go("intro")}>Back to title</PixelButton>
     </div>
   );
 }

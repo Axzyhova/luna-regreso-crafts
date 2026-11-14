@@ -72,7 +72,7 @@ export class LunarScene extends Phaser.Scene {
     }
     g.fillStyle(T.moon0).fillEllipse(SHADOW.x, SHADOW.y, SHADOW.rx * 2 + 16, SHADOW.ry * 2 + 10);
     g.fillStyle(T.space).fillEllipse(SHADOW.x, SHADOW.y, SHADOW.rx * 2, SHADOW.ry * 2);
-    this.add.text(SHADOW.x - 52, SHADOW.y - 8, "CRÁTER EN SOMBRA", { fontFamily: '"Press Start 2P"', fontSize: "6px", color: "#45454f" });
+    this.add.text(SHADOW.x - 46, SHADOW.y - 8, "SHADOWED CRATER", { fontFamily: '"Press Start 2P"', fontSize: "6px", color: "#45454f" });
 
     // rocket
     g.fillStyle(T.moon4).fillRect(ROCKET.x - 8, ROCKET.y - 36, 16, 56); g.fillStyle(T.white).fillTriangle(ROCKET.x - 8, ROCKET.y - 36, ROCKET.x + 8, ROCKET.y - 36, ROCKET.x, ROCKET.y - 52);
@@ -81,7 +81,7 @@ export class LunarScene extends Phaser.Scene {
     g.fillStyle(T.moon2).fillRect(ROCKET.x - 4, ROCKET.y + 20, 8, 4); g.fillStyle(T.moon0).fillRect(ROCKET.x - 6, ROCKET.y - 6, 12, 3);
     g.fillStyle(T.moon0).fillRect(ROCKET.x + 20, ROCKET.y - 10, 10, 30); g.fillStyle(T.moon0).fillRect(ROCKET.x - 30, ROCKET.y - 10, 10, 30);
     const lbl = { fontFamily: '"Press Start 2P"', fontSize: "5px", color: "#c9c9cf" };
-    this.add.text(ROCKET.x - 16, ROCKET.y + 28, "COHETE", lbl);
+    this.add.text(ROCKET.x - 16, ROCKET.y + 28, "ROCKET", lbl);
     this.add.text(ROCKET.x + 18, ROCKET.y + 22, "LOX", lbl); this.add.text(ROCKET.x - 32, ROCKET.y + 22, "LH2", lbl);
 
     // resources
@@ -116,7 +116,7 @@ export class LunarScene extends Phaser.Scene {
     (["ONE", "TWO", "THREE", "FOUR", "FIVE"] as const).forEach((n, i) => this.input.keyboard!.on(`keydown-${n}`, () => { sim.hotbar = i + 1; sfx.click(); }));
     for (const l of sim.leaks) this.addLeakSprite(l.id, l.x, l.y);
     initCapsules(sim, { w: W, h: H, hab: HAB, rnd: () => Math.random() });
-    if (!sim.log.length) addLog(sim, "Aterrizaje de emergencia en el polo sur lunar. Sin combustible.");
+    if (!sim.log.length) addLog(sim, "Emergency landing at the lunar south pole. No fuel.");
     this.leakT = 25;
   }
 
@@ -140,7 +140,7 @@ export class LunarScene extends Phaser.Scene {
     const l = { id: sim.nextLeakId++, target, x: base.x, y: base.y, size: 1, progress: 0, age: 0 };
     sim.leaks.push(l); this.addLeakSprite(l.id, l.x, l.y);
     sim.leakFreeNight = isDay(sim) ? sim.leakFreeNight : false;
-    addLog(sim, `Fuga detectada en ${target === "habitat" ? "el hábitat" : target === "lh2" ? "el tanque de LH2" : "el tanque de LOX"}.`);
+    addLog(sim, `Leak detected in ${target === "habitat" ? "the habitat" : target === "lh2" ? "the LH2 tank" : "the LOX tank"}.`);
     sfx.alert();
   }
 
@@ -196,7 +196,7 @@ export class LunarScene extends Phaser.Scene {
     if (useGame.getState().overlay) return;
     if (sim.buildMode) { sim.buildMode = null; this.preview.clear(); return; }
     const own = this.ownedPlaceables();
-    if (!own.length) { this.say("NO TIENES MÓDULOS: FABRÍCALOS (TAB)"); sfx.bad(); return; }
+    if (!own.length) { this.say("NO MODULES: CRAFT THEM (INVENTORY)"); sfx.bad(); return; }
     sim.buildMode = own[0]!; sfx.click();
   }
   cycleBuild() {
@@ -223,10 +223,10 @@ export class LunarScene extends Phaser.Scene {
     const tipo = PLACEABLE[key]!;
     const p = at ?? this.buildTarget();
     const x = Math.round(p.x), y = Math.round(p.y);
-    if (!this.checkPlace(tipo, x, y)) { sfx.bad(); this.say(TIPOS[tipo].en_crater ? "EL TALADRO VA DENTRO DEL CRÁTER" : "LUGAR NO VÁLIDO"); return; }
+    if (!this.checkPlace(tipo, x, y)) { sfx.bad(); this.say(TIPOS[tipo].en_crater ? "THE DRILL GOES INSIDE THE CRATER" : "INVALID SPOT"); return; }
     (sim.inv as unknown as Record<string, number>)[key]! -= 1;
     sim.modules.push({ uid: sim.nextUid++, tipo, x, y, durabilidad: 100, activo: true });
-    addLog(sim, `Día ${sim.day}: construiste ${TIPOS[tipo].nombre.toLowerCase()}.`); sfx.ok();
+    addLog(sim, `Day ${sim.day}: you built a ${TIPOS[tipo].nombre.toLowerCase()}.`); sfx.ok();
     if (!this.ownedPlaceables().includes(key)) { sim.buildMode = null; this.preview.clear(); }
   }
 
@@ -242,7 +242,7 @@ export class LunarScene extends Phaser.Scene {
     const n = this.nearestNode();
     if (!n) return;
     this.useCd = ((sim.inv.taladro ?? 0) > 0 ? 0.25 : (sim.inv.pala_mejorada ?? 0) > 0 ? 0.35 : 0.5) * effectMods(sim).gather;
-    if (!addItem(sim, n.type, 1)) { this.say("INVENTARIO LLENO"); sfx.bad(); return; }
+    if (!addItem(sim, n.type, 1)) { this.say("INVENTORY FULL"); sfx.bad(); return; }
     if (n.type === "hielo") sim.stats.hielo++;
     sim.fatigue = Math.min(100, sim.fatigue + 0.6);
     n.amount -= 1; sfx.pick();
@@ -256,13 +256,13 @@ export class LunarScene extends Phaser.Scene {
     const cap = nearestCapsule(sim, this.player.x, this.player.y);
     if (cap) {
       const found = openCapsule(sim, cap.id, () => Math.random());
-      toast(sim, `📦 ${found.map((f) => `+${f.n} ${ITEMS[f.item]?.nombre ?? f.item}`).join(" · ") || "Inventario lleno"}`);
+      toast(sim, `📦 ${found.map((f) => `+${f.n} ${ITEMS[f.item]?.nombre ?? f.item}`).join(" · ") || "Inventory full"}`);
       sfx.ok();
       return;
     }
     if (this.nearHab() && sim.inv.hielo > 0) {
       const w = sim.inv.hielo * BAL.hielo_a_agua_kg; sim.inv.agua += w; sim.inv.hielo = 0;
-      addLog(sim, `Derretiste hielo: +${w} kg de agua para electrólisis.`); sfx.ok();
+      addLog(sim, `You melted ice: +${w} kg of water for electrolysis.`); sfx.ok();
     } else if (Phaser.Math.Distance.Between(ROCKET.x, ROCKET.y, this.player.x, this.player.y) < 36) {
       useGame.getState().setOverlay("cohete");
     }
@@ -290,7 +290,7 @@ export class LunarScene extends Phaser.Scene {
     this.updateWorldEvents(dt, inShadow);
     const cd = stepCountdown(sim, dt);
     if (cd === "launched") { sfx.ok(); saveGame(); useGame.getState().publish(); useGame.getState().go("final"); return; }
-    if (cd === "aborted") { sfx.bad(); this.say("DESPEGUE ABORTADO: REVISA EL COHETE (E)"); }
+    if (cd === "aborted") { sfx.bad(); this.say("LAUNCH ABORTED: CHECK THE ROCKET (E)"); }
 
     // leaks
     this.leakT -= dt;
@@ -304,23 +304,23 @@ export class LunarScene extends Phaser.Scene {
     const leak = this.nearestLeak();
     const broken = leak ? undefined : this.nearModule((m) => m.durabilidad < 100);
     if (broken && (k.E.isDown || touch.e) && broken.durabilidad < 60) {
-      if (sim.inv.kits < 1) this.say("SIN KITS: CRAFTEA UNO (TAB)");
+      if (sim.inv.kits < 1) this.say("NO KITS: CRAFT ONE (INVENTORY)");
       else {
         this.repairT += dt;
         const need = 2.5 * effectMods(sim).repair;
         this.ring.lineStyle(2, PAL.ok).beginPath().arc(broken.x, broken.y, 10, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (this.repairT / need)).strokePath();
-        if (this.repairT >= need) { this.repairT = 0; sim.inv.kits -= 1; broken.durabilidad = 100; sim.stats.reparaciones++; addLog(sim, `Reparaste: ${TIPOS[broken.tipo].nombre}. -1 kit.`); sfx.ok(); }
+        if (this.repairT >= need) { this.repairT = 0; sim.inv.kits -= 1; broken.durabilidad = 100; sim.stats.reparaciones++; addLog(sim, `Repaired: ${TIPOS[broken.tipo].nombre}. -1 kit.`); sfx.ok(); }
       }
     } else this.repairT = 0;
     if (leak && (k.E.isDown || touch.e)) {
-      if (sim.inv.kits < 1) { this.say("SIN KITS: CRAFTEA UNO (TAB)"); }
+      if (sim.inv.kits < 1) { this.say("NO KITS: CRAFT ONE (INVENTORY)"); }
       else {
         leak.progress += dt / ((1.5 + leak.size * 0.8) * effectMods(sim).repair);
         this.ring.lineStyle(2, PAL.ok).beginPath().arc(leak.x, leak.y, 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * leak.progress).strokePath();
         if (leak.progress >= 1) {
           sim.inv.kits -= 1; sim.leaks = sim.leaks.filter((l) => l !== leak);
           this.leakSprites.get(leak.id)?.destroy(); this.leakSprites.delete(leak.id);
-          sim.actFlags.leakFixed = true; sim.stats.reparaciones++; addLog(sim, "Fuga sellada. -1 kit."); sfx.ok();
+          sim.actFlags.leakFixed = true; sim.stats.reparaciones++; addLog(sim, "Leak sealed. -1 kit."); sfx.ok();
         }
       }
     } else if (leak) leak.progress = Math.max(0, leak.progress - dt * 0.5);
@@ -328,13 +328,13 @@ export class LunarScene extends Phaser.Scene {
 
     // prompts
     const n = this.nearestNode();
-    if (leak) this.say(`MANTÉN E: SELLAR FUGA (${sim.inv.kits} KITS)`);
-    else if (nearestCapsule(sim, this.player.x, this.player.y)) this.say("E: ABRIR CÁPSULA DE SUMINISTRO");
-    else if (n) this.say(`ESPACIO: RECOGER ${n.type.toUpperCase()}`);
-    else if (broken && broken.durabilidad < 60 && !(this.nearHab() && sim.inv.hielo > 0)) this.say(`MANTÉN E: REPARAR ${TIPOS[broken.tipo].nombre.toUpperCase()} (1 KIT)`);
-    else if (this.nearHab() && sim.inv.hielo > 0) this.say("E: DERRETIR HIELO");
-    else if (this.nearHab()) this.say("HÁBITAT: RECARGANDO O2");
-    else if (Phaser.Math.Distance.Between(ROCKET.x, ROCKET.y, this.player.x, this.player.y) < 36) this.say("E: REVISAR COHETE");
+    if (leak) this.say(`HOLD E: SEAL LEAK (${sim.inv.kits} KITS)`);
+    else if (nearestCapsule(sim, this.player.x, this.player.y)) this.say("E: OPEN SUPPLY CAPSULE");
+    else if (n) this.say(`ACTION: PICK UP ${(ITEMS[n.type]?.nombre ?? n.type).toUpperCase()}`);
+    else if (broken && broken.durabilidad < 60 && !(this.nearHab() && sim.inv.hielo > 0)) this.say(`HOLD E: REPAIR ${TIPOS[broken.tipo].nombre.toUpperCase()} (1 KIT)`);
+    else if (this.nearHab() && sim.inv.hielo > 0) this.say("E: MELT ICE");
+    else if (this.nearHab()) this.say("HABITAT: REFILLING O2");
+    else if (Phaser.Math.Distance.Between(ROCKET.x, ROCKET.y, this.player.x, this.player.y) < 36) this.say("E: CHECK ROCKET");
     else this.prompt.setVisible(false);
 
     // day/night lighting

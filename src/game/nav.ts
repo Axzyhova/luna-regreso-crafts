@@ -6,10 +6,10 @@ export const PX_PER_M = 4;
 const WALK_PX_S = 60;
 
 export const NAV_LABEL: Record<string, string> = {
-  fuga: "Fuga", hielo: "Hielo del cráter", base: "Hábitat", cohete: "Cohete", capsula: "Cápsula de suministro",
-  alien: "¡Alien cerca!", jefe: "¡Nodriza!", meteoritos: "Zona de impactos",
+  fuga: "Leak", hielo: "Crater ice", base: "Habitat", cohete: "Rocket", capsula: "Supply capsule",
+  alien: "Alien nearby!", jefe: "Mothership!", meteoritos: "Impact zone",
 };
-const DIRS = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
+const DIRS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
 export interface NavTarget { k: string; label: string; dx: number; dy: number; m: number; deg: number; dir: string; warn: boolean }
 

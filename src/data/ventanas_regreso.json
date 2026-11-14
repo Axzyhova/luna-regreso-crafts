@@ -1,11 +1,29 @@
 {
-  "provisional": true,
-  "nota": "Valores PROVISIONALES de juego, no son cálculos reales de trayectoria. Reemplazar con valores calculados en GMAT.",
-  "fuente": "GMAT (NASA, GSC-19468-1) — pendiente de generar",
-  "ventanas": [
-    { "id": "V1", "abre_dia": 3, "dura_s": 240, "lh2_kg": 22, "lox_kg": 132 },
-    { "id": "V2", "abre_dia": 5, "dura_s": 300, "lh2_kg": 20, "lox_kg": 120 },
-    { "id": "V3", "abre_dia": 8, "dura_s": 360, "lh2_kg": 18, "lox_kg": 108 }
-  ],
-  "repetir_cada_dias": 3
+ "provisional": true,
+ "nota": "PROVISIONAL game values, not real trajectory calculations. Replace with values computed in GMAT.",
+ "fuente": "GMAT (NASA, GSC-19468-1) — still to be generated",
+ "ventanas": [
+  {
+   "id": "V1",
+   "abre_dia": 3,
+   "dura_s": 240,
+   "lh2_kg": 22,
+   "lox_kg": 132
+  },
+  {
+   "id": "V2",
+   "abre_dia": 5,
+   "dura_s": 300,
+   "lh2_kg": 20,
+   "lox_kg": 120
+  },
+  {
+   "id": "V3",
+   "abre_dia": 8,
+   "dura_s": 360,
+   "lh2_kg": 18,
+   "lox_kg": 108
+  }
+ ],
+ "repetir_cada_dias": 3
 }

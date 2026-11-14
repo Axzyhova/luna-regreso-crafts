@@ -14,7 +14,7 @@ export const COND: Record<string, (s: Sim) => boolean> = {
   fuga_sellada: (s) => s.actFlags.leakFixed,
   hielo_6: (s) => s.stats.hielo >= 6,
   lh2_3: (s) => s.lh2 >= 3,
-  esencial_70: (s) => (s.rocket["Estructura"] ?? 0) >= 70 && (s.rocket["Energía"] ?? 0) >= 70,
+  esencial_70: (s) => (s.rocket["Structure"] ?? 0) >= 70 && (s.rocket["Power"] ?? 0) >= 70,
   relay: (s) => s.relay,
   listo_para_despegar: (s) => {
     if (!s.relay || SUBSISTEMAS.some((x) => (s.rocket[x.id] ?? 0) < UMBRAL_VERDE)) return false;
@@ -27,7 +27,7 @@ export const COND: Record<string, (s: Sim) => boolean> = {
   torres_2: (s) => s.modules.filter((m) => m.tipo === "torre_luz" && isOn(m)).length >= 2,
   reparaciones_5: (s) => s.stats.reparaciones >= 5,
   aliens_5: (s) => s.stats.aliens >= 5,
-  mezcla: (s) => s.logros.includes("Mezcla perfecta 6:1"),
+  mezcla: (s) => s.logros.includes("Perfect 6:1 mix"),
 };
 
 export const currentMain = (s: Sim): Quest | null => PRINCIPALES[s.quest.main] ?? null;
@@ -38,15 +38,15 @@ export function stepQuests(s: Sim) {
   if (!s.quest.started) {
     s.quest.started = true;
     s.dialog.push(...data.intro);
-    addLog(s, `MISIÓN: ${PRINCIPALES[0]!.titulo} — ${PRINCIPALES[0]!.objetivo}`);
+    addLog(s, `MISSION: ${PRINCIPALES[0]!.titulo} — ${PRINCIPALES[0]!.objetivo}`);
   }
   // Main story: sequential (several can complete in one frame if already satisfied).
   for (let q = currentMain(s); q && COND[q.cond]?.(s); q = currentMain(s)) {
     s.dialog.push(...q.fin);
-    addLog(s, `✔ Misión completada: ${q.titulo}`);
+    addLog(s, `✔ Mission complete: ${q.titulo}`);
     s.quest.main++;
     const next = currentMain(s);
-    if (next) { s.dialog.push(...next.inicio); addLog(s, `MISIÓN: ${next.titulo} — ${next.objetivo}`); }
+    if (next) { s.dialog.push(...next.inicio); addLog(s, `MISSION: ${next.titulo} — ${next.objetivo}`); }
   }
   for (const q of sideAvailable(s)) {
     if (s.quest.sideDone.includes(q.id) || !COND[q.cond]?.(s)) continue;
@@ -54,6 +54,6 @@ export function stepQuests(s: Sim) {
     for (const [k, n] of Object.entries(q.recompensa)) addItem(s, k as keyof Inv, n ?? 0);
     const [quien, ...rest] = q.fin.split(": ");
     s.dialog.push({ quien: rest.length ? quien! : "ARIA", texto: rest.length ? rest.join(": ") : q.fin });
-    addLog(s, `✔ Misión secundaria: ${q.titulo}`);
+    addLog(s, `✔ Side mission: ${q.titulo}`);
   }
 }

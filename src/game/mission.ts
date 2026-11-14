@@ -53,17 +53,17 @@ export function cubesatIssues(placed: Placed[]): string[] {
   const out: string[] = [];
   const st = cubesatStats(placed);
   for (const r of cubesat.requisitos) if (!placed.some((p) => p.id === r.pieza)) out.push(r.texto);
-  if (st.masa > MASA_MAX) out.push(`Demasiado pesado: ${st.masa} kg de ${MASA_MAX} kg permitidos para un 3U.`);
-  if (st.energia < 0) out.push(`Energía negativa (${st.energia} W): consume más de lo que generan los paneles.`);
+  if (st.masa > MASA_MAX) out.push(`Too heavy: ${st.masa} kg of the ${MASA_MAX} kg allowed for a 3U.`);
+  if (st.energia < 0) out.push(`Negative power (${st.energia} W): it uses more than the panels generate.`);
   return out;
 }
 /** Why the relay can't launch now (design, materials or fuel), or null. */
 export function relayBlock(s: Sim): string | null {
-  if (s.relay) return "El relé ya está en órbita";
+  if (s.relay) return "The relay is already in orbit";
   const issues = cubesatIssues(s.cubesat);
-  if (issues.length) return "El diseño aún no es viable";
-  if (!canCraft(s.inv, cubesatStats(s.cubesat).costo)) return "Faltan materiales para fabricar las piezas";
-  if (s.lh2 < RELAY_FUEL.lh2_kg || s.lox < RELAY_FUEL.lox_kg) return `Falta combustible para el cohete pequeño: ${RELAY_FUEL.lh2_kg} kg LH2 y ${RELAY_FUEL.lox_kg} kg LOX`;
+  if (issues.length) return "The design is not viable yet";
+  if (!canCraft(s.inv, cubesatStats(s.cubesat).costo)) return "Missing materials to build the parts";
+  if (s.lh2 < RELAY_FUEL.lh2_kg || s.lox < RELAY_FUEL.lox_kg) return `Not enough fuel for the small rocket: ${RELAY_FUEL.lh2_kg} kg LH2 and ${RELAY_FUEL.lox_kg} kg LOX`;
   return null;
 }
 export function launchRelay(s: Sim) {
@@ -72,10 +72,10 @@ export function launchRelay(s: Sim) {
   for (const [k, v] of Object.entries(cubesatStats(s.cubesat).costo)) inv[k] = (inv[k] ?? 0) - v;
   s.lh2 -= RELAY_FUEL.lh2_kg; s.lox -= RELAY_FUEL.lox_kg;
   s.relay = true;
-  addLog(s, `Día ${s.day}: lanzaste el CubeSat relé. -${RELAY_FUEL.lh2_kg} kg LH2, -${RELAY_FUEL.lox_kg} kg LOX.`);
-  unlock(s, "Contacto con la Tierra");
+  addLog(s, `Day ${s.day}: you launched the CubeSat relay. -${RELAY_FUEL.lh2_kg} kg LH2, -${RELAY_FUEL.lox_kg} kg LOX.`);
+  unlock(s, "Contact with Earth");
   const w = nextWindow(s);
-  addLog(s, `Control de Misión: próxima ventana de regreso ${w.id}, día ${w.abre_dia}. Necesitas ${w.lh2_kg} kg LH2 y ${w.lox_kg} kg LOX.`);
+  addLog(s, `Mission Control: next return window ${w.id}, day ${w.abre_dia}. You need ${w.lh2_kg} kg LH2 and ${w.lox_kg} kg LOX.`);
   while (s.act < 4) advanceAct(s);
   return true;
 }
@@ -110,20 +110,20 @@ const tankLeaks = (s: Sim) => s.leaks.filter((l) => l.target !== "habitat").leng
 export function launchBlockers(s: Sim): string[] {
   const out: string[] = [];
   const rojos = SUBSISTEMAS.filter((x) => (s.rocket[x.id] ?? 0) < UMBRAL_VERDE).map((x) => x.id);
-  if (rojos.length) out.push(`Subsistemas por debajo de ${UMBRAL_VERDE}%: ${rojos.join(", ")}`);
-  if (tankLeaks(s)) out.push("Hay fugas en los tanques");
-  if (!s.relay) { out.push("Sin ventana de regreso: lanza el CubeSat relé para recibirla"); return out; }
+  if (rojos.length) out.push(`Subsystems below ${UMBRAL_VERDE}%: ${rojos.join(", ")}`);
+  if (tankLeaks(s)) out.push("There are leaks in the tanks");
+  if (!s.relay) { out.push("No return window: launch the CubeSat relay to receive it"); return out; }
   const w = nextWindow(s);
-  if (s.lh2 < w.lh2_kg || s.lox < w.lox_kg) out.push(`Tanques insuficientes para ${w.id}: LH2 ${s.lh2.toFixed(0)}/${w.lh2_kg} · LOX ${s.lox.toFixed(0)}/${w.lox_kg} kg`);
-  if (!currentWindow(s)) out.push(`Fuera de ventana: ${w.id} abre el día ${w.abre_dia}`);
+  if (s.lh2 < w.lh2_kg || s.lox < w.lox_kg) out.push(`Not enough fuel for ${w.id}: LH2 ${s.lh2.toFixed(0)}/${w.lh2_kg} · LOX ${s.lox.toFixed(0)}/${w.lox_kg} kg`);
+  if (!currentWindow(s)) out.push(`Outside a window: ${w.id} opens on day ${w.abre_dia}`);
   return out;
 }
 export function launch(s: Sim) {
   if (launchBlockers(s).length) return false;
   const w = currentWindow(s)!;
   s.result = { ok: true, dia: s.day, ventana: w.id, lh2Sobra: s.lh2 - w.lh2_kg, loxSobra: s.lox - w.lox_kg };
-  addLog(s, `Día ${s.day}: ¡despegue en la ventana ${w.id}!`);
-  unlock(s, "Regreso a casa");
+  addLog(s, `Day ${s.day}: liftoff in window ${w.id}!`);
+  unlock(s, "Back home");
   return true;
 }
 
@@ -134,14 +134,14 @@ export const countdownLength = (s: Sim) => aliensCfg.cuenta_regresiva_s[s.mode];
 export function startLaunch(s: Sim) {
   if (s.countdown !== null || launchBlockers(s).length) return false;
   s.countdown = countdownLength(s);
-  addLog(s, `Cuenta regresiva iniciada: ${s.countdown} s. Mantén el cohete a salvo.`);
+  addLog(s, `Countdown started: ${s.countdown} s. Keep the rocket safe.`);
   return true;
 }
 /** Advances the countdown: "launched" at zero, "aborted" if anything breaks the launch conditions. */
 export function stepCountdown(s: Sim, dt: number): "launched" | "aborted" | null {
   if (s.countdown === null) return null;
   const b = launchBlockers(s);
-  if (b.length) { s.countdown = null; addLog(s, `Despegue abortado: ${b[0]}.`); return "aborted"; }
+  if (b.length) { s.countdown = null; addLog(s, `Launch aborted: ${b[0]}.`); return "aborted"; }
   s.countdown -= dt;
   if (s.countdown <= 0) { s.countdown = null; s.aliens = []; return launch(s) ? "launched" : "aborted"; }
   return null;

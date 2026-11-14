@@ -1,5 +1,5 @@
 {
-  "nota": "Ritmos de juego en un solo lugar para ajustar el balance. Las cantidades son de juego (kg simplificados), no valores reales de una misión. La química (1:8 en electrólisis, mezcla ~6:1) se mantiene.",
+  "nota": "Game rates in one place to tune the balance. Amounts are game units (simplified kg), not real mission values. The chemistry (1:8 electrolysis, ~6:1 mix) is kept.",
   "lh2_cap_kg": 30,
   "lox_cap_kg": 180,
   "hielo_a_agua_kg": 5,

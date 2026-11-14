@@ -31,13 +31,13 @@ export function NavCard({ className = "" }: { className?: string }) {
         <div className="truncate px-3 pb-2 text-sm font-bold sm:px-4 sm:text-base">{primary.label}</div>
         {then && (
           <div className={`flex items-center justify-between border-t border-white/15 px-3 py-1.5 text-[11px] sm:px-4 sm:text-sm ${then.warn ? "text-[#ff6b5b]" : "text-white/85"}`}>
-            <span className="truncate">y luego · {then.label} {then.m} m</span>
+            <span className="truncate">then · {then.label} {then.m} m</span>
             <Arrow deg={then.deg} size={14} warn={then.warn} />
           </div>
         )}
       </div>
       <div className="rounded-2xl bg-white/90 px-3 py-1.5 text-[#111214] shadow sm:px-4 sm:py-2">
-        <div className="text-sm font-bold sm:text-base">Llegada ~{etaS} s</div>
+        <div className="text-sm font-bold sm:text-base">Arrival ~{etaS} s</div>
         <div className="text-[10px] text-black/60 sm:text-xs">{primary.dir} · {primary.m} m</div>
       </div>
     </div>
@@ -63,7 +63,7 @@ export function EffectsBar() {
   return (
     <div className="flex flex-wrap items-center justify-center gap-2 text-[7px]">
       {(s.effects as EffectId[]).map((e) => <span key={e} title={EFECTOS[e]?.desc} className="animate-pulse text-alert">{EFECTOS[e]?.icono} {EFECTOS[e]?.nombre}</span>)}
-      {!s.effects.includes("cansancio") && s.fatigue >= 40 && <span className="text-muted-foreground">😮‍💨 Fatiga {Math.round(s.fatigue)}%</span>}
+      {!s.effects.includes("cansancio") && s.fatigue >= 40 && <span className="text-muted-foreground">😮‍💨 Fatigue {Math.round(s.fatigue)}%</span>}
       {s.equip.map((g) => <span key={g} className="flex items-center gap-1 text-ok"><PixelIcon item={g} size={10} />{ITEMS[g]?.nombre}</span>)}
     </div>
   );
@@ -85,9 +85,9 @@ export function DialogBox() {
   const color = line.quien === "CONTROL" ? "border-ok text-ok" : line.quien === "ARIA" ? "border-suit-light text-suit-light" : "border-gold text-gold";
   return (
     <button type="button" onClick={next} className={`absolute inset-x-2 bottom-2 z-[7] mx-auto max-w-xl border-4 bg-card/95 p-3 text-left ${color.split(" ")[0]}`}>
-      <div className={`mb-1 text-[8px] ${color.split(" ")[1]}`}>{line.quien === "CONTROL" ? "📡 CONTROL DE MISIÓN" : line.quien === "ARIA" ? "🤖 ARIA" : line.quien}</div>
+      <div className={`mb-1 text-[8px] ${color.split(" ")[1]}`}>{line.quien === "CONTROL" ? "📡 MISSION CONTROL" : line.quien === "ARIA" ? "🤖 ARIA" : line.quien}</div>
       <div className="text-[8px] leading-4 text-foreground">{line.texto}</div>
-      <div className="mt-1 text-right text-[6px] text-muted-foreground">{s.dialog.length > 1 ? `toca para continuar (${s.dialog.length - 1})` : "toca para cerrar"} ▶</div>
+      <div className="mt-1 text-right text-[6px] text-muted-foreground">{s.dialog.length > 1 ? `tap to continue (${s.dialog.length - 1})` : "tap to close"} ▶</div>
     </button>
   );
 }
@@ -99,7 +99,7 @@ export function QuestTracker() {
   const q = currentMain(s);
   return (
     <button type="button" onClick={() => { sfx.click(); setOverlay("misiones"); }} className="pointer-events-auto text-center text-[8px] leading-4 text-gold">
-      📜 {q ? <>MISIÓN {s.quest.main + 1}/{PRINCIPALES.length} · {q.titulo.toUpperCase()}: <span className="text-foreground">{q.objetivo}</span></> : "¡Historia completada!"}
+      📜 {q ? <>MISSION {s.quest.main + 1}/{PRINCIPALES.length} · {q.titulo.toUpperCase()}: <span className="text-foreground">{q.objetivo}</span></> : "Story complete!"}
     </button>
   );
 }
@@ -110,8 +110,8 @@ export function QuestLog() {
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/70 p-4">
       <div className="max-h-full w-full max-w-2xl overflow-auto border-4 border-suit bg-card p-4">
-        <div className="mb-3 flex items-center justify-between"><h3 className="text-[11px] text-gold">MISIONES</h3><button onClick={() => setOverlay(null)} className="text-[9px] text-muted-foreground">[X]</button></div>
-        <div className="mb-2 text-[8px] text-suit-light">HISTORIA PRINCIPAL</div>
+        <div className="mb-3 flex items-center justify-between"><h3 className="text-[11px] text-gold">MISSIONS</h3><button onClick={() => setOverlay(null)} className="text-[9px] text-muted-foreground">[X]</button></div>
+        <div className="mb-2 text-[8px] text-suit-light">MAIN STORY</div>
         <ol className="mb-4 space-y-2">
           {PRINCIPALES.map((q, i) => {
             const done = i < s.quest.main, cur = i === s.quest.main;
@@ -123,19 +123,19 @@ export function QuestLog() {
             );
           })}
         </ol>
-        <div className="mb-2 text-[8px] text-suit-light">SECUNDARIAS</div>
+        <div className="mb-2 text-[8px] text-suit-light">SIDE MISSIONS</div>
         <ul className="space-y-2">
           {sideAvailable(s).map((q) => {
             const done = s.quest.sideDone.includes(q.id);
             return (
               <li key={q.id} className={`text-[8px] leading-4 ${done ? "text-ok" : ""}`}>
                 {done ? "✔" : "◇"} {q.titulo}
-                <div className="pl-4 text-[7px] text-muted-foreground">{q.objetivo} · Recompensa: {Object.entries(q.recompensa).map(([k, n]) => `${n} ${ITEMS[k]?.nombre ?? k}`).join(", ")}</div>
+                <div className="pl-4 text-[7px] text-muted-foreground">{q.objetivo} · Reward: {Object.entries(q.recompensa).map(([k, n]) => `${n} ${ITEMS[k]?.nombre ?? k}`).join(", ")}</div>
               </li>
             );
           })}
         </ul>
-        <p className="mt-4 text-[7px] leading-4 text-muted-foreground">Personajes: {Object.entries(MISIONES.personajes).map(([k, v]) => `${k} (${v})`).join(" · ")}</p>
+        <p className="mt-4 text-[7px] leading-4 text-muted-foreground">Characters: {Object.entries(MISIONES.personajes).map(([k, v]) => `${k} (${v})`).join(" · ")}</p>
       </div>
     </div>
   );

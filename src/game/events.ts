@@ -32,7 +32,7 @@ export function startEvent(s: Sim, id: EventId, w: World) {
   const x = Math.max(r, Math.min(w.w - r, near.x + (w.rnd() - 0.5) * 120));
   const y = Math.max(r, Math.min(w.h - r, near.y + (w.rnd() - 0.5) * 80));
   s.event = { id, phase: "aviso", t: e.aviso_s, x, y, hits: 0, maxDose: 0 };
-  addLog(s, `ALERTA ${e.icono} ${e.nombre}: ${e.texto_aviso.replace("{t}", String(e.aviso_s))}`);
+  addLog(s, `ALERT ${e.icono} ${e.nombre}: ${e.texto_aviso.replace("{t}", String(e.aviso_s))}`);
 }
 
 /** Advance the natural-event scheduler. Returns meteor impacts for the scene to draw. */
@@ -43,7 +43,7 @@ export function stepEvents(s: Sim, dt: number, w: World): { x: number; y: number
 
   // Dusk warning in modes with aliens.
   const night = !isDay(s);
-  if (aliensEnabled(s) && night && (s.time - dt) % CYCLE < DAY_LEN) toast(s, "🌒 Cae la noche: actividad alienígena. Quédate cerca de la luz.", 7);
+  if (aliensEnabled(s) && night && (s.time - dt) % CYCLE < DAY_LEN) toast(s, "🌒 Night falls: alien activity. Stay close to the light.", 7);
 
   if (!s.event) {
     if (s.countdown !== null) return impacts;
@@ -71,19 +71,19 @@ export function stepEvents(s: Sim, dt: number, w: World): { x: number; y: number
       const p = { x: ev.x + Math.cos(a) * rr, y: ev.y + Math.sin(a) * rr };
       impacts.push(p); s.impacts.push({ ...p, t: 1.2 });
       const ri = e.radio_impacto ?? 0;
-      if (dist(p.x, p.y, w.player.x, w.player.y) < ri && !w.inHabitat) { s.health = Math.max(0, s.health - (e.dano_jugador ?? 0)); addLog(s, "☄️ Un micrometeorito te alcanzó."); }
+      if (dist(p.x, p.y, w.player.x, w.player.y) < ri && !w.inHabitat) { s.health = Math.max(0, s.health - (e.dano_jugador ?? 0)); addLog(s, "☄️ A micrometeorite hit you."); }
       for (const m of s.modules) {
         if (dist(p.x, p.y, m.x, m.y) < ri + Math.max(TIPOS[m.tipo].w, TIPOS[m.tipo].h) / 2 && isOn(m)) {
           m.durabilidad = Math.max(0, m.durabilidad - (e.dano_modulo ?? 0));
-          addLog(s, `☄️ Impacto en ${TIPOS[m.tipo].nombre}.`);
+          addLog(s, `☄️ Impact on ${TIPOS[m.tipo].nombre}.`);
         }
       }
     }
   }
   if (ev.t <= 0) {
     if (ev.id === "llamarada_solar" && ev.maxDose <= 40) s.stats.llamaradas++;
-    if (ev.id === "meteoritos") { spawnCapsule(s, ev.x, ev.y); addLog(s, "Entre los restos del impacto quedó una cápsula de suministro."); }
-    addLog(s, `${e.nombre}: terminó.`);
+    if (ev.id === "meteoritos") { spawnCapsule(s, ev.x, ev.y); addLog(s, "A supply capsule was left among the impact debris."); }
+    addLog(s, `${e.nombre}: over.`);
     s.event = null;
   }
   return impacts;

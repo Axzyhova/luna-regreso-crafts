@@ -75,7 +75,7 @@ export function stepAliens(s: Sim, dt: number, w: World): AlienEvent[] {
   // Dawn: the creatures flee (the mothership only leaves when the countdown ends).
   if (!night && s.aliens.some((a) => a.tipo !== "nodriza")) {
     s.aliens = s.aliens.filter((a) => a.tipo === "nodriza");
-    addLog(s, "Amanece: los aliens huyen de la luz del Sol.");
+    addLog(s, "Dawn: the aliens flee from the sunlight.");
   }
   if (s.countdown === null) s.aliens = s.aliens.filter((a) => a.tipo !== "nodriza");
   // Spawning
@@ -101,7 +101,7 @@ export function stepAliens(s: Sim, dt: number, w: World): AlienEvent[] {
           ev.push({ type: "abducted" });
           s.abduction = 0;
           s.aliens = s.aliens.filter((x) => x !== a);
-          addLog(s, "Un abductor te llevó. Despiertas en el hábitat, aturdido.");
+          addLog(s, "An abductor took you. You wake up in the habitat, dazed.");
         }
       }
     } else if (a.tipo === "rastreador") {
@@ -111,7 +111,7 @@ export function stepAliens(s: Sim, dt: number, w: World): AlienEvent[] {
       if (d < T.rastreador.rango + Math.max(TIPOS[m.tipo].w, TIPOS[m.tipo].h) / 2) {
         const was = m.durabilidad;
         m.durabilidad = Math.max(0, m.durabilidad - T.rastreador.dano_modulo_s * dt);
-        if (was > 0 && m.durabilidad === 0) addLog(s, `Un rastreador inutilizó: ${TIPOS[m.tipo].nombre}.`);
+        if (was > 0 && m.durabilidad === 0) addLog(s, `A tracker disabled: ${TIPOS[m.tipo].nombre}.`);
       }
     } else if (a.tipo === "saboteador" && a.target) {
       const p = sabotagePoint(a.target, w);
@@ -147,7 +147,7 @@ export function hitAlien(s: Sim, px: number, py: number): Alien | null {
   if (best.hp <= 0) {
     s.aliens = s.aliens.filter((a) => a !== best);
     if (best.tipo !== "nodriza") s.stats.aliens++;
-    addLog(s, best.tipo === "nodriza" ? "¡Derribaste la Nodriza!" : `Ahuyentaste a un ${T[best.tipo].nombre.toLowerCase()}.`);
+    addLog(s, best.tipo === "nodriza" ? "You took down the Mothership!" : `You drove off a ${T[best.tipo].nombre.toLowerCase()}.`);
   }
   return best;
 }

@@ -45,6 +45,6 @@ export function openCapsule(s: Sim, id: number, rnd: () => number) {
     if (addItem(s, r.item as keyof Inv, r.n)) found.push(r);
   }
   s.stats.capsulas++;
-  addLog(s, `Cápsula abierta: ${found.map((f) => `${f.n} ${ITEMS[f.item]?.nombre ?? f.item}`).join(", ") || "inventario lleno"}.`);
+  addLog(s, `Capsule opened: ${found.map((f) => `${f.n} ${ITEMS[f.item]?.nombre ?? f.item}`).join(", ") || "inventory full"}.`);
   return found;
 }

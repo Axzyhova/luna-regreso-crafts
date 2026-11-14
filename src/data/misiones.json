@@ -1,41 +1,194 @@
 {
-  "personajes": {
-    "ARIA": "IA de a bordo de la nave Selene-7",
-    "CONTROL": "Control de Misión, en la Tierra",
-    "TÚ": "Astronauta comandante de la Selene-7"
+ "personajes": {
+  "ARIA": "Onboard AI of the Selene-7",
+  "CONTROL": "Mission Control, on Earth",
+  "TÚ": "Commander of the Selene-7"
+ },
+ "intro": [
+  {
+   "quien": "ARIA",
+   "texto": "Commander… can you hear me? This is ARIA. The impact broke the antenna and emptied the tanks."
   },
-  "intro": [
-    { "quien": "ARIA", "texto": "Comandante… ¿me escucha? Soy ARIA. El impacto rompió la antena y vació los tanques." },
-    { "quien": "ARIA", "texto": "Estamos en el polo sur de la Luna. La última transmisión de la Tierra llegó antes del choque: desde entonces, silencio." },
-    { "quien": "ARIA", "texto": "Primero lo primero: hay una fuga. Séllela antes de que perdamos el aire." }
-  ],
-  "principales": [
-    { "id": "M1", "titulo": "Despertar", "objetivo": "Sella una fuga (mantén E junto a ella)", "cond": "fuga_sellada",
-      "inicio": [], "fin": [{ "quien": "ARIA", "texto": "Fuga contenida. El hábitat aguanta… por ahora. Necesitamos agua: en el cráter en sombra hay hielo." }] },
-    { "id": "M2", "titulo": "Agua del abismo", "objetivo": "Recoge 6 hielos en el cráter en sombra", "cond": "hielo_6",
-      "inicio": [], "fin": [{ "quien": "ARIA", "texto": "Excelente. Llévelo al hábitat (E) para derretirlo. Con electricidad lo separaremos en hidrógeno y oxígeno: nuestro combustible." }] },
-    { "id": "M3", "titulo": "Combustible propio", "objetivo": "Produce 3 kg de hidrógeno líquido (LH2)", "cond": "lh2_3",
-      "inicio": [], "fin": [{ "quien": "ARIA", "texto": "¡Primeros kilos de LH2! El oxígeno que sobra va al hábitat: respiramos lo mismo que quemamos." }, { "quien": "ARIA", "texto": "El cohete está muy dañado. Empiece por la Estructura y la Energía." }] },
-    { "id": "M4", "titulo": "Lo esencial", "objetivo": "Repara Estructura y Energía del cohete al 70%", "cond": "esencial_70",
-      "inicio": [], "fin": [{ "quien": "ARIA", "texto": "La nave vuelve a respirar. Pero sin antena no sabemos cuándo abrir una ventana de regreso." }, { "quien": "ARIA", "texto": "Idea: un CubeSat en órbita puede reenviar nuestra señal a la Tierra. Diséñelo desde el cohete." }] },
-    { "id": "M5", "titulo": "El último contacto", "objetivo": "Diseña y lanza el CubeSat relé", "cond": "relay",
-      "inicio": [], "fin": [{ "quien": "CONTROL", "texto": "…Selene-7, aquí Control de Misión. ¿Comandante? ¡Creíamos que los habíamos perdido!" }, { "quien": "CONTROL", "texto": "Les enviamos las ventanas de regreso. Llenen los tanques, reparen la nave y no falten a la cita." }] },
-    { "id": "M6", "titulo": "La ventana", "objetivo": "Subsistemas al 90% y tanques con el combustible de la próxima ventana", "cond": "listo_para_despegar",
-      "inicio": [], "fin": [{ "quien": "ARIA", "texto": "Todo listo. Cuando se abra la ventana, inicie la cuenta regresiva desde el cohete." }] },
-    { "id": "M7", "titulo": "Regreso a casa", "objetivo": "Despega dentro de una ventana de regreso", "cond": "despegue",
-      "inicio": [], "fin": [{ "quien": "CONTROL", "texto": "Despegue confirmado, Selene-7. Bienvenida a casa, comandante." }] }
-  ],
-  "secundarias": [
-    { "id": "S1", "titulo": "Cápsulas perdidas", "objetivo": "Abre 3 cápsulas de suministro", "cond": "capsulas_3", "recompensa": { "traje_termico": 1 }, "fin": "ARIA: Entre la carga había un traje térmico. Equípelo desde el inventario." },
-    { "id": "S2", "titulo": "Bajo el Sol furioso", "objetivo": "Sobrevive a una llamarada solar sin enfermar por radiación", "cond": "llamarada_superada", "recompensa": { "botiquin": 2 }, "fin": "ARIA: Bien hecho. El regolito y las paredes del hábitat frenan las partículas." },
-    { "id": "S3", "titulo": "Luz en la oscuridad", "objetivo": "Construye 2 torres de luz", "cond": "torres_2", "recompensa": { "baterias": 1 }, "fin": "ARIA: Las noches serán menos largas. Ojo: la luz gasta batería." },
-    { "id": "S4", "titulo": "Ingeniero de campo", "objetivo": "Repara 5 módulos o fugas", "cond": "reparaciones_5", "recompensa": { "kits": 3 }, "fin": "ARIA: Mantenimiento al día. Así se sobrevive aquí arriba." },
-    { "id": "S5", "titulo": "Cazador de sombras", "objetivo": "Ahuyenta 5 aliens", "cond": "aliens_5", "solo_aliens": true, "recompensa": { "estimulante": 2 }, "fin": "ARIA: No sé qué son esas cosas, pero ahora nos temen un poco." },
-    { "id": "S6", "titulo": "Química perfecta", "objetivo": "Consigue la mezcla perfecta 6:1 en los tanques", "cond": "mezcla", "recompensa": { "pieza_motor": 1 }, "fin": "ARIA: Mezcla ideal. Encontré una pieza de motor de repuesto en el almacén." }
-  ],
-  "final": [
-    "La Selene-7 deja atrás el polo sur lunar.",
-    "El combustible que fabricaste con hielo del cráter te lleva de vuelta.",
-    "Gracias a tu CubeSat, la Tierra nunca dejó de escucharte: fuiste su último contacto, y regresaste."
-  ]
+  {
+   "quien": "ARIA",
+   "texto": "We're at the Moon's south pole. Earth's last transmission came in before the crash: since then, silence."
+  },
+  {
+   "quien": "ARIA",
+   "texto": "First things first: there's a leak. Seal it before we lose our air."
+  }
+ ],
+ "principales": [
+  {
+   "id": "M1",
+   "titulo": "Wake up",
+   "objetivo": "Seal a leak (hold E next to it)",
+   "cond": "fuga_sellada",
+   "inicio": [],
+   "fin": [
+    {
+     "quien": "ARIA",
+     "texto": "Leak contained. The habitat is holding… for now. We need water: there's ice in the shadowed crater."
+    }
+   ]
+  },
+  {
+   "id": "M2",
+   "titulo": "Water from the abyss",
+   "objetivo": "Collect 6 ice in the shadowed crater",
+   "cond": "hielo_6",
+   "inicio": [],
+   "fin": [
+    {
+     "quien": "ARIA",
+     "texto": "Excellent. Take it to the habitat (E) to melt it. With electricity we'll split it into hydrogen and oxygen: our fuel."
+    }
+   ]
+  },
+  {
+   "id": "M3",
+   "titulo": "Homemade fuel",
+   "objetivo": "Produce 3 kg of liquid hydrogen (LH2)",
+   "cond": "lh2_3",
+   "inicio": [],
+   "fin": [
+    {
+     "quien": "ARIA",
+     "texto": "First kilos of LH2! The leftover oxygen goes to the habitat: we breathe what we burn."
+    },
+    {
+     "quien": "ARIA",
+     "texto": "The rocket is badly damaged. Start with the Structure and the Power."
+    }
+   ]
+  },
+  {
+   "id": "M4",
+   "titulo": "The essentials",
+   "objetivo": "Repair the rocket's Structure and Power to 70%",
+   "cond": "esencial_70",
+   "inicio": [],
+   "fin": [
+    {
+     "quien": "ARIA",
+     "texto": "The ship is breathing again. But with no antenna we don't know when a return window opens."
+    },
+    {
+     "quien": "ARIA",
+     "texto": "Idea: a CubeSat in orbit can relay our signal to Earth. Design it from the rocket."
+    }
+   ]
+  },
+  {
+   "id": "M5",
+   "titulo": "The last contact",
+   "objetivo": "Design and launch the CubeSat relay",
+   "cond": "relay",
+   "inicio": [],
+   "fin": [
+    {
+     "quien": "CONTROL",
+     "texto": "…Selene-7, this is Mission Control. Commander? We thought we'd lost you!"
+    },
+    {
+     "quien": "CONTROL",
+     "texto": "We're sending you the return windows. Fill the tanks, repair the ship and don't miss your date."
+    }
+   ]
+  },
+  {
+   "id": "M6",
+   "titulo": "The window",
+   "objetivo": "Subsystems at 90% and tanks with the next window's fuel",
+   "cond": "listo_para_despegar",
+   "inicio": [],
+   "fin": [
+    {
+     "quien": "ARIA",
+     "texto": "All set. When the window opens, start the countdown from the rocket."
+    }
+   ]
+  },
+  {
+   "id": "M7",
+   "titulo": "Back home",
+   "objetivo": "Launch inside a return window",
+   "cond": "despegue",
+   "inicio": [],
+   "fin": [
+    {
+     "quien": "CONTROL",
+     "texto": "Liftoff confirmed, Selene-7. Welcome home, commander."
+    }
+   ]
+  }
+ ],
+ "secundarias": [
+  {
+   "id": "S1",
+   "titulo": "Lost capsules",
+   "objetivo": "Open 3 supply capsules",
+   "cond": "capsulas_3",
+   "recompensa": {
+    "traje_termico": 1
+   },
+   "fin": "ARIA: There was a thermal suit in the cargo. Equip it from the inventory."
+  },
+  {
+   "id": "S2",
+   "titulo": "Under the angry Sun",
+   "objetivo": "Survive a solar flare without radiation sickness",
+   "cond": "llamarada_superada",
+   "recompensa": {
+    "botiquin": 2
+   },
+   "fin": "ARIA: Well done. Regolith and the habitat walls stop the particles."
+  },
+  {
+   "id": "S3",
+   "titulo": "Light in the dark",
+   "objetivo": "Build 2 light towers",
+   "cond": "torres_2",
+   "recompensa": {
+    "baterias": 1
+   },
+   "fin": "ARIA: The nights will feel shorter. Careful: light drains the battery."
+  },
+  {
+   "id": "S4",
+   "titulo": "Field engineer",
+   "objetivo": "Repair 5 modules or leaks",
+   "cond": "reparaciones_5",
+   "recompensa": {
+    "kits": 3
+   },
+   "fin": "ARIA: Maintenance up to date. That's how you survive up here."
+  },
+  {
+   "id": "S5",
+   "titulo": "Shadow hunter",
+   "objetivo": "Drive off 5 aliens",
+   "cond": "aliens_5",
+   "solo_aliens": true,
+   "recompensa": {
+    "estimulante": 2
+   },
+   "fin": "ARIA: I don't know what those things are, but now they fear us a little."
+  },
+  {
+   "id": "S6",
+   "titulo": "Perfect chemistry",
+   "objetivo": "Get the perfect 6:1 mix in the tanks",
+   "cond": "mezcla",
+   "recompensa": {
+    "pieza_motor": 1
+   },
+   "fin": "ARIA: Ideal mix. I found a spare engine part in storage."
+  }
+ ],
+ "final": [
+  "The Selene-7 leaves the lunar south pole behind.",
+  "The fuel you made from crater ice carries you home.",
+  "Thanks to your CubeSat, Earth never stopped hearing you: you were its last contact, and you came back."
+ ]
 }

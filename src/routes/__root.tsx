@@ -84,10 +84,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "theme-color", content: "#0b0b14" },
       { name: "mobile-web-app-capable", content: "yes" },
       { title: "The Last Contact On Earth" },
-      { name: "description", content: "Juego de supervivencia lunar 8-bit." },
+      { name: "description", content: "8-bit lunar survival game." },
       { name: "author", content: "Lovable" },
       { property: "og:title", content: "The Last Contact On Earth" },
-      { property: "og:description", content: "Juego de supervivencia lunar 8-bit." },
+      { property: "og:description", content: "8-bit lunar survival game." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
@@ -111,7 +111,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="es" className="dark">
+    <html lang="en" className="dark">
       <head>
         <HeadContent />
       </head>

@@ -1,104 +1,104 @@
 [
  {
   "titulo": "NASA Space Apps Challenge 2026 – Space Mission Design Game",
-  "tipo": "RETO",
+  "tipo": "CHALLENGE",
   "url": "https://www.spaceappschallenge.org/2026/challenges/space-mission-design-game/",
-  "nota": "Reto que inspira el juego."
+  "nota": "The challenge that inspired the game."
  },
  {
   "titulo": "Mission Design Lab (NASA Goddard)",
-  "tipo": "NASA-LISTA",
+  "tipo": "NASA-LIST",
   "url": "https://etd.gsfc.nasa.gov/capabilities/integrated-design-center/mission-design-lab/",
-  "nota": "Los 6 subsistemas del cohete (propulsión, energía, térmico, comunicaciones, control de actitud, estructura) siguen las disciplinas que analiza el MDL."
+  "nota": "The rocket's 6 subsystems (propulsion, power, thermal, communications, attitude control, structure) follow the disciplines the MDL analyzes."
  },
  {
   "titulo": "CubeSat 101: Basic Concepts and Processes for First-Time CubeSat Developers (NASA CSLI)",
-  "tipo": "NASA-LISTA",
+  "tipo": "NASA-LIST",
   "url": "https://www3.nasa.gov/sites/default/files/atoms/files/nasa_csli_cubesat_101_508.pdf",
-  "nota": "Base del diseñador del CubeSat relé: unidades (U), masa y subsistemas."
+  "nota": "Basis of the CubeSat relay designer: units (U), mass and subsystems."
  },
  {
   "titulo": "General Mission Analysis Tool – GMAT (GSC-19468-1)",
-  "tipo": "NASA-LISTA",
+  "tipo": "NASA-LIST",
   "url": "https://software.nasa.gov/software/GSC-19468-1",
-  "nota": "Herramienta para calcular las ventanas de regreso y el combustible. Los valores actuales del juego son PROVISIONALES hasta generarlos con GMAT."
+  "nota": "Tool to compute return windows and fuel. The game's current values are PROVISIONAL until generated with GMAT."
  },
  {
   "titulo": "Design and Develop Science Missions (NASA)",
-  "tipo": "NASA-LISTA",
+  "tipo": "NASA-LIST",
   "url": "https://www.nasa.gov/wp-content/uploads/2025/04/250323-design-and-develop-science-mission.pdf",
-  "nota": "Los 4 segmentos de misión (lanzamiento, espacio, tierra, usuario): roles del modo cooperativo."
+  "nota": "The 4 mission segments (launch, space, ground, user): roles for co-op mode."
  },
  {
   "titulo": "Concept Maturity Levels (JPL)",
-  "tipo": "NASA-LISTA",
+  "tipo": "NASA-LIST",
   "url": "https://dataverse.jpl.nasa.gov/dataset.xhtml?persistentId=hdl:2014/44299",
-  "nota": "Los 4 actos del juego siguen los niveles CML 1 a 4."
+  "nota": "The game's 4 acts follow CML levels 1 to 4."
  },
  {
   "titulo": "NASA Mission Viz",
-  "tipo": "NASA-LISTA",
+  "tipo": "NASA-LIST",
   "url": "https://nasa.github.io/mission-viz/",
-  "nota": "Referencia visual para la trayectoria de regreso."
+  "nota": "Visual reference for the return trajectory."
  },
  {
-  "titulo": "Hielo de agua en cráteres en sombra del polo sur lunar",
-  "tipo": "EXTERNO",
+  "titulo": "Water ice in shadowed craters at the lunar south pole",
+  "tipo": "EXTERNAL",
   "url": "",
-  "nota": "Dato real, pero no está en la lista oficial del reto. Pendiente: citar la fuente exacta."
+  "nota": "Real data, but not on the challenge's official list. To do: cite the exact source."
  },
  {
-  "titulo": "Electrólisis del agua: 2H2O → 2H2 + O2 (relación de masa 1:8)",
-  "tipo": "EXTERNO",
+  "titulo": "Water electrolysis: 2H2O → 2H2 + O2 (1:8 mass ratio)",
+  "tipo": "EXTERNAL",
   "url": "",
-  "nota": "Química general."
+  "nota": "General chemistry."
  },
  {
-  "titulo": "LH2/LOX como propelentes y relación de mezcla ≈ 6:1",
-  "tipo": "EXTERNO",
+  "titulo": "LH2/LOX as propellants and a ≈ 6:1 mixture ratio",
+  "tipo": "EXTERNAL",
   "url": "",
-  "nota": "Valor típico de motores hidrógeno-oxígeno. Pendiente: verificar y citar."
+  "nota": "Typical value for hydrogen-oxygen engines. To do: verify and cite."
  },
  {
-  "titulo": "Extracción de oxígeno del regolito y evaporación (boil-off) del LH2",
-  "tipo": "EXTERNO",
+  "titulo": "Oxygen extraction from regolith and LH2 boil-off",
+  "tipo": "EXTERNAL",
   "url": "",
-  "nota": "Investigación real; no está en la lista oficial. Pendiente: citar la fuente exacta."
+  "nota": "Real research; not on the official list. To do: cite the exact source."
  },
  {
-  "titulo": "Temperaturas de la superficie lunar (más de 100 °C al Sol, menos de −150 °C en sombra)",
-  "tipo": "EXTERNO",
+  "titulo": "Lunar surface temperatures (over 100 °C in sunlight, below −150 °C in shadow)",
+  "tipo": "EXTERNAL",
   "url": "",
-  "nota": "Base del pico térmico, el frío del cráter y los efectos Frío/Calor. Pendiente: citar la fuente exacta."
+  "nota": "Basis of the heat peak, the crater cold and the Cold/Heat effects. To do: cite the exact source."
  },
  {
-  "titulo": "Eventos de partículas solares (llamaradas) y protección con regolito",
-  "tipo": "EXTERNO",
+  "titulo": "Solar particle events (flares) and regolith shielding",
+  "tipo": "EXTERNAL",
   "url": "",
-  "nota": "Base del evento Llamarada solar, la Radiación y el Escudo de regolito. Pendiente: citar."
+  "nota": "Basis of the Solar flare event, Radiation and the Regolith shield. To do: cite."
  },
  {
-  "titulo": "Micrometeoritos sobre una superficie sin atmósfera",
-  "tipo": "EXTERNO",
+  "titulo": "Micrometeorites on a surface with no atmosphere",
+  "tipo": "EXTERNAL",
   "url": "",
-  "nota": "Base de la lluvia de micrometeoritos. Pendiente: citar."
+  "nota": "Basis of the micrometeorite shower. To do: cite."
  },
  {
-  "titulo": "Eclipse visto desde la Luna (la Tierra tapa al Sol)",
-  "tipo": "EXTERNO",
+  "titulo": "Eclipse seen from the Moon (Earth blocks the Sun)",
+  "tipo": "EXTERNAL",
   "url": "",
-  "nota": "Base del evento Eclipse terrestre. Pendiente: citar."
+  "nota": "Basis of the Earth eclipse event. To do: cite."
  },
  {
-  "titulo": "Sin aire con oxígeno no hay fuego en la Luna",
-  "tipo": "EXTERNO",
+  "titulo": "No air with oxygen means no fire on the Moon",
+  "tipo": "EXTERNAL",
   "url": "",
-  "nota": "Por eso el abrigo usa aislamiento y resistencias eléctricas."
+  "nota": "That's why warmth comes from insulation and electric heaters."
  },
  {
-  "titulo": "Aliens, ARIA y la historia, recetas de crafteo, cápsulas, chatarra y tiempos comprimidos",
-  "tipo": "FICCIÓN",
+  "titulo": "Aliens, ARIA and the story, crafting recipes, capsules, scrap and compressed time",
+  "tipo": "FICTION",
   "url": "",
-  "nota": "Inventado para el juego."
+  "nota": "Made up for the game."
  }
 ]

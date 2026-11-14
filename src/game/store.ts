@@ -17,7 +17,7 @@ interface State {
   loadGame: () => boolean;
   publish: () => void;
 }
-const KEY = "varados_save_v2";
+const KEY = "varados_save_v3";
 
 export const useGame = create<State>((set, get) => ({
   screen: "intro",

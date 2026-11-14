@@ -77,7 +77,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     leaks: [] as Leak[],
     nextLeakId: 1,
     modules: modulos.iniciales.map((m, i) => ({ uid: i + 1, tipo: m.tipo as ModType, x: m.x, y: m.y, durabilidad: m.durabilidad, activo: true })) as Module[],
-    rocket: { Propulsión: 20, Energía: 45, Térmico: 60, Comunicaciones: 10, "Control de actitud": 35, Estructura: 55 } as Record<string, number>,
+    rocket: { Propulsion: 20, Power: 45, Thermal: 60, Communications: 10, "Attitude control": 35, Structure: 55 } as Record<string, number>,
     log: [] as { t: string; text: string }[],
     logros: [] as string[],
     alert: "" as string,
@@ -90,7 +90,7 @@ export type Sim = ReturnType<typeof createSim>;
 export const isDay = (s: Sim) => s.time % CYCLE < DAY_LEN;
 export const clock = (s: Sim) => {
   const t = s.time % CYCLE;
-  return isDay(s) ? `DÍA ${s.day} ${Math.floor((DAY_LEN - t) / 60)}:${String(Math.floor((DAY_LEN - t) % 60)).padStart(2, "0")}` : `NOCHE ${Math.floor((CYCLE - t) / 60)}:${String(Math.floor((CYCLE - t) % 60)).padStart(2, "0")}`;
+  return isDay(s) ? `DAY ${s.day} ${Math.floor((DAY_LEN - t) / 60)}:${String(Math.floor((DAY_LEN - t) % 60)).padStart(2, "0")}` : `NIGHT ${Math.floor((CYCLE - t) / 60)}:${String(Math.floor((CYCLE - t) % 60)).padStart(2, "0")}`;
 };
 export const stamp = (s: Sim) => `D${s.day} ${isDay(s) ? "☀" : "☾"} ${String(Math.floor((s.time % CYCLE) / 60)).padStart(2, "0")}m`;
 export const diffCfg = (s: Sim) => modos.dificultades[s.difficulty];
@@ -131,10 +131,10 @@ export function addItem(s: Sim, key: keyof Inv, n = 1) {
 }
 export type Receta = (typeof recetas)[number];
 export function recipeBlock(s: Sim, r: Receta): string | null {
-  if (!r.disponible) return "Próximamente";
-  if (r.lugar === "taller" && !s.near.taller) return "Acércate al Taller";
-  if (r.lugar === "horno" && !s.near.horno) return "Acércate al Horno";
-  if (!canCraft(s.inv, r.ingredientes)) return "Faltan materiales";
+  if (!r.disponible) return "Coming soon";
+  if (r.lugar === "taller" && !s.near.taller) return "Go to the Workshop";
+  if (r.lugar === "horno" && !s.near.horno) return "Go to the Furnace";
+  if (!canCraft(s.inv, r.ingredientes)) return "Missing materials";
   return null;
 }
 export function craft(s: Sim, r: Receta) {
@@ -142,7 +142,7 @@ export function craft(s: Sim, r: Receta) {
   const inv = s.inv as unknown as Record<string, number>;
   for (const [k, v] of Object.entries(r.ingredientes)) inv[k] = (inv[k] ?? 0) - (v ?? 0);
   for (const [k, v] of Object.entries(r.resultado)) inv[k] = (inv[k] ?? 0) + (v ?? 0);
-  s.log.unshift({ t: stamp(s), text: `Día ${s.day}: fabricaste ${r.nombre.replace(/ \(módulo\)/, "").toLowerCase()}` });
+  s.log.unshift({ t: stamp(s), text: `Day ${s.day}: you crafted ${r.nombre.replace(/ \((module|gear)\)/, "").toLowerCase()}` });
   return true;
 }
 
@@ -155,10 +155,10 @@ export const subCap = (s: Sim, sub: Subsistema) => (sub.tope_sin_relay && !s.rel
 /** Why a subsystem can't be repaired right now, or null if it can. */
 export function repairBlock(s: Sim, sub: Subsistema): string | null {
   const v = s.rocket[sub.id] ?? 0;
-  if (v >= 100) return "Al 100%";
-  if (v >= subCap(s, sub)) return "Requiere el CubeSat relé";
-  if (sub.id === "Propulsión" && tankLeaks(s) > 0) return "Sella primero las fugas de los tanques";
-  if (!canCraft(s.inv, sub.ingredientes)) return "Faltan materiales";
+  if (v >= 100) return "At 100%";
+  if (v >= subCap(s, sub)) return "Needs the CubeSat relay";
+  if (sub.id === "Propulsion" && tankLeaks(s) > 0) return "Seal the tank leaks first";
+  if (!canCraft(s.inv, sub.ingredientes)) return "Missing materials";
   return null;
 }
 export function repairSubsystem(s: Sim, sub: Subsistema) {
@@ -166,7 +166,7 @@ export function repairSubsystem(s: Sim, sub: Subsistema) {
   const inv = s.inv as unknown as Record<string, number>;
   for (const [k, v] of Object.entries(sub.ingredientes)) inv[k] = (inv[k] ?? 0) - (v ?? 0);
   s.rocket[sub.id] = Math.min(subCap(s, sub), (s.rocket[sub.id] ?? 0) + sub.sube);
-  addLog(s, `Cohete: reparaste ${sub.id} (${s.rocket[sub.id]}%).`);
+  addLog(s, `Rocket: you repaired ${sub.id} (${s.rocket[sub.id]}%).`);
   return true;
 }
 export function addLog(s: Sim, text: string) {
@@ -176,7 +176,7 @@ export function addLog(s: Sim, text: string) {
 export function unlock(s: Sim, name: string) {
   if (s.logros.includes(name)) return false;
   s.logros.push(name);
-  addLog(s, `LOGRO: ${name}`);
+  addLog(s, `ACHIEVEMENT: ${name}`);
   return true;
 }
 
@@ -201,17 +201,17 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   const prevDay = isDay(s);
   s.time += dt;
   const day = isDay(s);
-  if (prevDay && !day) { addLog(s, "Cae la noche. Solo baterías. El LH2 hierve más rápido."); s.leakFreeNight = true; }
+  if (prevDay && !day) { addLog(s, "Night falls. Batteries only. LH2 boils off faster."); s.leakFreeNight = true; }
   if (!prevDay && day) {
     s.day += 1;
-    addLog(s, `Amanece el día ${s.day}.`);
-    if (s.leakFreeNight) unlock(s, "Cero fugas en una noche");
+    addLog(s, `Day ${s.day} dawns.`);
+    if (s.leakFreeNight) unlock(s, "Leak-free night");
   }
   // durability
   for (const m of s.modules) if (m.activo) {
     const was = m.durabilidad;
     m.durabilidad = Math.max(0, m.durabilidad - dt * TIPOS[m.tipo].desgaste * d.consumo);
-    if (was >= 25 && m.durabilidad < 25) addLog(s, `${TIPOS[m.tipo].nombre} requiere mantenimiento.`);
+    if (was >= 25 && m.durabilidad < 25) addLog(s, `${TIPOS[m.tipo].nombre} needs maintenance.`);
   }
 
   // energy
@@ -242,8 +242,8 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
     const toLox = Math.min(sp.toLox, LOX_CAP - s.lox);
     s.o2gas -= toLox + sp.rest; s.lox += toLox;
     s.habitatO2 = Math.min(100, s.habitatO2 + sp.rest * 0.8);
-    if (s.lh2 >= 1) unlock(s, "Primer litro de LH2");
-    if (s.lh2 > balance.logro_mezcla_min_lh2_kg && Math.abs(s.lox / s.lh2 - 6) < 0.1) unlock(s, "Mezcla perfecta 6:1");
+    if (s.lh2 >= 1) unlock(s, "First liter of LH2");
+    if (s.lh2 > balance.logro_mezcla_min_lh2_kg && Math.abs(s.lox / s.lh2 - 6) < 0.1) unlock(s, "Perfect 6:1 mix");
   }
   if (hornoOn) {
     const r = Math.min(s.inv.regolito, 0.05 * dt);
@@ -261,7 +261,7 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   // leaks
   for (const l of s.leaks) {
     l.age += dt;
-    if (l.age > 30) { l.age = 0; l.size = Math.min(4, l.size + 1); addLog(s, "Una fuga ha crecido."); }
+    if (l.age > 30) { l.age = 0; l.size = Math.min(4, l.size + 1); addLog(s, "A leak got bigger."); }
     const rate = l.size * dt;
     if (l.target === "habitat") s.habitatO2 = Math.max(0, s.habitatO2 - rate * balance.fuga_habitat_o2_s_por_tamano);
     if (l.target === "lh2") s.lh2 = Math.max(0, s.lh2 - rate * balance.fuga_lh2_kg_s_por_tamano);
@@ -291,8 +291,8 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   s.health = Math.max(0, s.health);
 
   // alerts
-  s.alert = s.leaks.length ? `¡FUGA! ${s.leaks.map((l) => (l.target === "habitat" ? "HÁBITAT" : l.target.toUpperCase())).join(" · ")}` :
-    s.suitO2 < 20 ? "O2 DEL TRAJE BAJO" : s.temp < 5 ? "HIPOTERMIA" : s.battery < 5 ? "BATERÍAS AGOTADAS" : "";
+  s.alert = s.leaks.length ? `LEAK! ${s.leaks.map((l) => (l.target === "habitat" ? "HABITAT" : l.target.toUpperCase())).join(" · ")}` :
+    s.suitO2 < 20 ? "SUIT O2 LOW" : s.temp < 5 ? "HYPOTHERMIA" : s.battery < 5 ? "BATTERIES DEPLETED" : "";
 
   // acts
   if (s.act === 1 && s.inv.hielo + s.inv.agua >= 6 && s.inv.chatarra >= 4 && s.actFlags.leakFixed) advanceAct(s);
@@ -301,15 +301,15 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
 
 export function advanceAct(s: Sim) {
   s.act += 1; s.deathsInAct = 0; s.hint = "";
-  addLog(s, `Comienza el Acto ${s.act}.`);
+  addLog(s, `Act ${s.act} begins.`);
 }
 export function onDeath(s: Sim) {
   s.deathsInAct += 1;
-  addLog(s, "Perdiste el conocimiento. Te despiertas en el hábitat.");
+  addLog(s, "You passed out. You wake up in the habitat.");
   s.suitO2 = 100; s.health = 60; s.temp = 18;
   if (s.deathsInAct >= 2) {
     s.eventScale *= 0.8;
-    s.hint = "PISTA: vuelve al hábitat para recargar O2 y evita el cráter en sombra de noche.";
-    addLog(s, "Dificultad ajustada: eventos -20%.");
+    s.hint = "HINT: go back to the habitat to refill O2 and avoid the shadowed crater at night.";
+    addLog(s, "Difficulty adjusted: events -20%.");
   }
 }

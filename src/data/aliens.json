@@ -1,16 +1,61 @@
 {
-  "nota": "FICCIÓN. Los aliens solo aparecen en los modos Fantástico y Terrorífico, de noche y durante la cuenta regresiva. Son ante todo presión sobre los recursos: obligan a gastar energía en luz y a reparar fugas.",
-  "spawn": {
-    "fantastico": { "cada_s": 40, "max": 3, "velocidad": 1 },
-    "terrorifico": { "cada_s": 22, "max": 6, "velocidad": 1.3 }
+ "nota": "FICTION. Aliens only appear in Fantasy and Horror modes, at night and during the countdown. They mostly pressure your resources: they force you to spend power on light and to fix leaks.",
+ "spawn": {
+  "fantastico": {
+   "cada_s": 40,
+   "max": 3,
+   "velocidad": 1
   },
-  "luz_radio": 42,
-  "golpe": { "rango": 16, "empuje": 14, "aturdir_s": 0.6 },
-  "cuenta_regresiva_s": { "realista": 10, "fantastico": 20, "terrorifico": 25 },
-  "tipos": {
-    "abductor": { "nombre": "Abductor", "vida": 3, "velocidad": 20, "peso": 3, "rango": 18, "abduccion_s": 6, "consejo": "ABDUCTOR: refúgiate en la luz (hábitat o torres) o golpéalo con ESPACIO." },
-    "rastreador": { "nombre": "Rastreador", "vida": 2, "velocidad": 16, "peso": 2, "rango": 10, "dano_modulo_s": 2, "consejo": "RASTREADOR: lo atrae el calor de los módulos encendidos. Apágalos (B) o ilumínalos." },
-    "saboteador": { "nombre": "Saboteador", "vida": 1, "velocidad": 26, "peso": 2, "consejo": "SABOTEADOR: corre a morder tanques y el hábitat. Si llega, causa una fuga." },
-    "nodriza": { "nombre": "Nodriza", "vida": 10, "dano_cohete_s": 2.5, "reduccion_por_torre": 0.3, "radio_torres": 70, "consejo": "¡NODRIZA! Ataca el cohete en la cuenta regresiva. Golpéala y mantén torres de luz encendidas cerca del cohete." }
+  "terrorifico": {
+   "cada_s": 22,
+   "max": 6,
+   "velocidad": 1.3
   }
+ },
+ "luz_radio": 42,
+ "golpe": {
+  "rango": 16,
+  "empuje": 14,
+  "aturdir_s": 0.6
+ },
+ "cuenta_regresiva_s": {
+  "realista": 10,
+  "fantastico": 20,
+  "terrorifico": 25
+ },
+ "tipos": {
+  "abductor": {
+   "nombre": "Abductor",
+   "vida": 3,
+   "velocidad": 20,
+   "peso": 3,
+   "rango": 18,
+   "abduccion_s": 6,
+   "consejo": "ABDUCTOR: take shelter in the light (habitat or towers) or hit it with ACTION."
+  },
+  "rastreador": {
+   "nombre": "Tracker",
+   "vida": 2,
+   "velocidad": 16,
+   "peso": 2,
+   "rango": 10,
+   "dano_modulo_s": 2,
+   "consejo": "TRACKER: drawn to the heat of powered modules. Switch them off (Base) or light them up."
+  },
+  "saboteador": {
+   "nombre": "Saboteur",
+   "vida": 1,
+   "velocidad": 26,
+   "peso": 2,
+   "consejo": "SABOTEUR: runs to bite tanks and the habitat. If it gets there, it causes a leak."
+  },
+  "nodriza": {
+   "nombre": "Mothership",
+   "vida": 10,
+   "dano_cohete_s": 2.5,
+   "reduccion_por_torre": 0.3,
+   "radio_torres": 70,
+   "consejo": "MOTHERSHIP! It attacks the rocket during the countdown. Hit it and keep light towers on near the rocket."
+  }
+ }
 }

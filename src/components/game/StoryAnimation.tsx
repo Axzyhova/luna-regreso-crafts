@@ -125,5 +125,5 @@ export function StoryAnimation({ scene }: { scene: SceneId }) {
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
   }, [scene]);
-  return <canvas ref={ref} width={W} height={H} className="pixelated block aspect-[2/1] w-full border-4 border-moon-2 [image-rendering:pixelated]" aria-label={`Escena animada: ${scene}`} />;
+  return <canvas ref={ref} width={W} height={H} className="pixelated block aspect-[2/1] w-full border-4 border-moon-2 [image-rendering:pixelated]" aria-label={`Animated scene: ${scene}`} />;
 }

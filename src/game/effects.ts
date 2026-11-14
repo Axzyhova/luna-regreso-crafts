@@ -60,13 +60,13 @@ export function effectMods(s: Sim) {
 
 /** Equip or unequip a piece of gear (max slots). Returns a message for the player. */
 export function toggleEquip(s: Sim, item: string): string {
-  if (!GEAR.includes(item)) return "No es equipo";
-  if (s.equip.includes(item)) { s.equip = s.equip.filter((x) => x !== item); return "Equipo guardado"; }
-  if ((s.inv as unknown as Record<string, number>)[item]! < 1) return "No lo tienes";
-  if (s.equip.length >= EQUIPO_MAX) return `Máximo ${EQUIPO_MAX} piezas de equipo`;
+  if (!GEAR.includes(item)) return "Not gear";
+  if (s.equip.includes(item)) { s.equip = s.equip.filter((x) => x !== item); return "Gear removed"; }
+  if ((s.inv as unknown as Record<string, number>)[item]! < 1) return "You don't have it";
+  if (s.equip.length >= EQUIPO_MAX) return `Max ${EQUIPO_MAX} pieces of gear`;
   s.equip.push(item);
-  addLog(s, `Equipaste: ${item.replace(/_/g, " ")}.`);
-  return "Equipado";
+  addLog(s, `Equipped: ${item.replace(/_/g, " ")}.`);
+  return "Equipped";
 }
 
 /** Use a consumable from the inventory. */
@@ -74,7 +74,7 @@ export function consumeItem(s: Sim, item: string): boolean {
   const inv = s.inv as unknown as Record<string, number>;
   if (!CONSUMIBLES.includes(item) || (inv[item] ?? 0) < 1) return false;
   inv[item]! -= 1;
-  if (item === "botiquin") { s.health = Math.min(100, s.health + 40); addLog(s, "Usaste un botiquín: +40 de salud."); }
-  if (item === "estimulante") { s.fatigue = 0; addLog(s, "Usaste un estimulante: se fue el cansancio."); }
+  if (item === "botiquin") { s.health = Math.min(100, s.health + 40); addLog(s, "You used a medkit: +40 health."); }
+  if (item === "estimulante") { s.fatigue = 0; addLog(s, "You used a stimulant: fatigue is gone."); }
   return true;
 }
