@@ -31,3 +31,5 @@ use the editor.
 
 - Game sim lives in `src/game/sim.ts` as a mutable object owned by the Phaser scene; React reads a cloned snapshot published by the store a few times per second. Why: avoids re-rendering React every frame.
 - Phaser is only imported dynamically inside `GameCanvas` useEffect. Why: Phaser touches `window` at import time and would break SSR.
+- Phaser canvas renders at 1280x720 with camera zoom 4 over a 320x180 logical world; static art is baked to textures so it stays pixelated while text (resolution 4) stays crisp. Why: sharp in-world labels without losing the 8-bit look.
+- Interaction prompts, compass, tips and mission checklist are React DOM driven by `sim.prompt`/`sim.compass`/`sim.tip`; mobile controls write to `src/game/touch.ts`, which scenes read alongside the keyboard. Why: crisp text and one input path for touch and keys.

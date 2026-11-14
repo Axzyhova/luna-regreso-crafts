@@ -35,7 +35,7 @@ export function TouchControls() {
   if (overlay) return null;
   return (
     <div className="pointer-events-none absolute inset-0 z-[4]">
-      <div ref={base}
+      <div ref={base} aria-label="Joystick"
         className="pointer-events-auto absolute bottom-24 left-6 h-28 w-28 touch-none rounded-full border-2 border-moon-2 bg-background/40"
         onPointerDown={(e) => { pid.current = e.pointerId; (e.target as HTMLElement).setPointerCapture(e.pointerId); move(e.clientX, e.clientY); }}
         onPointerMove={(e) => pid.current === e.pointerId && move(e.clientX, e.clientY)}

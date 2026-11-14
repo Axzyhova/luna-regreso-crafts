@@ -1,8 +1,8 @@
 # Roadmap
 - [x] Más materiales, herramientas con niveles, entrar al hábitat
-- [ ] Controles táctiles en móvil (joystick + botones)
-- [ ] Tutorial / guía de cómo resolver cada problema
-- [ ] Textos del mapa nítidos (no pixelados borrosos)
-- [ ] Animación de caminata y salto, detalles vivos en el mapa
-- [ ] Brújula que apunta a problemas
-- [ ] Ayudas de misión / orientación
+- [x] Controles táctiles en móvil (joystick + botones)
+- [x] Tutorial / guía de cómo resolver cada problema
+- [x] Textos del mapa nítidos (no pixelados borrosos)
+- [x] Animación de caminata y salto, detalles vivos en el mapa
+- [x] Brújula que apunta a problemas
+- [x] Ayudas de misión / orientación
