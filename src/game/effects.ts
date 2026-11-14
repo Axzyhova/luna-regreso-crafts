@@ -1,5 +1,5 @@
 import cfg from "@/data/efectos.json";
-import { addLog, isDay, type Sim } from "./sim";
+import { addLog, isDay, hurt, type Sim } from "./sim";
 import { inLight, type World } from "./aliens";
 
 export type EffectId = keyof typeof cfg.efectos;
@@ -50,8 +50,8 @@ export function stepEffects(s: Sim, dt: number, w: World, inShadow: boolean) {
     const exposure = e === "frio" ? s.coldT : e === "calor" ? s.heatT : null;
     if (c.salud_s && exposure !== null) {
       const over = exposure - UMBRALES.gracia_s;
-      if (over > 0) s.health = Math.max(0, s.health - c.salud_s * Math.min(3, 1 + over / 10) * dt);
-    } else if (c.salud_s) s.health = Math.max(0, s.health - c.salud_s * dt);
+      if (over > 0) hurt(s, c.salud_s * Math.min(3, 1 + over / 10) * dt, e === "frio" ? "froze to death" : "overheated");
+    } else if (c.salud_s) hurt(s, c.salud_s * dt, e === "radiacion" ? "got radiation sickness from a solar flare" : "succumbed to the elements");
     if (c.o2_extra && !w.inHabitat) s.suitO2 = Math.max(0, s.suitO2 - c.o2_extra * dt);
     if (!before.has(e)) addLog(s, `${c.icono} ${c.nombre}: ${c.remedio}`);
   }

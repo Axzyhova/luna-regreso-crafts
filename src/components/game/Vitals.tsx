@@ -4,7 +4,7 @@ import { UMBRALES } from "@/game/effects";
 
 const COLD = "#3b8fe6", HOT = "#f08a24";
 
-function VBar({ icon, v, color, text, thick }: { icon: string; v: number; color: string; text?: string; thick?: boolean }) {
+function VBar({ icon, v, color, text, thick }: { icon: string; v: number; color: string; text?: string | undefined; thick?: boolean }) {
   const pct = Math.max(0, Math.min(100, v));
   return (
     <div className="flex items-center gap-1.5">
@@ -83,6 +83,8 @@ export function Vitals({ className = "" }: { className?: string }) {
         <VBar icon="🫧" v={s.suitO2} color="#3b8fe6" />
         <VBar icon="♥" v={s.health} color="#3fbf6a" thick text={`${Math.round(s.health)} / 100`} />
         <VBar icon="⚡" v={100 - s.fatigue} color="#f08a24" />
+        <VBar icon="💧" v={s.hydration} color="#39c6d8" />
+        <VBar icon="🧑‍🚀" thick={!s.suit.owned || !s.suit.worn} v={s.suit.owned ? s.suit.integrity : 0} color={s.suit.integrity < 25 ? "#f08a24" : "#c9c9cf"} text={!s.suit.owned ? "NO SUIT" : !s.suit.worn ? "SUIT OFF" : undefined} />
       </div>
       <Thermometer />
     </div>

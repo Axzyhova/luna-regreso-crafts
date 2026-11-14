@@ -47,6 +47,25 @@ export function makeSprites(scene: Phaser.Scene) {
     r(6, 5, 8, 4, 0x1d3f8a); r(6, 5, 8, 1, 0x3b6fd6); r(7, 6, 2, 1, 0xbfd8ff); r(12, 7, 1, 1, 0x7fa8ff); // visor
   });
 
+  // Astronaut without the space suit (same size): head and hair visible, blue undersuit.
+  tex(scene, "astro_plain", 10, 12, (g, r) => {
+    r(5, 10, 10, 10, OUT); g.fillStyle(OUT).fillCircle(10, 6, 4.8);
+    r(6, 11, 8, 8, 0x3b6fd6); r(11, 11, 3, 8, 0x2a4fa8); r(6, 11, 8, 1, 0x7fa8ff);   // undersuit
+    r(9, 13, 2, 2, T.alert);                                                          // patch
+    r(6, 18, 3, 5, OUT); r(11, 18, 3, 5, OUT); r(6, 18, 3, 4, 0x2a4fa8); r(11, 18, 3, 4, 0x223f88);
+    r(6, 22, 3, 1, 0x2a2a36); r(11, 22, 3, 1, 0x2a2a36);
+    g.fillStyle(0xf0c8a0).fillCircle(10, 6.5, 3.8);                                  // face
+    r(6, 2, 8, 3, 0x4a2e1a); r(6, 4, 2, 3, 0x4a2e1a);                               // hair
+    r(8, 6, 1, 1, 0x14141c); r(11, 6, 1, 1, 0x14141c);                               // eyes
+  });
+
+  // Death bag: a sack with a red marker, so you can find your lost items.
+  tex(scene, "bag", 9, 10, (g, r) => {
+    g.fillStyle(OUT).fillEllipse(9, 13, 16, 13); g.fillStyle(0x8a6a3a).fillEllipse(9, 13, 14, 11); g.fillStyle(0xb08a50).fillEllipse(7, 11, 7, 5);
+    r(7, 4, 4, 4, OUT); r(8, 5, 2, 3, 0x6a4e28);
+    r(5, 0, 8, 2, T.red); r(8, 0, 2, 4, T.red);
+  });
+
   // Ice crystals: faceted shards with highlights.
   tex(scene, "ice", 6, 6, (g) => {
     const shard = (pts: number[], fill: number, edge: number) => {

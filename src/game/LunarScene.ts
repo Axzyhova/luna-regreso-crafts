@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { PAL } from "./palette";
 import { sim, useGame, saveGame } from "./store";
-import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, TIPOS, PLACEABLE, BAL, leakAllowed, nextLeakDelay, type LeakTarget, type Module, type ModType } from "./sim";
+import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, TIPOS, PLACEABLE, BAL, leakAllowed, nextLeakDelay, pickUpDrop, toggleSuit, type LeakTarget, type Module, type ModType } from "./sim";
 import { sfx } from "./audio";
 import { stepAliens, hitAlien, type World } from "./aliens";
 import { stepCountdown } from "./mission";
@@ -29,6 +29,7 @@ export class LunarScene extends Phaser.Scene {
   leakSprites = new Map<number, Phaser.GameObjects.Image>();
   alienSprites = new Map<number, Phaser.GameObjects.Image>();
   capSprites = new Map<number, Phaser.GameObjects.Image>();
+  dropSprites = new Map<number, Phaser.GameObjects.Image>();
   zone!: Phaser.GameObjects.Graphics;
   tint!: Phaser.GameObjects.Rectangle;
   beam!: Phaser.GameObjects.Graphics;
@@ -112,9 +113,10 @@ export class LunarScene extends Phaser.Scene {
     this.input.keyboard!.on("keydown-Q", () => this.cycleBuild());
     this.input.keyboard!.on("keydown-SPACE", () => (sim.buildMode ? this.place() : this.useTool()));
     this.input.keyboard!.on("keydown-E", () => this.interact());
+    this.input.keyboard!.on("keydown-V", () => this.suitToggle());
     const t = (f: () => void) => () => { this.touchMode = true; f(); };
-    touch.act = { use: t(() => (sim.buildMode ? this.place() : this.useTool())), interact: t(() => this.interact()), build: t(() => this.toggleBuild()), cycle: t(() => this.cycleBuild()) };
-    this.events.once("shutdown", () => { touch.act = { use: () => {}, interact: () => {}, build: () => {}, cycle: () => {} }; });
+    touch.act = { use: t(() => (sim.buildMode ? this.place() : this.useTool())), interact: t(() => this.interact()), build: t(() => this.toggleBuild()), cycle: t(() => this.cycleBuild()), suit: t(() => this.suitToggle()) };
+    this.events.once("shutdown", () => { touch.act = { use: () => {}, interact: () => {}, build: () => {}, cycle: () => {}, suit: () => {} }; });
     (["ONE", "TWO", "THREE", "FOUR", "FIVE"] as const).forEach((n, i) => this.input.keyboard!.on(`keydown-${n}`, () => { sim.hotbar = i + 1; sfx.click(); }));
     for (const l of sim.leaks) this.addLeakSprite(l.id, l.x, l.y);
     initCapsules(sim, { w: W, h: H, hab: HAB, rnd: () => Math.random() });
@@ -153,6 +155,17 @@ export class LunarScene extends Phaser.Scene {
   }
   nearestLeak() {
     return sim.leaks.find((l) => Phaser.Math.Distance.Between(l.x, l.y, this.player.x, this.player.y) < 16);
+  }
+  suitToggle() {
+    if (useGame.getState().overlay || sim.dead) return;
+    const msg = toggleSuit(sim, this.nearHab());
+    toast(sim, `🧑‍🚀 ${msg}`, 3); sfx.click(); useGame.getState().publish();
+  }
+  nearestDrop() { return sim.drops.find((d) => Phaser.Math.Distance.Between(d.x, d.y, this.player.x, this.player.y) < 18); }
+  syncDrops() {
+    const alive = new Set(sim.drops.map((d) => d.id));
+    for (const [id, spr] of this.dropSprites) if (!alive.has(id)) { spr.destroy(); this.dropSprites.delete(id); }
+    for (const d of sim.drops) if (!this.dropSprites.has(d.id)) this.dropSprites.set(d.id, this.add.image(d.x, d.y, "bag").setDepth(5).setScale(1 / HD));
   }
   nearHab() { return Phaser.Math.Distance.Between(HAB.x, HAB.y, this.player.x, this.player.y) < 36; }
   nearModule(pred: (m: Module) => boolean, r = 22) {
@@ -239,8 +252,10 @@ export class LunarScene extends Phaser.Scene {
   }
 
   interact() {
-    if (useGame.getState().overlay) return;
+    if (useGame.getState().overlay || sim.dead) return;
     if (this.nearestLeak()) return; // hold handled in update
+    const bag = this.nearestDrop();
+    if (bag) { pickUpDrop(sim, bag.id); sfx.ok(); toast(sim, "🎒 You picked up your lost items", 3); return; }
     const cap = nearestCapsule(sim, this.player.x, this.player.y);
     if (cap) {
       const found = openCapsule(sim, cap.id, () => Math.random());
@@ -263,7 +278,8 @@ export class LunarScene extends Phaser.Scene {
   override update(_t: number, ms: number) {
     const dt = Math.min(0.1, ms / 1000);
     const overlay = useGame.getState().overlay;
-    if (overlay) return;
+    if (sim.respawned) { sim.respawned = false; this.player.setPosition(HAB.x, HAB.y + 30); }
+    if (overlay || sim.dead) return;
     const k = this.keys;
     const sp = 60 * effectMods(sim).speed;
     let vx = 0, vy = 0;
@@ -299,6 +315,7 @@ export class LunarScene extends Phaser.Scene {
       toast(sim, sim.tut.step >= TUTORIAL.length ? "🎓 Tutorial complete! Follow the GPS card and your missions." : `✔ ${TUTORIAL[sim.tut.step - 1]!.title}`, 4);
     }
     this.ring.clear();
+    sim.near.habitat = this.nearHab();
     sim.near.taller = !!this.nearModule((m) => m.tipo === "taller" && m.durabilidad > 0, 26);
     sim.near.horno = !!this.nearModule((m) => m.tipo === "horno" && m.durabilidad > 0, 26);
     const leak = this.nearestLeak();
@@ -330,6 +347,7 @@ export class LunarScene extends Phaser.Scene {
     // prompts
     const n = this.nearestNode();
     if (leak) this.say(`HOLD E: SEAL LEAK (${sim.inv.kits} KITS)`);
+    else if (this.nearestDrop()) this.say("E: PICK UP YOUR LOST ITEMS");
     else if (nearestCapsule(sim, this.player.x, this.player.y)) this.say("E: OPEN SUPPLY CAPSULE");
     else if (n) this.say(`ACTION: PICK UP ${(ITEMS[n.type]?.nombre ?? n.type).toUpperCase()}`);
     else if (broken && broken.durabilidad < 60 && !(this.nearHab() && sim.inv.hielo > 0)) this.say(`HOLD E: REPAIR ${TIPOS[broken.tipo].nombre.toUpperCase()} (1 KIT)`);
@@ -357,7 +375,13 @@ export class LunarScene extends Phaser.Scene {
       this.preview.lineStyle(1, ok ? PAL.ok : PAL.red).strokeRect(Math.round(p.x) - t.w / 2, Math.round(p.y) - t.h / 2, t.w, t.h);
     }
 
-    if (sim.health <= 0) { onDeath(sim); sfx.bad(); this.player.setPosition(HAB.x, HAB.y + 30); }
+    if (sim.health <= 0 && !sim.dead) {
+      sim.dead = { cause: sim.lastHurt || "didn't make it", x: this.player.x, y: this.player.y };
+      sfx.bad(); saveGame(); useGame.getState().publish(); return;
+    }
+    // Skin: helmet and suit only while wearing it.
+    this.player.setTexture(sim.suit.owned && sim.suit.worn ? "astro" : "astro_plain");
+    this.syncDrops();
 
     this.pubT += dt; this.saveT += dt;
     if (this.pubT > 0.15) { this.pubT = 0; this.publishRadar(); useGame.getState().publish(); }
@@ -410,6 +434,7 @@ export class LunarScene extends Phaser.Scene {
     const r: { k: string; dx: number; dy: number }[] = [];
     for (const a of sim.aliens) r.push({ k: a.tipo === "nodriza" ? "jefe" : "alien", dx: a.x - px, dy: a.y - py });
     for (const c of sim.capsules) r.push({ k: "capsula", dx: c.x - px, dy: c.y - py });
+    for (const d of sim.drops) r.push({ k: "bolsa", dx: d.x - px, dy: d.y - py });
     for (const l of sim.leaks) r.push({ k: "fuga", dx: l.x - px, dy: l.y - py });
     const ice = this.nodes.filter((n) => n.type === "hielo").map((n) => ({ k: "hielo", dx: n.spr.x - px, dy: n.spr.y - py })).sort((a, b) => Math.hypot(a.dx, a.dy) - Math.hypot(b.dx, b.dy)).slice(0, 3);
     r.push(...ice);
@@ -422,7 +447,7 @@ export class LunarScene extends Phaser.Scene {
     const world = this.world();
     for (const e of stepAliens(sim, dt, world)) {
       if (e.type === "leak") this.spawnLeak(e.target);
-      if (e.type === "abducted") { onDeath(sim); sfx.bad(); this.player.setPosition(HAB.x, HAB.y + 30); }
+      if (e.type === "abducted") { sim.lastHurt = "was abducted by aliens"; sim.health = 0; }
       if (e.type === "steal") { toast(sim, e.text, 6); sfx.alert(); }
     }
     const alive = new Set(sim.aliens.map((a) => a.id));

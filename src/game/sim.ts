@@ -45,6 +45,16 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     // --- historia, efectos, eventos y botín ---
     effects: [] as string[],
     fatigue: 0,
+    // Space suit: indispensable outside. Integrity wears down with use; wearing it all the time makes you thirsty.
+    suit: { owned: true, worn: true, integrity: 80 },
+    hydration: 100,
+    lastHurt: "" as string,
+    dead: null as null | { cause: string; x: number; y: number },
+    respawned: false,
+    drops: [] as { id: number; x: number; y: number; items: Record<string, number> }[],
+    nextDropId: 1,
+    notices: [] as { id: number; kind: "achievement" | "mission"; title: string; text: string }[],
+    nextNoticeId: 1,
     tut: { step: 0, skipped: false, moved: 0, invOpened: false, kitCrafted: false },
     leaksToday: 0,
     awayT: 0,
@@ -72,7 +82,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     cubesat: [] as { uid: number; id: string; x: number; y: number; rot: number }[],
     result: null as null | { ok: boolean; dia: number; ventana: string; lh2Sobra: number; loxSobra: number },
     hotbarItems: ["kits", "chatarra", "metal", null, null] as (string | null)[],
-    near: { taller: false, horno: false },
+    near: { taller: false, horno: false, habitat: false },
     station: null as null | "taller" | "horno",
     stationUid: 0,
     buildMode: null as string | null,
@@ -148,7 +158,10 @@ export function craft(s: Sim, r: Receta) {
   if (recipeBlock(s, r)) return false;
   const inv = s.inv as unknown as Record<string, number>;
   for (const [k, v] of Object.entries(r.ingredientes)) inv[k] = (inv[k] ?? 0) - (v ?? 0);
-  for (const [k, v] of Object.entries(r.resultado)) inv[k] = (inv[k] ?? 0) + (v ?? 0);
+  for (const [k, v] of Object.entries(r.resultado)) {
+    if (k === "traje_espacial") { s.suit = { owned: true, worn: s.suit.worn && s.suit.owned, integrity: 100 }; continue; }
+    inv[k] = (inv[k] ?? 0) + (v ?? 0);
+  }
   if (r.resultado && "kits" in r.resultado) s.tut.kitCrafted = true;
   s.log.unshift({ t: stamp(s), text: `Day ${s.day}: you crafted ${r.nombre.replace(/ \((module|gear)\)/, "").toLowerCase()}` });
   return true;
@@ -193,7 +206,35 @@ export function unlock(s: Sim, name: string) {
   if (s.logros.includes(name)) return false;
   s.logros.push(name);
   addLog(s, `ACHIEVEMENT: ${name}`);
+  notify(s, "achievement", "Achievement unlocked", name);
   return true;
+}
+
+/** Queue a pop-up notification (achievement / mission), shown one at a time by the UI. */
+export function notify(s: Sim, kind: "achievement" | "mission", title: string, text: string) {
+  s.notices.push({ id: s.nextNoticeId++, kind, title, text });
+  if (s.notices.length > 6) s.notices.shift();
+}
+
+/** Apply damage and remember what caused it (shown on the death screen). */
+export function hurt(s: Sim, amount: number, cause: string) {
+  if (amount <= 0) return;
+  s.health = Math.max(0, s.health - amount);
+  s.lastHurt = cause;
+}
+
+export const SUIT_WEAR_S = 100 / 1200;   // integrity per second outside: a full suit lasts ~2 day/night cycles
+export const THIRST_S = 100 / 480;       // hydration per second while wearing the suit (~8 min)
+export const VACUUM_DMG_S = 8;           // health per second outside without a working suit
+export const suitWorking = (s: Sim) => s.suit.owned && s.suit.worn && s.suit.integrity > 0;
+
+/** Put the suit on / take it off. Outside the habitat taking it off is deadly, so it's refused. */
+export function toggleSuit(s: Sim, inHabitat: boolean): string {
+  if (!s.suit.owned) return "You have no space suit: craft one at the Workshop";
+  if (s.suit.worn && !inHabitat) return "Take the suit off only inside the habitat";
+  s.suit.worn = !s.suit.worn;
+  addLog(s, s.suit.worn ? "You put on the space suit." : "You took off the space suit. Drink and rest.");
+  return s.suit.worn ? "Suit on" : "Suit off";
 }
 
 /** Electrolysis: water mass splits into H2:O2 = 1:8 by mass. */
@@ -289,9 +330,25 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   if (ctx.inHabitat && s.habitatO2 > 0) {
     const r = Math.min(100 - s.suitO2, 6 * dt);
     s.suitO2 += r; s.habitatO2 = Math.max(0, s.habitatO2 - r * 0.05);
-  } else {
+  } else if (suitWorking(s)) {
     s.suitO2 = Math.max(0, s.suitO2 - 0.28 * dt * d.consumo);
   }
+  if (!ctx.inHabitat) {
+    if (suitWorking(s)) {
+      const before = s.suit.integrity;
+      s.suit.integrity = Math.max(0, s.suit.integrity - SUIT_WEAR_S * dt);
+      if (before >= 25 && s.suit.integrity < 25) addLog(s, "⚠ Space suit integrity low: repair it at the Workshop.");
+      if (before > 0 && s.suit.integrity === 0) addLog(s, "⚠ Your space suit failed! Get back to the habitat.");
+    } else hurt(s, VACUUM_DMG_S * dt, s.suit.owned && s.suit.worn ? "had a suit failure in the vacuum" : "was exposed to the vacuum without a suit");
+  }
+  // Thirst: you can't drink with the helmet on. Inside the habitat, suit off, you drink stored water.
+  if (s.suit.worn) s.hydration = Math.max(0, s.hydration - THIRST_S * dt);
+  else if (ctx.inHabitat) {
+    const sip = Math.min(100 - s.hydration, 6 * dt);
+    if (s.inv.agua > 0) { s.hydration += sip; s.inv.agua = Math.max(0, s.inv.agua - sip * 0.05); }
+    else s.hydration = Math.min(100, s.hydration + sip / 6); // a little recycled water from the habitat
+  }
+  if (s.hydration <= 0) hurt(s, 1.2 * dt, "died of thirst");
   const ins = s.inv.aislamiento > 0 ? 0.5 : 1;
   let target = 21;
   if (!ctx.inHabitat) {
@@ -303,7 +360,7 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
     if (s.equip.includes("capa_reflectante") && target > 30) target = Math.max(30, target - 35);
   } else if (s.battery <= 0) target = 0;
   s.temp += (target - s.temp) * Math.min(1, dt * 0.08);
-  if (s.suitO2 <= 0) s.health -= 3 * dt;
+  if (s.suitO2 <= 0 && suitWorking(s) && !ctx.inHabitat) hurt(s, 3 * dt, "ran out of oxygen");
   if (ctx.inHabitat && s.suitO2 > 50 && s.temp > 10) s.health = Math.min(100, s.health + 0.5 * dt);
   s.health = Math.max(0, s.health);
 
@@ -314,6 +371,45 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   // acts
   if (s.act === 1 && s.inv.hielo + s.inv.agua >= 6 && s.inv.chatarra >= 4 && s.actFlags.leakFixed) advanceAct(s);
   if (s.act === 2 && s.lh2 >= balance.meta_acto2_lh2_kg) advanceAct(s);
+  cleanupInventory(s);
+}
+
+/** Remove depleted items from the hotbar and gear that is no longer owned. */
+export function cleanupInventory(s: Sim) {
+  const inv = s.inv as unknown as Record<string, number>;
+  s.hotbarItems = s.hotbarItems.map((k) => (k && (inv[k] ?? 0) >= 1 ? k : null));
+  s.equip = s.equip.filter((g) => (inv[g] ?? 0) >= 1);
+  if (s.buildMode && (inv[s.buildMode] ?? 0) < 1) s.buildMode = null;
+}
+
+/** Respawn after death: everything you carried stays in a bag where you died; you wake in the habitat with the spare suit. */
+export function respawn(s: Sim, hab: { x: number; y: number }) {
+  const d = s.dead ?? { cause: "", x: hab.x, y: hab.y };
+  const inv = s.inv as unknown as Record<string, number>;
+  const items: Record<string, number> = {};
+  for (const [k, v] of Object.entries(inv)) { const n = Math.floor(v); if (n > 0) { items[k] = n; inv[k] = v - n; } }
+  if (Object.keys(items).length) s.drops.push({ id: s.nextDropId++, x: Math.round(d.x), y: Math.round(d.y), items });
+  s.equip = [];
+  s.hotbarItems = s.hotbarItems.map(() => null);
+  s.suit = { owned: true, worn: true, integrity: 40 };
+  s.dead = null; s.respawned = true;
+  onDeath(s);
+  s.hydration = 70; s.lastHurt = "";
+  addLog(s, "You respawned in the habitat with the spare suit (40%). Your items are in a bag where you died.");
+}
+
+/** Pick up a death bag (as much as fits). Returns true if the bag is now empty. */
+export function pickUpDrop(s: Sim, id: number) {
+  const b = s.drops.find((x) => x.id === id);
+  if (!b) return false;
+  for (const [k, n] of Object.entries(b.items)) {
+    let left = n;
+    while (left > 0 && addItem(s, k as keyof Inv, 1)) left--;
+    if (left > 0) b.items[k] = left; else delete b.items[k];
+  }
+  if (!Object.keys(b.items).length) { s.drops = s.drops.filter((x) => x !== b); addLog(s, "You recovered all your items."); return true; }
+  addLog(s, "Inventory full: some items are still in the bag.");
+  return false;
 }
 
 export function advanceAct(s: Sim) {

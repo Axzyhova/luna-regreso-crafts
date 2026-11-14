@@ -7,6 +7,7 @@ import { launchBlockers, startLaunch, countdownLength, currentWindow, nextWindow
 import { CubeSatDesigner } from "./CubeSatDesigner";
 import { Vitals, DayClock } from "./Vitals";
 import { StationPanel } from "./StationPanel";
+import { DeathScreen, NoticeToast, AchievementList, SuitControl } from "./SurvivalUI";
 import { EventBanner, EffectsBar, QuestTracker, QuestLog } from "./StoryUI";
 import { GEAR, CONSUMIBLES, toggleEquip, consumeItem } from "@/game/effects";
 import { ITEMS } from "@/game/items";
@@ -93,7 +94,7 @@ export function HUDBottom({ className = "", touch = false }: { className?: strin
           )}
           <Hotbar />
         </div>
-        {!touch && <div className="text-[6px] text-muted-foreground">WASD move · SPACE pick up/hit · E interact (hold to seal/repair) · TAB inventory · C build · B base · L log · M missions · ESC pause · 1-5 or click: pick item</div>}
+        {!touch && <div className="text-[6px] text-muted-foreground">WASD move · SPACE pick up/hit · E interact (hold to seal/repair) · TAB inventory · C build · B base · L log · M missions · V suit · ESC pause · 1-5 or click: pick item</div>}
       </div>
   );
 }
@@ -166,6 +167,7 @@ function Inventory() {
   const cells = Array.from({ length: SLOTS }, (_, i) => stacks[i] ?? null);
   return (
     <Panel title="INVENTORY">
+      <SuitControl className="mb-3" />
       <div className="mb-4 flex gap-2">
         {(["inv", "craft"] as const).map((t) => (
           <button key={t} onClick={() => { setTab(t); sfx.click(); }} className={`px-3 py-2 text-[9px] ${tab === t ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{t === "inv" ? "Items" : "Crafting"}</button>
@@ -340,7 +342,7 @@ function Log() {
   const s = useGame((g) => g.snap);
   return (
     <Panel title="LOG">
-      <div className="mb-3 text-[8px] text-ok">Achievements: {s.logros.length ? s.logros.join(" · ") : "none yet"}</div>
+      <AchievementList />
       <ul className="space-y-1">{s.log.map((l, i) => <li key={i} className="text-[8px] leading-4"><span className="text-muted-foreground">[{l.t}]</span> {l.text}</li>)}</ul>
     </Panel>
   );
@@ -375,13 +377,9 @@ export function Overlays() {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, []);
-  if (overlay === "inv") return <Inventory />;
-  if (overlay === "base") return <Base />;
-  if (overlay === "log") return <Log />;
-  if (overlay === "pausa") return <Pause />;
-  if (overlay === "cohete") return <Rocket />;
-  if (overlay === "cubesat") return <CubeSatDesigner />;
-  if (overlay === "misiones") return <QuestLog />;
-  if (overlay === "estacion") return <StationPanel />;
-  return null;
+  const panel =
+    overlay === "inv" ? <Inventory /> : overlay === "base" ? <Base /> : overlay === "log" ? <Log /> : overlay === "pausa" ? <Pause /> :
+    overlay === "cohete" ? <Rocket /> : overlay === "cubesat" ? <CubeSatDesigner /> : overlay === "misiones" ? <QuestLog /> :
+    overlay === "estacion" ? <StationPanel /> : null;
+  return <>{panel}<NoticeToast /><DeathScreen /></>;
 }

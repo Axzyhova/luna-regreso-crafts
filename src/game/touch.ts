@@ -12,6 +12,7 @@ export const touch = {
     interact: () => {},
     build: () => {},
     cycle: () => {},
+    suit: () => {},
   },
 };
 

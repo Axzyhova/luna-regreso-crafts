@@ -57,6 +57,15 @@ export function StationPanel() {
           <button type="button" onClick={() => { sim.station = null; setOverlay(null); }} className="tr-btn px-2 py-1 text-[9px]">✕</button>
         </div>
         <p className="mb-2 text-[9px] leading-4 text-white/80">{NOTE[station]}</p>
+        {station === "taller" && s.suit.owned && s.suit.integrity < 100 && (
+          <div className="mb-2 flex flex-wrap items-center gap-2 text-[9px]">
+            <span className="tr-text">🧑‍🚀 Space suit</span>
+            <div className="h-2.5 w-32 overflow-hidden rounded bg-black/50"><div className={`h-full ${s.suit.integrity < 25 ? "bg-alert" : "bg-suit-light"}`} style={{ width: `${s.suit.integrity}%` }} /></div>
+            <span>{Math.round(s.suit.integrity)}%</span>
+            <button type="button" disabled={s.inv.kits < 1} onClick={() => { if (sim.inv.kits < 1) return; sim.inv.kits -= 1; sim.suit.integrity = 100; addLog(sim, "You patched the space suit: 100%. -1 kit."); sfx.ok(); publish(); }}
+              className="tr-btn px-2 py-1 text-[9px] disabled:opacity-40">REPAIR SUIT (1 Sealant kit)</button>
+          </div>
+        )}
         {mod && (
           <div className="mb-2 flex flex-wrap items-center gap-2 text-[9px]">
             <span className="tr-text">Condition</span>
