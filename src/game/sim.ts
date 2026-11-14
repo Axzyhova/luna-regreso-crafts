@@ -3,6 +3,8 @@ import modulos from "@/data/modulos.json";
 import recetas from "@/data/recetas.json";
 import subsistemas from "@/data/subsistemas_cohete.json";
 import balance from "@/data/balance.json";
+import mejoras from "@/data/mejoras.json";
+import zonasCfg from "@/data/zonas.json";
 
 /** Tunable game rates (see src/data/balance.json). */
 export const BAL = balance;
@@ -16,7 +18,7 @@ export interface TipoInfo { nombre: string; energia: number; desgaste: number; w
 export const TIPOS = modulos.tipos as Record<ModType, TipoInfo>;
 export type AlienTipo = "abductor" | "rastreador" | "saboteador" | "nodriza";
 export interface Alien { id: number; tipo: AlienTipo; x: number; y: number; hp: number; stun: number; target?: LeakTarget | undefined }
-export interface Module { uid: number; tipo: ModType; x: number; y: number; durabilidad: number; activo: boolean }
+export interface Module { uid: number; tipo: ModType; x: number; y: number; durabilidad: number; activo: boolean; level?: number }
 export const STACK = 50;
 export const SLOTS = 20;
 /** Inventory item -> module type it places. */
@@ -30,7 +32,7 @@ export const CYCLE = DAY_LEN + NIGHT_LEN;
 export const LH2_CAP = balance.lh2_cap_kg;
 export const LOX_CAP = balance.lox_cap_kg;
 
-export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number }
+export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number }
 
 export function createSim(mode: Mode, difficulty: Difficulty) {
   return {
@@ -40,11 +42,28 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     battery: 60, energyIn: 0, energyOut: 0,
     habitatO2: 80,
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
-    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0 } as Inv,
+    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0 } as Inv,
     relay: false,
     // --- historia, efectos, eventos y botín ---
     effects: [] as string[],
     fatigue: 0,
+    // Exploration: fog-of-war cells (1 = seen), last position, zones visited, ravine bridge, hive creatures.
+    explored: [] as number[],
+    pos: { x: 110, y: 200 },
+    visited: ["base"] as string[],
+    bridge: false,
+    hive: [] as { id: number; x: number; y: number; hp: number; stun: number }[],
+    nextHiveId: 1,
+    // Space suit: indispensable outside. Integrity wears down with use; wearing it all the time makes you thirsty.
+    suit: { owned: true, worn: true, integrity: 80 },
+    hydration: 100,
+    lastHurt: "" as string,
+    dead: null as null | { cause: string; x: number; y: number },
+    respawned: false,
+    drops: [] as { id: number; x: number; y: number; items: Record<string, number> }[],
+    nextDropId: 1,
+    notices: [] as { id: number; kind: "achievement" | "mission"; title: string; text: string }[],
+    nextNoticeId: 1,
     tut: { step: 0, skipped: false, moved: 0, invOpened: false, kitCrafted: false },
     leaksToday: 0,
     awayT: 0,
@@ -72,7 +91,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     cubesat: [] as { uid: number; id: string; x: number; y: number; rot: number }[],
     result: null as null | { ok: boolean; dia: number; ventana: string; lh2Sobra: number; loxSobra: number },
     hotbarItems: ["kits", "chatarra", "metal", null, null] as (string | null)[],
-    near: { taller: false, horno: false },
+    near: { taller: false, horno: false, habitat: false },
     station: null as null | "taller" | "horno",
     stationUid: 0,
     buildMode: null as string | null,
@@ -105,11 +124,35 @@ export const modeCfg = (s: Sim) => modos.modos[s.mode];
 export const isOn = (m: Module) => m.activo && m.durabilidad > 0;
 export const working = (s: Sim, tipo: ModType) => s.modules.some((m) => m.tipo === tipo && isOn(m));
 /** Energy per second a module adds (+) or uses (-) right now. */
+// ---- Upgrades ----
+export const lvl = (m: Module) => m.level ?? 1;
+export const lvMult = (m: Module) => 1 + mejoras.efecto_por_nivel * (lvl(m) - 1);
+type Cost = Record<string, number>;
+export const UPGRADES = mejoras.mejoras as Record<string, { efecto: string; costos: Cost[] }>;
+/** Cost to reach the next level, or null at max level / not upgradable. */
+export function upgradeCost(m: Module): Cost | null {
+  return UPGRADES[m.tipo]?.costos[lvl(m) - 1] ?? null;
+}
+export function canUpgrade(s: Sim, m: Module) {
+  const c = upgradeCost(m);
+  return !!c && canCraft(s.inv, c);
+}
+export function upgradeModule(s: Sim, m: Module) {
+  const c = upgradeCost(m);
+  if (!c || !canCraft(s.inv, c)) return false;
+  const inv = s.inv as unknown as Record<string, number>;
+  for (const [k, v] of Object.entries(c)) inv[k] = (inv[k] ?? 0) - v;
+  m.level = lvl(m) + 1;
+  addLog(s, `⬆ ${TIPOS[m.tipo].nombre} upgraded to level ${m.level}.`);
+  return true;
+}
+const bestMult = (s: Sim, tipo: ModType) => Math.max(1, ...s.modules.filter((m) => m.tipo === tipo && isOn(m)).map(lvMult));
+
 export function moduleEnergy(m: Module, day: boolean) {
   if (!isOn(m)) return 0;
   const t = TIPOS[m.tipo];
   if (t.solo_dia && !day) return 0;
-  return t.energia * (t.energia > 0 && m.durabilidad < 30 ? 0.5 : 1);
+  return t.energia * (t.energia > 0 && m.durabilidad < 30 ? 0.5 : 1) * (t.energia > 0 ? lvMult(m) : 1);
 }
 export function energyBalance(s: Sim, day: boolean) {
   let inp = 0, out = 0;
@@ -118,7 +161,7 @@ export function energyBalance(s: Sim, day: boolean) {
 }
 export const BATTERY_RATE = 0.12;
 export function batteryCap(s: Sim) {
-  return 20 + s.modules.filter((m) => m.tipo === "bateria" && isOn(m)).length * (TIPOS.bateria.capacidad ?? 100);
+  return 20 + s.modules.filter((m) => m.tipo === "bateria" && isOn(m)).reduce((a, m) => a + (TIPOS.bateria.capacidad ?? 100) * lvMult(m), 0);
 }
 /** Seconds the batteries last at night with the modules currently ON (Infinity if no drain). */
 export function nightBatterySeconds(s: Sim) {
@@ -148,7 +191,10 @@ export function craft(s: Sim, r: Receta) {
   if (recipeBlock(s, r)) return false;
   const inv = s.inv as unknown as Record<string, number>;
   for (const [k, v] of Object.entries(r.ingredientes)) inv[k] = (inv[k] ?? 0) - (v ?? 0);
-  for (const [k, v] of Object.entries(r.resultado)) inv[k] = (inv[k] ?? 0) + (v ?? 0);
+  for (const [k, v] of Object.entries(r.resultado)) {
+    if (k === "traje_espacial") { s.suit = { owned: true, worn: s.suit.worn && s.suit.owned, integrity: 100 }; continue; }
+    inv[k] = (inv[k] ?? 0) + (v ?? 0);
+  }
   if (r.resultado && "kits" in r.resultado) s.tut.kitCrafted = true;
   s.log.unshift({ t: stamp(s), text: `Day ${s.day}: you crafted ${r.nombre.replace(/ \((module|gear)\)/, "").toLowerCase()}` });
   return true;
@@ -193,7 +239,35 @@ export function unlock(s: Sim, name: string) {
   if (s.logros.includes(name)) return false;
   s.logros.push(name);
   addLog(s, `ACHIEVEMENT: ${name}`);
+  notify(s, "achievement", "Achievement unlocked", name);
   return true;
+}
+
+/** Queue a pop-up notification (achievement / mission), shown one at a time by the UI. */
+export function notify(s: Sim, kind: "achievement" | "mission", title: string, text: string) {
+  s.notices.push({ id: s.nextNoticeId++, kind, title, text });
+  if (s.notices.length > 6) s.notices.shift();
+}
+
+/** Apply damage and remember what caused it (shown on the death screen). */
+export function hurt(s: Sim, amount: number, cause: string) {
+  if (amount <= 0) return;
+  s.health = Math.max(0, s.health - amount);
+  s.lastHurt = cause;
+}
+
+export const SUIT_WEAR_S = 100 / 1200;   // integrity per second outside: a full suit lasts ~2 day/night cycles
+export const THIRST_S = 100 / 480;       // hydration per second while wearing the suit (~8 min)
+export const VACUUM_DMG_S = 8;           // health per second outside without a working suit
+export const suitWorking = (s: Sim) => s.suit.owned && s.suit.worn && s.suit.integrity > 0;
+
+/** Put the suit on / take it off. Outside the habitat taking it off is deadly, so it's refused. */
+export function toggleSuit(s: Sim, inHabitat: boolean): string {
+  if (!s.suit.owned) return "You have no space suit: craft one at the Workshop";
+  if (s.suit.worn && !inHabitat) return "Take the suit off only inside the habitat";
+  s.suit.worn = !s.suit.worn;
+  addLog(s, s.suit.worn ? "You put on the space suit." : "You took off the space suit. Drink and rest.");
+  return s.suit.worn ? "Suit on" : "Suit off";
 }
 
 /** Electrolysis: water mass splits into H2:O2 = 1:8 by mass. */
@@ -212,7 +286,7 @@ export function canCraft(inv: Inv, ing: Record<string, number | undefined>) {
 }
 
 /** Advance the simulation by dt seconds (excluding positional effects handled by the scene). */
-export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: boolean }) {
+export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: boolean; zoneTemp?: number | undefined }) {
   const d = diffCfg(s);
   const prevDay = isDay(s);
   s.time += dt;
@@ -241,13 +315,13 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   s.energyIn = eIn; s.energyOut = eOut;
   s.battery = Math.min(batteryCap(s), Math.max(0, s.battery + (eIn - eOut) * dt * BATTERY_RATE));
   if (powered) for (const m of s.modules) if (m.tipo === "taladro" && isOn(m)) {
-    s.drillAcc = (s.drillAcc ?? 0) + (TIPOS.taladro.produce_hielo ?? 0) * dt;
+    s.drillAcc = (s.drillAcc ?? 0) + (TIPOS.taladro.produce_hielo ?? 0) * lvMult(m) * dt;
     if (s.drillAcc >= 1) { s.drillAcc -= 1; addItem(s, "hielo", 1); }
   }
 
   // production
   if (elecOn) {
-    const w = Math.min(s.inv.agua, balance.electrolisis_agua_kg_s * dt);
+    const w = Math.min(s.inv.agua, balance.electrolisis_agua_kg_s * bestMult(s, "electrolisis") * dt);
     s.inv.agua -= w;
     const r = electrolyze(w);
     s.h2gas += r.h2; s.o2gas += r.o2;
@@ -263,17 +337,17 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
     if (s.lh2 > balance.logro_mezcla_min_lh2_kg && Math.abs(s.lox / s.lh2 - 6) < 0.1) unlock(s, "Perfect 6:1 mix");
   }
   if (hornoOn) {
-    const r = Math.min(s.inv.regolito, 0.05 * dt);
+    const r = Math.min(s.inv.regolito, 0.05 * bestMult(s, "horno") * dt);
     s.inv.regolito -= r;
     s.inv.metal += r * 0.3;
     s.habitatO2 = Math.min(100, s.habitatO2 + r * 2);
   }
   // boil-off
   const boil = day ? balance.boiloff_dia_por_s : balance.boiloff_noche_por_s;
-  s.lh2 = Math.max(0, s.lh2 - s.lh2 * boil * dt * (working(s, "licuefactor") ? balance.boiloff_factor_con_licuefactor : 1));
+  s.lh2 = Math.max(0, s.lh2 - s.lh2 * boil * dt * (working(s, "licuefactor") ? balance.boiloff_factor_con_licuefactor * Math.pow(0.7, bestMult(s, "licuefactor") / mejoras.efecto_por_nivel - 1 / mejoras.efecto_por_nivel) : 1));
 
   // habitat
-  s.habitatO2 = Math.max(0, s.habitatO2 - 0.02 * dt);
+  s.habitatO2 = Math.max(0, s.habitatO2 - (0.02 / bestMult(s, "habitat")) * dt);
 
   // leaks
   for (const l of s.leaks) {
@@ -289,21 +363,38 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   if (ctx.inHabitat && s.habitatO2 > 0) {
     const r = Math.min(100 - s.suitO2, 6 * dt);
     s.suitO2 += r; s.habitatO2 = Math.max(0, s.habitatO2 - r * 0.05);
-  } else {
+  } else if (suitWorking(s)) {
     s.suitO2 = Math.max(0, s.suitO2 - 0.28 * dt * d.consumo);
   }
+  if (!ctx.inHabitat) {
+    if (suitWorking(s)) {
+      const before = s.suit.integrity;
+      s.suit.integrity = Math.max(0, s.suit.integrity - SUIT_WEAR_S * dt);
+      if (before >= 25 && s.suit.integrity < 25) addLog(s, "⚠ Space suit integrity low: repair it at the Workshop.");
+      if (before > 0 && s.suit.integrity === 0) addLog(s, "⚠ Your space suit failed! Get back to the habitat.");
+    } else hurt(s, VACUUM_DMG_S * dt, s.suit.owned && s.suit.worn ? "had a suit failure in the vacuum" : "was exposed to the vacuum without a suit");
+  }
+  // Thirst: you can't drink with the helmet on. Inside the habitat, suit off, you drink stored water.
+  if (s.suit.worn) s.hydration = Math.max(0, s.hydration - THIRST_S * dt);
+  else if (ctx.inHabitat) {
+    const sip = Math.min(100 - s.hydration, 6 * dt);
+    if (s.inv.agua > 0) { s.hydration += sip; s.inv.agua = Math.max(0, s.inv.agua - sip * 0.05); }
+    else s.hydration = Math.min(100, s.hydration + sip / 6); // a little recycled water from the habitat
+  }
+  if (s.hydration <= 0) hurt(s, 1.2 * dt, "died of thirst");
   const ins = s.inv.aislamiento > 0 ? 0.5 : 1;
   let target = 21;
   if (!ctx.inHabitat) {
     if (!day) target = s.battery > 0 ? 8 : -20;
+    if (ctx.zoneTemp !== undefined) target = ctx.zoneTemp;
     if (ctx.inShadow) target -= 18 * ins;
     if (ev === "eclipse") target -= 30;
     if (ev === "pico_termico" && !ctx.inShadow) target = 62;
-    if (s.equip.includes("traje_termico") && target < 15) target = Math.min(15, target + 30);
-    if (s.equip.includes("capa_reflectante") && target > 30) target = Math.max(30, target - 35);
+    if (s.equip.includes("traje_termico") && target < 15) target = Math.max(target, 10); // insulated suit holds ~10 °C
+    if (s.equip.includes("capa_reflectante") && target > 30) target = Math.min(target, 30); // reflective cape caps ~30 °C
   } else if (s.battery <= 0) target = 0;
   s.temp += (target - s.temp) * Math.min(1, dt * 0.08);
-  if (s.suitO2 <= 0) s.health -= 3 * dt;
+  if (s.suitO2 <= 0 && suitWorking(s) && !ctx.inHabitat) hurt(s, 3 * dt, "ran out of oxygen");
   if (ctx.inHabitat && s.suitO2 > 50 && s.temp > 10) s.health = Math.min(100, s.health + 0.5 * dt);
   s.health = Math.max(0, s.health);
 
@@ -314,6 +405,45 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   // acts
   if (s.act === 1 && s.inv.hielo + s.inv.agua >= 6 && s.inv.chatarra >= 4 && s.actFlags.leakFixed) advanceAct(s);
   if (s.act === 2 && s.lh2 >= balance.meta_acto2_lh2_kg) advanceAct(s);
+  cleanupInventory(s);
+}
+
+/** Remove depleted items from the hotbar and gear that is no longer owned. */
+export function cleanupInventory(s: Sim) {
+  const inv = s.inv as unknown as Record<string, number>;
+  s.hotbarItems = s.hotbarItems.map((k) => (k && (inv[k] ?? 0) >= 1 ? k : null));
+  s.equip = s.equip.filter((g) => (inv[g] ?? 0) >= 1);
+  if (s.buildMode && (inv[s.buildMode] ?? 0) < 1) s.buildMode = null;
+}
+
+/** Respawn after death: everything you carried stays in a bag where you died; you wake in the habitat with the spare suit. */
+export function respawn(s: Sim, hab: { x: number; y: number }) {
+  const d = s.dead ?? { cause: "", x: hab.x, y: hab.y };
+  const inv = s.inv as unknown as Record<string, number>;
+  const items: Record<string, number> = {};
+  for (const [k, v] of Object.entries(inv)) { const n = Math.floor(v); if (n > 0) { items[k] = n; inv[k] = v - n; } }
+  if (Object.keys(items).length) s.drops.push({ id: s.nextDropId++, x: Math.round(d.x), y: Math.round(d.y), items });
+  s.equip = [];
+  s.hotbarItems = s.hotbarItems.map(() => null);
+  s.suit = { owned: true, worn: true, integrity: 40 };
+  s.dead = null; s.respawned = true;
+  onDeath(s);
+  s.hydration = 70; s.lastHurt = "";
+  addLog(s, "You respawned in the habitat with the spare suit (40%). Your items are in a bag where you died.");
+}
+
+/** Pick up a death bag (as much as fits). Returns true if the bag is now empty. */
+export function pickUpDrop(s: Sim, id: number) {
+  const b = s.drops.find((x) => x.id === id);
+  if (!b) return false;
+  for (const [k, n] of Object.entries(b.items)) {
+    let left = n;
+    while (left > 0 && addItem(s, k as keyof Inv, 1)) left--;
+    if (left > 0) b.items[k] = left; else delete b.items[k];
+  }
+  if (!Object.keys(b.items).length) { s.drops = s.drops.filter((x) => x !== b); addLog(s, "You recovered all your items."); return true; }
+  addLog(s, "Inventory full: some items are still in the bag.");
+  return false;
 }
 
 export function advanceAct(s: Sim) {
@@ -329,4 +459,37 @@ export function onDeath(s: Sim) {
     s.hint = "HINT: go back to the habitat to refill O2 and avoid the shadowed crater at night.";
     addLog(s, "Difficulty adjusted: events -20%.");
   }
+}
+
+// ---- Zones ----
+export type Zona = (typeof zonasCfg.zonas)[number] & { temp?: number; req?: { equip?: string; puente?: boolean }; bloqueo?: string; recurso?: string };
+export const ZONAS = zonasCfg.zonas as Zona[];
+export const WORLD = zonasCfg.mundo;
+export const FOG_CELL = zonasCfg.celda_niebla;
+export const FOG_COLS = Math.ceil(WORLD.w / FOG_CELL), FOG_ROWS = Math.ceil(WORLD.h / FOG_CELL);
+export const zoneAt = (x: number, y: number): Zona => ZONAS.find((z) => x >= z.rect[0]! && y >= z.rect[1]! && x < z.rect[0]! + z.rect[2]! && y < z.rect[1]! + z.rect[3]!) ?? ZONAS[0]!;
+/** Why you can't enter a zone yet (null = you can). */
+export function zoneBlock(s: Sim, z: Zona): string | null {
+  if (z.req?.equip && !s.equip.includes(z.req.equip)) return z.bloqueo ?? "You can't go there yet";
+  if (z.req?.puente && !s.bridge) return z.bloqueo ?? "You can't go there yet";
+  return null;
+}
+/** Mark fog cells around (x, y) as explored. */
+export function reveal(s: Sim, x: number, y: number, r = zonasCfg.radio_vision) {
+  if (s.explored.length !== FOG_COLS * FOG_ROWS) s.explored = new Array(FOG_COLS * FOG_ROWS).fill(0);
+  const c0 = Math.max(0, Math.floor((x - r) / FOG_CELL)), c1 = Math.min(FOG_COLS - 1, Math.floor((x + r) / FOG_CELL));
+  const r0 = Math.max(0, Math.floor((y - r) / FOG_CELL)), r1 = Math.min(FOG_ROWS - 1, Math.floor((y + r) / FOG_CELL));
+  for (let cy = r0; cy <= r1; cy++) for (let cx = c0; cx <= c1; cx++) {
+    const mx = cx * FOG_CELL + FOG_CELL / 2, my = cy * FOG_CELL + FOG_CELL / 2;
+    if ((mx - x) ** 2 + (my - y) ** 2 <= (r + FOG_CELL / 2) ** 2) s.explored[cy * FOG_COLS + cx] = 1;
+  }
+}
+export const BRIDGE = zonasCfg.puente;
+export function buildBridge(s: Sim) {
+  if (s.bridge || !canCraft(s.inv, BRIDGE.costo)) return false;
+  const inv = s.inv as unknown as Record<string, number>;
+  for (const [k, v] of Object.entries(BRIDGE.costo)) inv[k] = (inv[k] ?? 0) - v;
+  s.bridge = true;
+  addLog(s, "🌉 You built the ravine bridge. The Alien Hive is now reachable.");
+  return true;
 }

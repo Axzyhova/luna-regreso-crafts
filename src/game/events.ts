@@ -1,5 +1,5 @@
 import cfg from "@/data/eventos.json";
-import { addLog, isDay, isOn, TIPOS, CYCLE, DAY_LEN, type Sim } from "./sim";
+import { addLog, isDay, isOn, hurt, TIPOS, CYCLE, DAY_LEN, type Sim } from "./sim";
 import { aliensEnabled, type World } from "./aliens";
 import { spawnCapsule } from "./loot";
 
@@ -71,7 +71,7 @@ export function stepEvents(s: Sim, dt: number, w: World): { x: number; y: number
       const p = { x: ev.x + Math.cos(a) * rr, y: ev.y + Math.sin(a) * rr };
       impacts.push(p); s.impacts.push({ ...p, t: 1.2 });
       const ri = e.radio_impacto ?? 0;
-      if (dist(p.x, p.y, w.player.x, w.player.y) < ri && !w.inHabitat) { s.health = Math.max(0, s.health - (e.dano_jugador ?? 0)); addLog(s, "☄️ A micrometeorite hit you."); }
+      if (dist(p.x, p.y, w.player.x, w.player.y) < ri && !w.inHabitat) { hurt(s, e.dano_jugador ?? 0, "was hit by a micrometeorite"); if (s.suit.worn) s.suit.integrity = Math.max(0, s.suit.integrity - 15); addLog(s, "☄️ A micrometeorite hit you."); }
       for (const m of s.modules) {
         if (dist(p.x, p.y, m.x, m.y) < ri + Math.max(TIPOS[m.tipo].w, TIPOS[m.tipo].h) / 2 && isOn(m)) {
           m.durabilidad = Math.max(0, m.durabilidad - (e.dano_modulo ?? 0));

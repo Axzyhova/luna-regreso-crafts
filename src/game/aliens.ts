@@ -172,7 +172,7 @@ export function stepAliens(s: Sim, dt: number, w: World): AlienEvent[] {
 }
 
 /** Tool strike on the nearest alien in range. Returns the alien hit, if any. */
-export function hitAlien(s: Sim, px: number, py: number): Alien | null {
+export function hitAlien(s: Sim, px: number, py: number, dmg = 1): Alien | null {
   let best: Alien | null = null, bd = Infinity;
   for (const a of s.aliens) {
     const reach = a.tipo === "nodriza" ? cfg.golpe.rango * 2.5 : cfg.golpe.rango; // the mothership hovers above the rocket
@@ -180,7 +180,7 @@ export function hitAlien(s: Sim, px: number, py: number): Alien | null {
     if (d < reach && d < bd) { bd = d; best = a; }
   }
   if (!best) return null;
-  best.hp -= 1;
+  best.hp -= dmg;
   best.stun = best.tipo === "nodriza" ? 1.5 : cfg.golpe.aturdir_s;
   if (best.tipo !== "nodriza") {
     const d = dist(best.x, best.y, px, py) || 1;

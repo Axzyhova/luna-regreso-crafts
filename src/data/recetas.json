@@ -52,6 +52,20 @@
   "disponible": true
  },
  {
+  "id": "traje_espacial",
+  "nombre": "Space suit (gear)",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 4,
+   "aislamiento": 2,
+   "chatarra": 3
+  },
+  "resultado": {
+   "traje_espacial": 1
+  },
+  "disponible": true
+ },
+ {
   "id": "pala_mejorada",
   "nombre": "Better shovel",
   "lugar": "taller",
@@ -203,6 +217,32 @@
   },
   "resultado": {
    "escudo_radiacion": 1
+  },
+  "disponible": true
+ },
+ {
+  "id": "pala_titanio",
+  "nombre": "Titanium shovel",
+  "lugar": "taller",
+  "ingredientes": {
+   "titanio": 3,
+   "metal": 2
+  },
+  "resultado": {
+   "pala_titanio": 1
+  },
+  "disponible": true
+ },
+ {
+  "id": "baton",
+  "nombre": "Stun baton",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 3,
+   "baterias": 1
+  },
+  "resultado": {
+   "baton": 1
   },
   "disponible": true
  }

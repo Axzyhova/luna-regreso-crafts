@@ -7,7 +7,7 @@ const WALK_PX_S = 60;
 
 export const NAV_LABEL: Record<string, string> = {
   fuga: "Leak", hielo: "Crater ice", base: "Habitat", cohete: "Rocket", capsula: "Supply capsule",
-  alien: "Alien nearby!", jefe: "Mothership!", meteoritos: "Impact zone",
+  alien: "Alien nearby!", jefe: "Mothership!", meteoritos: "Impact zone", bolsa: "Your lost items",
 };
 const DIRS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
@@ -40,7 +40,7 @@ export function navigation(s: Sim) {
   const main = nearest(s, [kind]);
   const threat = nearest(s, ["jefe", "meteoritos", "alien"]);
   const threatNear = threat && Math.hypot(threat.dx, threat.dy) < 140 ? toTarget(threat, true) : null;
-  const cap = nearest(s, ["capsula"]);
+  const cap = nearest(s, ["bolsa"]) ?? nearest(s, ["capsula"]);
   const then = threatNear ?? (cap ? toTarget(cap) : null);
   const primary = main ? toTarget(main) : null;
   const speed = WALK_PX_S * effectMods(s).speed;

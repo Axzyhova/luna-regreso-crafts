@@ -36,6 +36,49 @@ export function makeSprites(scene: Phaser.Scene) {
   makeAstronaut(scene);
   makeStructures(scene);
 
+  // Astronaut without the space suit (same size): head and hair visible, blue undersuit.
+  tex(scene, "astro_plain", 10, 12, (g, r) => {
+    r(5, 10, 10, 10, OUT); g.fillStyle(OUT).fillCircle(10, 6, 4.8);
+    r(6, 11, 8, 8, 0x3b6fd6); r(11, 11, 3, 8, 0x2a4fa8); r(6, 11, 8, 1, 0x7fa8ff);   // undersuit
+    r(9, 13, 2, 2, T.alert);                                                          // patch
+    r(6, 18, 3, 5, OUT); r(11, 18, 3, 5, OUT); r(6, 18, 3, 4, 0x2a4fa8); r(11, 18, 3, 4, 0x223f88);
+    r(6, 22, 3, 1, 0x2a2a36); r(11, 22, 3, 1, 0x2a2a36);
+    g.fillStyle(0xf0c8a0).fillCircle(10, 6.5, 3.8);                                  // face
+    r(6, 2, 8, 3, 0x4a2e1a); r(6, 4, 2, 3, 0x4a2e1a);                               // hair
+    r(8, 6, 1, 1, 0x14141c); r(11, 6, 1, 1, 0x14141c);                               // eyes
+  });
+
+  // Death bag: a sack with a red marker, so you can find your lost items.
+  tex(scene, "bag", 9, 10, (g, r) => {
+    g.fillStyle(OUT).fillEllipse(9, 13, 16, 13); g.fillStyle(0x8a6a3a).fillEllipse(9, 13, 14, 11); g.fillStyle(0xb08a50).fillEllipse(7, 11, 7, 5);
+    r(7, 4, 4, 4, OUT); r(8, 5, 2, 3, 0x6a4e28);
+    r(5, 0, 8, 2, T.red); r(8, 0, 2, 4, T.red);
+  });
+
+  // Zone resources.
+  tex(scene, "n_cristal", 7, 8, (g, r) => {
+    g.fillStyle(OUT).fillPoints(toPts([7, 0, 13, 7, 7, 15, 1, 7], 1), true);
+    g.fillStyle(0x9fd8ff).fillPoints(toPts([7, 0, 13, 7, 7, 15, 1, 7], 0), true);
+    g.fillStyle(0xd8f2ff).fillPoints(toPts([7, 1, 7, 14, 2, 7], 0), true);
+    r(6, 4, 1, 4, 0xffffff); r(9, 9, 2, 1, 0x5aa0d8);
+  });
+  tex(scene, "n_titanio", 7, 6, (g, r) => {
+    g.fillStyle(OUT).fillEllipse(7, 7, 14, 10); g.fillStyle(0x6b6b75).fillEllipse(7, 7, 12, 8);
+    r(3, 4, 3, 2, 0xd8e0ea); r(8, 6, 3, 2, 0xb8c6d8); r(5, 8, 2, 1, 0xffffff); r(9, 4, 1, 1, 0xffffff);
+  });
+  tex(scene, "n_aleacion", 7, 7, (g, r) => {
+    g.fillStyle(0x4fc26a, 0.35).fillCircle(7, 7, 7);
+    g.fillStyle(OUT).fillPoints(toPts([7, 1, 12, 5, 11, 12, 3, 12, 2, 5], 1), true);
+    g.fillStyle(0x3a9a52).fillPoints(toPts([7, 1, 12, 5, 11, 12, 3, 12, 2, 5], 0), true);
+    r(5, 4, 2, 4, 0x9ff0b4); r(8, 8, 2, 2, T.alien);
+  });
+  // Warning sign at the ravine where the bridge goes.
+  tex(scene, "gate", 9, 11, (g, r) => {
+    r(8, 10, 2, 12, OUT); r(8, 10, 1, 12, 0x9a9aa3);
+    g.fillStyle(OUT).fillTriangle(9, 0, 0, 12, 18, 12); g.fillStyle(T.gold).fillTriangle(9, 2, 2, 11, 16, 11);
+    r(8, 4, 2, 4, OUT); r(8, 9, 2, 1, OUT);
+  });
+
   // Ice crystals: faceted shards with highlights.
   tex(scene, "ice", 6, 6, (g) => {
     const shard = (pts: number[], fill: number, edge: number) => {
@@ -191,8 +234,11 @@ export function astroPose(kind: "idle" | "walk" | "run", i: number): AstroPose {
   };
 }
 
-function drawAstro(g: G, r: R, p: AstroPose) {
-  const L = p.lean, D = p.dip;
+/** "suit" = EVA suit with helmet; "plain" = blue undersuit with face and hair (shown while the suit is off). */
+export type AstroSkin = "suit" | "plain";
+
+function drawAstro(g: G, r: R, p: AstroPose, skin: AstroSkin = "suit") {
+  const L = p.lean, D = p.dip, suit = skin === "suit";
   const leg = (dx: number, lift: number, fill: number, boot: number) => {
     const hip = 8, top = 18 + D, foot = 22 - lift;
     const thighX = hip + Math.round(dx / 2), shinX = hip + dx;
@@ -200,31 +246,49 @@ function drawAstro(g: G, r: R, p: AstroPose) {
     for (const [x, y, w, h] of parts) r(x - 1, y - 1, w + 2, h + 2, OUT);
     r(thighX, top, 3, 2, fill); r(shinX, top + 2, 3, Math.max(1, foot - top - 2), fill); r(shinX, foot, 4, 1, boot);
   };
-  leg(p.farDx, p.farLift, 0xb4b4be, 0x45454f); // far leg, in shade
-  // body (same design as the HD art: backpack, torso with shade and mission patch, round helmet with visor)
-  r(4 + L, 10 + D, 12, 10, OUT); r(2 + L, 11 + D, 3, 8, OUT);
-  g.fillStyle(OUT).fillCircle(10 + L, 7 + D, 6.5);
-  r(3 + L, 12 + D, 2, 6, 0x8a8a96); r(3 + L, 12 + D, 1, 6, 0xb0b0ba);
-  r(5 + L, 11 + D, 10, 8, 0xf2f2f2); r(12 + L, 11 + D, 3, 8, 0xc9c9d2);
-  r(9 + L, 13 + D, 3, 2, PAL.alert);
-  leg(p.nearDx, p.nearLift, 0xeeeef2, 0x55555f); // near leg, lit
-  g.fillStyle(0xf2f2f2).fillCircle(10 + L, 7 + D, 5.5);
-  g.fillStyle(0xc9c9d2).fillCircle(11.5 + L, 8 + D, 4);
-  g.fillStyle(0xf2f2f2).fillCircle(9.5 + L, 6.5 + D, 4.2);
-  r(6 + L, 5 + D, 8, 4, 0x1d3f8a); r(6 + L, 5 + D, 8, 1, 0x3b6fd6); r(7 + L, 6 + D, 2, 1, 0xbfd8ff); r(12 + L, 7 + D, 1, 1, 0x7fa8ff);
+  leg(p.farDx, p.farLift, suit ? 0xb4b4be : 0x223f88, suit ? 0x45454f : 0x2a2a36); // far leg, in shade
+  if (suit) {
+    // body (same design as the HD art: backpack, torso with shade and mission patch, round helmet with visor)
+    r(4 + L, 10 + D, 12, 10, OUT); r(2 + L, 11 + D, 3, 8, OUT);
+    g.fillStyle(OUT).fillCircle(10 + L, 7 + D, 6.5);
+    r(3 + L, 12 + D, 2, 6, 0x8a8a96); r(3 + L, 12 + D, 1, 6, 0xb0b0ba);
+    r(5 + L, 11 + D, 10, 8, 0xf2f2f2); r(12 + L, 11 + D, 3, 8, 0xc9c9d2);
+    r(9 + L, 13 + D, 3, 2, PAL.alert);
+  } else {
+    r(5 + L, 10 + D, 10, 10, OUT); g.fillStyle(OUT).fillCircle(10 + L, 6 + D, 4.8);
+    r(6 + L, 11 + D, 8, 8, 0x3b6fd6); r(11 + L, 11 + D, 3, 8, 0x2a4fa8); r(6 + L, 11 + D, 8, 1, 0x7fa8ff); // undersuit
+    r(9 + L, 13 + D, 2, 2, PAL.alert); // patch
+  }
+  leg(p.nearDx, p.nearLift, suit ? 0xeeeef2 : 0x2a4fa8, suit ? 0x55555f : 0x2a2a36); // near leg, lit
+  if (suit) {
+    g.fillStyle(0xf2f2f2).fillCircle(10 + L, 7 + D, 5.5);
+    g.fillStyle(0xc9c9d2).fillCircle(11.5 + L, 8 + D, 4);
+    g.fillStyle(0xf2f2f2).fillCircle(9.5 + L, 6.5 + D, 4.2);
+    r(6 + L, 5 + D, 8, 4, 0x1d3f8a); r(6 + L, 5 + D, 8, 1, 0x3b6fd6); r(7 + L, 6 + D, 2, 1, 0xbfd8ff); r(12 + L, 7 + D, 1, 1, 0x7fa8ff);
+  } else {
+    g.fillStyle(0xf0c8a0).fillCircle(10 + L, 6.5 + D, 3.8); // face
+    r(6 + L, 2 + D, 8, 3, 0x4a2e1a); r(6 + L, 4 + D, 2, 3, 0x4a2e1a); // hair
+    r(8 + L, 6 + D, 1, 1, 0x14141c); r(11 + L, 6 + D, 1, 1, 0x14141c); // eyes
+  }
   // near arm in two segments from a fixed shoulder: the forearm swings against the near leg
-  // (bent and raised when running). Soft grey edge instead of a black box so it reads as a limb on the suit.
+  // (bent and raised when running). Soft edge instead of a black box so it reads as a limb.
   const sx = 10 + L, sy = 12 + D, fx = sx + p.arm, fy = sy + 2, fh = p.bent ? 2 : 3;
-  const EDGE = 0x8a8a96;
+  const EDGE = suit ? 0x8a8a96 : 0x223f88;
   r(sx - 1, sy - 1, 4, 4, EDGE); r(fx - 1, fy - 1, 4, fh + 3, EDGE);
-  r(sx, sy, 2, 3, 0xe6e6ec); r(fx, fy, 2, fh + 1, 0xf2f2f2); r(fx, fy, 1, fh + 1, 0xffffff);
-  r(fx, fy + fh + 1, 2, 1, 0x6b6b75); // glove
+  r(sx, sy, 2, 3, suit ? 0xe6e6ec : 0x3b6fd6); r(fx, fy, 2, fh + 1, suit ? 0xf2f2f2 : 0x3b6fd6); r(fx, fy, 1, fh + 1, suit ? 0xffffff : 0x7fa8ff);
+  r(fx, fy + fh + 1, 2, 1, suit ? 0x6b6b75 : 0xf0c8a0); // glove / hand
 }
 
+/** Texture prefix per skin: suit → "astro_…", plain → "plain_…" (idle0-1, walk0-7, run0-7 each). */
+export const ASTRO_PREFIX: Record<AstroSkin, string> = { suit: "astro", plain: "plain" };
+
 function makeAstronaut(scene: Phaser.Scene) {
-  for (let i = 0; i < 2; i++) tex(scene, `astro_idle${i}`, 10, 12, (g, r) => drawAstro(g, r, astroPose("idle", i)));
-  for (const kind of ["walk", "run"] as const)
-    for (let i = 0; i < ASTRO_FRAMES; i++) tex(scene, `astro_${kind}${i}`, 10, 12, (g, r) => drawAstro(g, r, astroPose(kind, i)));
+  for (const skin of ["suit", "plain"] as const) {
+    const pre = ASTRO_PREFIX[skin];
+    for (let i = 0; i < 2; i++) tex(scene, `${pre}_idle${i}`, 10, 12, (g, r) => drawAstro(g, r, astroPose("idle", i), skin));
+    for (const kind of ["walk", "run"] as const)
+      for (let i = 0; i < ASTRO_FRAMES; i++) tex(scene, `${pre}_${kind}${i}`, 10, 12, (g, r) => drawAstro(g, r, astroPose(kind, i), skin));
+  }
   tex(scene, "astro", 10, 12, (g, r) => drawAstro(g, r, astroPose("idle", 0))); // default frame
 }
 

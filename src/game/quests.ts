@@ -1,5 +1,5 @@
 import data from "@/data/misiones.json";
-import { addLog, addItem, isOn, UMBRAL_VERDE, SUBSISTEMAS, type Inv, type Sim } from "./sim";
+import { addLog, addItem, notify, isOn, UMBRAL_VERDE, SUBSISTEMAS, type Inv, type Sim } from "./sim";
 import { aliensEnabled } from "./aliens";
 import { nextWindow } from "./mission";
 
@@ -28,6 +28,10 @@ export const COND: Record<string, (s: Sim) => boolean> = {
   reparaciones_5: (s) => s.stats.reparaciones >= 5,
   aliens_5: (s) => s.stats.aliens >= 5,
   mezcla: (s) => s.logros.includes("Perfect 6:1 mix"),
+  visit_fire: (s) => s.visited.includes("fire"),
+  cristales_5: (s) => s.inv.cristal_hielo >= 5,
+  puente: (s) => s.bridge,
+  aleacion_3: (s) => s.inv.aleacion >= 3,
 };
 
 export const currentMain = (s: Sim): Quest | null => PRINCIPALES[s.quest.main] ?? null;
@@ -44,6 +48,7 @@ export function stepQuests(s: Sim) {
   for (let q = currentMain(s); q && COND[q.cond]?.(s); q = currentMain(s)) {
     s.dialog.push(...q.fin);
     addLog(s, `✔ Mission complete: ${q.titulo}`);
+    notify(s, "mission", "Mission complete", q.titulo);
     s.quest.main++;
     const next = currentMain(s);
     if (next) { s.dialog.push(...next.inicio); addLog(s, `MISSION: ${next.titulo} — ${next.objetivo}`); }
@@ -55,5 +60,6 @@ export function stepQuests(s: Sim) {
     const [quien, ...rest] = q.fin.split(": ");
     s.dialog.push({ quien: rest.length ? quien! : "ARIA", texto: rest.length ? rest.join(": ") : q.fin });
     addLog(s, `✔ Side mission: ${q.titulo}`);
+    notify(s, "mission", "Side mission complete", q.titulo);
   }
 }

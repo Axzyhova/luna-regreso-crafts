@@ -15,6 +15,10 @@
   },
   {
    "quien": "ARIA",
+   "texto": "Keep your space suit on outside: without it the vacuum kills you in seconds. It wears out and you can't drink with the helmet on, so inside the habitat take it off (V or the SUIT button) to drink, then put it back on."
+  },
+  {
+   "quien": "ARIA",
    "texto": "First things first: there's a leak. Seal it before we lose our air."
   }
  ],
@@ -184,6 +188,46 @@
     "pieza_motor": 1
    },
    "fin": "ARIA: Ideal mix. I found a spare engine part in storage."
+  },
+  {
+   "id": "S7",
+   "titulo": "Into the fire",
+   "objetivo": "Craft the Reflective cape, equip it and enter the Scorch Fields",
+   "cond": "visit_fire",
+   "recompensa": {
+    "titanio": 1
+   },
+   "fin": "ARIA: Scorch Fields reached. The titanium ore there is what we need for the bridge."
+  },
+  {
+   "id": "S8",
+   "titulo": "Frozen secrets",
+   "objetivo": "With the Thermal suit, collect 5 Frost crystals in the Frozen Basin",
+   "cond": "cristales_5",
+   "recompensa": {
+    "baterias": 1
+   },
+   "fin": "ARIA: Those crystals keep things cold for much longer. Perfect for cryotank upgrades."
+  },
+  {
+   "id": "S9",
+   "titulo": "Bridge the ravine",
+   "objetivo": "Build the bridge to the Alien Hive (10 Metal, 6 Regolith, 2 Titanium)",
+   "cond": "puente",
+   "recompensa": {
+    "kits": 2
+   },
+   "fin": "ARIA: The bridge holds. Careful: something lives over there, in every mode."
+  },
+  {
+   "id": "S10",
+   "titulo": "Hive hunter",
+   "objetivo": "Collect 3 Alien alloy in the Alien Hive",
+   "cond": "aleacion_3",
+   "recompensa": {
+    "botiquin": 2
+   },
+   "fin": "ARIA: This alloy is unlike anything on Earth. Our best upgrades need it."
   }
  ],
  "final": [

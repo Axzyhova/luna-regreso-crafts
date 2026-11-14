@@ -88,6 +88,7 @@ export function ActionPad() {
         ) : (
           <McButton label="🔨" sub="BUILD" size={46} onPress={() => { touch.act.build(); publish(); }} />
         )}
+        <McButton label="🧑‍🚀" sub={s.suit.worn ? "SUIT OFF" : "SUIT ON"} size={46} onPress={() => { touch.act.suit(); publish(); }} />
       </div>
       <div className="flex flex-col items-center gap-2">
         <McButton label="E" sub="HOLD" size={54} onPress={() => { touch.e = true; touch.act.interact(); }} onRelease={() => { touch.e = false; }} />
@@ -107,7 +108,7 @@ export async function toggleFullscreen() {
   } catch { /* not supported (iOS Safari) */ }
 }
 
-type Menu = "base" | "log" | "pausa" | "misiones";
+type Menu = "base" | "log" | "pausa" | "misiones" | "mapa";
 
 /** Top-center row of small square buttons, like Minecraft's emote/chat/pause buttons. */
 export function MenuBar({ className = "" }: { className?: string }) {
@@ -115,6 +116,7 @@ export function MenuBar({ className = "" }: { className?: string }) {
   const setOverlay = useGame((g) => g.setOverlay);
   const go = (o: Menu) => { sfx.click(); setOverlay(overlay === o ? null : o); };
   const items: { label: string; icon: string; act: () => void }[] = [
+    { label: "Map", icon: "🗺", act: () => go("mapa") },
     { label: "Missions", icon: "📜", act: () => go("misiones") },
     { label: "Base", icon: "🏠", act: () => go("base") },
     { label: "Log", icon: "📓", act: () => go("log") },

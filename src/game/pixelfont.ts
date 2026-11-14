@@ -26,7 +26,7 @@ export const GLYPHS: Record<string, string[]> = {
   "(": ["..#", ".#.", ".#.", ".#.", "..#"], ")": ["#..", ".#.", ".#.", ".#.", "#.."], "-": ["...", "...", "###", "...", "..."],
   "+": ["...", ".#.", "###", ".#.", "..."], "/": ["..#", "..#", ".#.", "#..", "#.."], "%": ["#.#", "..#", ".#.", "#..", "#.#"],
   "'": [".#.", ".#.", "...", "...", "..."], ">": ["#..", ".#.", "..#", ".#.", "#.."], "<": ["..#", ".#.", "#..", ".#.", "..#"],
-  "=": ["...", "###", "...", "###", "..."], "·": ["...", "...", ".#.", "...", "..."], _: ["...", "...", "...", "...", "###"],
+  "=": ["...", "###", "...", "###", "..."], "^": [".#.", "###", ".#.", ".#.", ".#."], "·": ["...", "...", ".#.", "...", "..."], _: ["...", "...", "...", "...", "###"],
 };
 export const FONT_KEY = "px";
 const CHARS = Object.keys(GLYPHS).join("");
@@ -34,7 +34,7 @@ const CW = 4, CH = 6;
 
 /** Upper-case and swap anything the font doesn't have (accents, emoji, ellipsis) for a close match or a space. */
 export function toFont(s: string): string {
-  return s.toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/…/g, "...").replace(/./gu, (c) => (GLYPHS[c] ? c : " "));
+  return s.toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/…/g, "...").replace(/[→▸]/g, ">").replace(/./gu, (c) => (GLYPHS[c] ? c : " "));
 }
 
 /** Draw the glyph sheet (white letters + black drop shadow) and register it as a Phaser bitmap font. */
