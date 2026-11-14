@@ -14,7 +14,7 @@ function MiniBar({ label, v, max, color }: { label: string; v: number; max: numb
   return (
     <div className="flex items-center gap-1 text-[6px]">
       <span className="w-6 text-right text-white/80">{label}</span>
-      <div className="h-1.5 w-14 bg-black/50"><div className="h-full" style={{ width: `${pct}%`, background: color }} /></div>
+      <div className="tr-bar !h-1.5 w-14"><div style={{ width: `${pct}%`, background: color }} /></div>
     </div>
   );
 }
@@ -31,8 +31,8 @@ export function MobileGame() {
 
       {/* top-left: astronaut (vitals + gear), navigation chip below */}
       <div className="pointer-events-none absolute left-[max(env(safe-area-inset-left),8px)] top-2 flex flex-col items-start gap-1.5">
-        <div className="flex flex-col gap-1 rounded-[10px] bg-black/25 p-1">
-          <span className="text-[5px] tracking-wider text-gold">👨‍🚀 ASTRONAUT</span>
+        <div className="tr-hud flex flex-col gap-1 px-1.5 pb-1 pt-0.5">
+          <span className="tr-label !text-[5px]">👨‍🚀 ASTRONAUT</span>
           <Vitals />
           <GearRow />
         </div>
@@ -48,11 +48,11 @@ export function MobileGame() {
       {/* top-right: clock, base power + rocket fuel, warnings panel below */}
       <div className="pointer-events-none absolute right-[max(env(safe-area-inset-right),8px)] top-2 flex flex-col items-end gap-1.5">
         <DayClock />
-        <div className="flex flex-col items-end gap-1 bg-black/25 p-1">
-          <span className="text-[5px] tracking-wider text-gold">🏠 BASE</span>
-          <span className={`text-[6px] ${net >= 0 ? "text-ok" : "text-destructive"}`}>⚡ +{s.energyIn.toFixed(0)}/-{s.energyOut.toFixed(0)}</span>
+        <div className="tr-hud flex flex-col items-end gap-1 px-1.5 pb-1 pt-0.5">
+          <span className="tr-label !text-[5px]">🏠 BASE</span>
+          <span className={`tr-text text-[6px] ${net >= 0 ? "!text-ok" : "!text-destructive"}`}>⚡ +{s.energyIn.toFixed(0)}/-{s.energyOut.toFixed(0)}</span>
           <MiniBar label="BAT" v={s.battery} max={batteryCap(s)} color="var(--color-gold)" />
-          <span className="mt-0.5 text-[5px] tracking-wider text-gold">🚀 ROCKET</span>
+          <span className="tr-label mt-0.5 !text-[5px]">🚀 ROCKET</span>
           <MiniBar label="LH2" v={s.lh2} max={LH2_CAP} color="var(--color-suit-light)" />
           <MiniBar label="LOX" v={s.lox} max={LOX_CAP} color="var(--color-suit)" />
         </div>

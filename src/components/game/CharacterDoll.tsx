@@ -98,10 +98,13 @@ export function CharacterDoll({ dragging = false, flash }: { dragging?: boolean;
       <div data-doll
         onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
         onDrop={(e) => { e.preventDefault(); setOver(false); const k = e.dataTransfer.getData("text/item"); if (k) drop(k); }}
-        className={`relative flex items-end justify-center border-2 px-4 pb-2 pt-3 transition-colors ${hot ? "border-ok bg-ok/15" : "border-moon-2 bg-moon-0"}`}>
-        <div className="pointer-events-none absolute inset-x-3 bottom-1.5 h-2 rounded-[50%] bg-black/40" />
-        <div className="relative animate-[doll-bob_1.6s_steps(2)_infinite]"><DollSprite equip={s.equip} scale={6} /></div>
-        {hot && <span className="pointer-events-none absolute top-1 text-[6px] text-ok">DROP TO WEAR</span>}
+        className={`tr-slot relative flex items-end justify-center !rounded-[10px] px-5 pb-2 pt-4 ${hot ? "tr-hud-ok scale-[1.02]" : ""}`}>
+        <div className="pointer-events-none absolute inset-x-4 bottom-1.5 h-2 rounded-[50%] bg-black/45" />
+        {/* low-gravity idle float; re-keyed on every equip change so the new gear "pops" on */}
+        <div className="relative animate-[doll-bob_2.4s_ease-in-out_infinite]">
+          <div key={s.equip.join(",")} className="animate-[doll-equip_260ms_cubic-bezier(0.2,0.8,0.2,1)]"><DollSprite equip={s.equip} scale={6} /></div>
+        </div>
+        <span className={`tr-text pointer-events-none absolute top-1 text-[6px] !text-ok transition-opacity duration-150 ${hot ? "opacity-100" : "opacity-0"}`}>DROP TO WEAR</span>
       </div>
       <div className="flex gap-1" aria-label="Gear slots">
         {GEAR.map((k) => {
@@ -111,16 +114,16 @@ export function CharacterDoll({ dragging = false, flash }: { dragging?: boolean;
               onDragStart={(e) => e.dataTransfer.setData("text/unequip", k)}
               onClick={() => on && takeOff(k)}
               title={on ? `${ITEMS[k]?.nombre}: tap or drag back to the grid to take it off` : `${SLOT_LABEL[k]} slot: drag ${ITEMS[k]?.nombre} onto the astronaut`}
-              className={`flex h-12 w-12 flex-col items-center justify-center border-2 ${on ? "border-gold bg-moon-0" : "border-dashed border-moon-2 bg-background/50 opacity-70"}`}>
-              {on ? <PixelIcon item={k} size={22} /> : <span className="text-[10px] text-muted-foreground opacity-40">+</span>}
-              <span className="mt-0.5 text-[5px] text-muted-foreground">{SLOT_LABEL[k]}</span>
+              className={`tr-slot flex h-12 w-12 flex-col items-center justify-center ${on ? "tr-slot-active" : "opacity-60"}`}>
+              {on ? <PixelIcon item={k} size={22} /> : <span className="text-[10px] text-white/40">+</span>}
+              <span className="tr-text mt-0.5 text-[5px]">{SLOT_LABEL[k]}</span>
             </button>
           );
         })}
       </div>
       <div className="min-h-4 text-center text-[6px] leading-3">
-        {msg ? <span className={msg === "Equipped" ? "text-ok" : "text-gold"}>{msg}</span>
-          : <span className="text-muted-foreground">Gear {s.equip.length}/{EQUIPO_MAX} · drag gear onto the astronaut</span>}
+        {msg ? <span key={msg} className={`tr-in inline-block ${msg === "Equipped" ? "text-ok" : "text-gold"}`}>{msg}</span>
+          : <span className="text-white/60">Gear {s.equip.length}/{EQUIPO_MAX} · drag gear onto the astronaut</span>}
       </div>
     </div>
   );
@@ -152,7 +155,7 @@ export function useGearTouchDrag() {
     setDrag({ key, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY });
   };
   const ghost = drag && Math.hypot(drag.x - drag.x0, drag.y - drag.y0) > 8
-    ? <div className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-1/2 border-2 border-ok bg-moon-0/90 p-1" style={{ left: drag.x, top: drag.y }}><PixelIcon item={drag.key} size={28} /></div>
+    ? <div className="tr-slot tr-slot-active pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-1/2 scale-110 p-1.5 shadow-lg" style={{ left: drag.x, top: drag.y }}><PixelIcon item={drag.key} size={28} /></div>
     : null;
   return { start, ghost, dragging: !!drag, result };
 }

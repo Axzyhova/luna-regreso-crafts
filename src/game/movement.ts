@@ -14,8 +14,8 @@ export function runState(fatigue: number, wantsRun: boolean, winded: boolean) {
   return { running: wantsRun && !nowWinded, winded: nowWinded };
 }
 
-/** Animation frame for the walk/run cycle (4 frames) and whether the body is lifted 1 px. */
+/** Frame of the 8-frame walk/run cycle after `t` seconds of moving (12 fps walking, 16 fps running). */
+export const STRIDE_FRAMES = 8;
 export function strideFrame(t: number, running: boolean) {
-  const f = Math.floor(t * (running ? 12 : 8)) % 4;
-  return { frame: f, lift: f % 2 === 1 ? 1 : 0 };
+  return Math.floor(t * (running ? 16 : 12)) % STRIDE_FRAMES;
 }

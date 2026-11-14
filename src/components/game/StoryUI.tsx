@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGame, sim } from "@/game/store";
 import { sfx } from "@/game/audio";
 import { EFECTOS, type EffectId } from "@/game/effects";
@@ -10,21 +10,25 @@ import { navigation } from "@/game/nav";
 import { TUTORIAL, tutorialStep } from "@/game/tutorial";
 import { useTouchDevice } from "@/hooks/use-device";
 
-/** Pixel compass: N at the top, needle points at the target (0° = north, clockwise). */
+/** Unwrap an angle so a needle turning from 350° to 10° rotates 20° forward instead of spinning back 340°. */
+export function unwrapAngle(prev: number, next: number) {
+  return prev + ((((next - prev) % 360) + 540) % 360) - 180;
+}
+
+/** Compass dial: N at the top, needle eases toward the target (0° = north, clockwise). */
 function Compass({ deg, size, warn }: { deg: number; size: number; warn?: boolean }) {
+  const shown = useRef(deg);
+  shown.current = unwrapAngle(shown.current, deg);
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" className="shrink-0" aria-hidden shapeRendering="crispEdges">
-      <rect x="1" y="1" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.4" />
-      <rect x="4" y="4" width="2" height="2" fill="currentColor" opacity="0.4" />
-      <rect x="26" y="4" width="2" height="2" fill="currentColor" opacity="0.4" />
-      <rect x="4" y="26" width="2" height="2" fill="currentColor" opacity="0.4" />
-      <rect x="26" y="26" width="2" height="2" fill="currentColor" opacity="0.4" />
-      <rect x="15" y="2" width="2" height="4" fill="currentColor" />
-      <g style={{ transform: `rotate(${deg}deg)`, transformOrigin: "16px 16px", transition: "transform 200ms steps(4)" }}>
-        <path d="M16 6 L20 16 L16 14 L12 16 Z" fill={warn ? "var(--alert)" : "currentColor"} />
-        <path d="M16 26 L12 16 L16 18 L20 16 Z" fill="currentColor" opacity="0.3" />
+    <svg width={size} height={size} viewBox="0 0 32 32" className="shrink-0" aria-hidden>
+      <circle cx="16" cy="16" r="14.5" fill="rgba(0,0,0,0.45)" stroke="#0b1230" strokeWidth="2" />
+      <circle cx="16" cy="16" r="12.5" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.35" />
+      {[0, 90, 180, 270].map((a) => <rect key={a} x="15.25" y="3.5" width="1.5" height={a ? 2 : 3.5} fill={a ? "currentColor" : "#f2d24f"} opacity={a ? 0.5 : 1} transform={`rotate(${a} 16 16)`} />)}
+      <g style={{ transform: `rotate(${shown.current}deg)`, transformOrigin: "16px 16px", transition: "transform 380ms cubic-bezier(0.2, 0.8, 0.2, 1)" }}>
+        <path d="M16 5.5 L19.5 16 L16 14.2 L12.5 16 Z" fill={warn ? "#f08a24" : "currentColor"} stroke="#0b1230" strokeWidth="0.8" strokeLinejoin="round" />
+        <path d="M16 26.5 L12.5 16 L16 17.8 L19.5 16 Z" fill="currentColor" opacity="0.35" />
       </g>
-      <rect x="15" y="15" width="2" height="2" fill="var(--background)" />
+      <circle cx="16" cy="16" r="1.6" fill="#f2f2f2" stroke="#0b1230" strokeWidth="0.8" />
     </svg>
   );
 }
@@ -38,19 +42,18 @@ export function NavCard({ className = "" }: { className?: string }) {
   const { primary, then, etaS } = navigation(s);
   if (!primary) return null;
   const leak = primary.k === "fuga";
-  const frame = leak ? "border-alert" : "border-moon-1";
   const text = leak ? "text-alert" : "text-suit-light";
   return (
-    <div className={`pointer-events-none inline-flex items-center gap-1.5 border-2 bg-background/85 py-1 pl-1 pr-2 ${frame} ${className}`}>
-      <span className={`${text} ${leak ? "animate-blink" : ""}`}>
-        <Compass deg={primary.deg} size={22} warn={leak} />
+    <div className={`tr-hud pointer-events-none inline-flex items-center gap-1.5 py-1 pl-1 pr-2 ${leak ? "tr-hud-alert" : ""} ${className}`}>
+      <span className={`${text} ${leak ? "animate-pulse" : ""}`}>
+        <Compass deg={primary.deg} size={24} warn={leak} />
       </span>
       <div className="leading-tight">
         <div className={`text-[6px] ${text}`}>{leak ? "⚠ " : "▸ "}{primary.label.toUpperCase()}</div>
-        <div className="mt-0.5 text-[8px] tabular-nums text-foreground">
-          {primary.m}m {primary.dir} <span className="text-[6px] text-muted-foreground">~{etaS}s</span>
+        <div className="tr-text mt-0.5 text-[8px] tabular-nums">
+          {primary.m}m {primary.dir} <span className="text-[6px] text-white/60">~{etaS}s</span>
         </div>
-        {then && <div className={`mt-0.5 text-[5px] ${then.warn ? "text-alert" : "text-muted-foreground"}`}>THEN {then.label.toUpperCase()} {then.m}m</div>}
+        {then && <div className={`mt-0.5 text-[5px] ${then.warn ? "text-alert" : "text-white/55"}`}>THEN {then.label.toUpperCase()} {then.m}m</div>}
       </div>
     </div>
   );
@@ -84,26 +87,28 @@ export function AlertsPanel({ className = "" }: { className?: string }) {
     <div className={`pointer-events-none flex w-44 flex-col items-end gap-1 ${className}`}>
       {n > 0 && (
         <button type="button" onClick={() => { sfx.click(); setOpen((o) => !o); }} aria-expanded={open}
-          className={`pointer-events-auto flex items-center gap-1.5 border-2 bg-background/85 px-1.5 py-1 text-[6px] ${items[0]?.key === "alert" ? "border-alert text-alert" : "border-moon-1 text-gold"}`}>
-          <span className={items[0]?.blink ? "animate-blink" : ""}>⚠</span> ALERTS <span className="bg-alert px-1 text-background">{n}</span> <span className="text-muted-foreground">{open ? "▴" : "▾"}</span>
+          className={`tr-hud pointer-events-auto flex items-center gap-1.5 px-1.5 py-1 text-[6px] ${items[0]?.key === "alert" ? "tr-hud-alert text-alert" : "text-gold"}`}>
+          <span className={items[0]?.blink ? "animate-pulse" : ""}>⚠</span> ALERTS
+          <span className="rounded-sm bg-alert px-1 text-[#2a1a04]">{n}</span>
+          <span className={`inline-block text-white/60 transition-transform duration-200 ${open ? "" : "rotate-180"}`}>▴</span>
         </button>
       )}
-      {open && n > 0 && (
-        <ul className="flex w-full flex-col gap-0.5">
+      <div className={`grid w-full transition-[grid-template-rows,opacity] duration-200 ease-out ${open && n > 0 ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+        <ul className="flex min-h-0 w-full flex-col gap-0.5 overflow-hidden">
           {s.abduction > 0 && (
-            <li className="border-l-2 border-alien bg-background/80 px-1.5 py-1 text-[6px] text-alien">
-              <span className="animate-blink">ABDUCTION</span> · run to the light
-              <div className="mt-0.5 h-1 w-full bg-moon-0"><div className="h-full bg-alien" style={{ width: `${s.abduction}%` }} /></div>
+            <li className="tr-hud tr-in border-alien px-1.5 py-1 text-[6px] text-alien">
+              <span className="animate-pulse">ABDUCTION</span> · run to the light
+              <div className="tr-bar mt-0.5 !h-1"><div className="bg-alien" style={{ width: `${s.abduction}%` }} /></div>
             </li>
           )}
           {items.map((i) => (
-            <li key={i.key} title={i.title} className={`border-l-2 bg-background/80 px-1.5 py-1 text-[6px] leading-3 ${i.tone}`}>
-              <span className={i.blink ? "animate-blink" : ""}>{i.text}</span>
+            <li key={i.key} title={i.title} className={`tr-hud tr-in border-l-4 px-1.5 py-1 text-[6px] leading-3 ${i.tone}`}>
+              <span className={i.blink ? "animate-pulse" : ""}>{i.text}</span>
             </li>
           ))}
         </ul>
-      )}
-      {s.toast && <div className="w-full border-l-2 border-gold bg-background/80 px-1.5 py-1 text-[6px] leading-3 text-gold">{s.toast.text}</div>}
+      </div>
+      {s.toast && <div key={s.toast.text} className="tr-hud tr-in w-full border-l-4 border-gold px-1.5 py-1 text-[6px] leading-3 text-gold">{s.toast.text}</div>}
     </div>
   );
 }
@@ -134,7 +139,7 @@ export function DialogBox() {
   if (!line) return null;
   const color = line.quien === "CONTROL" ? "border-ok text-ok" : line.quien === "ARIA" ? "border-suit-light text-suit-light" : "border-gold text-gold";
   return (
-    <button type="button" onClick={next} className={`absolute inset-x-2 bottom-2 z-[7] mx-auto max-w-xl border-4 bg-card/95 p-3 text-left ${color.split(" ")[0]}`}>
+    <button type="button" onClick={next} className={`absolute inset-x-2 bottom-2 z-[7] mx-auto max-w-xl tr-panel border-[3px] p-3 text-left ${color.split(" ")[0]}`}>
       <div className={`mb-1 text-[8px] ${color.split(" ")[1]}`}>{line.quien === "CONTROL" ? "📡 MISSION CONTROL" : line.quien === "ARIA" ? "🤖 ARIA" : line.quien}</div>
       <div className="text-[8px] leading-4 text-foreground">{line.texto}</div>
       <div className="mt-1 text-right text-[6px] text-muted-foreground">{s.dialog.length > 1 ? `tap to continue (${s.dialog.length - 1})` : "tap to close"} ▶</div>
@@ -159,8 +164,8 @@ export function QuestLog() {
   const setOverlay = useGame((g) => g.setOverlay);
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/70 p-4 short:p-1">
-      <div className="max-h-full w-full max-w-2xl overflow-auto border-4 border-suit bg-card p-4 short:p-2">
-        <div className="mb-3 flex items-center justify-between"><h3 className="text-[11px] text-gold">MISSIONS</h3><button onClick={() => setOverlay(null)} className="text-[9px] text-muted-foreground">[X]</button></div>
+      <div className="tr-panel max-h-full w-full max-w-2xl overflow-auto p-4 short:p-2">
+        <div className="mb-3 flex items-center justify-between"><h3 className="tr-title text-[11px] text-gold">MISSIONS</h3><button onClick={() => setOverlay(null)} aria-label="Close" className="tr-btn px-2 py-1 text-[9px]">✕</button></div>
         <div className="mb-2 text-[8px] text-suit-light">MAIN STORY</div>
         <ol className="mb-4 space-y-2">
           {PRINCIPALES.map((q, i) => {

@@ -11,7 +11,7 @@ function VBar({ icon, v, color, text, thick }: { icon: string; v: number; color:
       <span className="w-3 text-center text-[10px] leading-none text-white">{icon}</span>
       <div className={`relative flex-1 overflow-hidden rounded-[3px] bg-black/55 ${thick ? "h-3.5" : "h-1.5"}`}>
         <div className="h-full rounded-[3px] transition-[width] duration-300" style={{ width: `${pct}%`, background: color }} />
-        {text && <span className="absolute inset-0 flex items-center pl-1.5 font-sans text-[9px] font-bold leading-none text-white drop-shadow">{text}</span>}
+        {text && <span className="tr-text absolute inset-0 flex items-center pl-1.5 text-[6px] leading-none">{text}</span>}
       </div>
     </div>
   );
@@ -49,7 +49,7 @@ export function Thermometer() {
         </g>
         <circle cx="32" cy="34" r="4" fill="#ffffff" />
       </svg>
-      <span className={`-mt-1 font-sans text-[9px] font-bold leading-none ${danger === "cold" ? "text-[#7fb8ff]" : danger === "hot" ? "text-[#ffb066]" : "text-white"}`}>
+      <span className={`tr-text -mt-1 text-[6px] leading-none ${danger === "cold" ? "!text-[#7fb8ff]" : danger === "hot" ? "!text-[#ffb066]" : ""}`}>
         {danger ? (left > 0 ? `${danger === "cold" ? "❄" : "🔥"} ${left}s` : `${danger === "cold" ? "❄ FREEZING" : "🔥 OVERHEAT"}`) : `${s.temp.toFixed(0)}°C`}
       </span>
     </div>
@@ -64,12 +64,12 @@ export function DayClock({ className = "" }: { className?: string }) {
   const p = day ? t / DAY_LEN : (t - DAY_LEN) / (CYCLE - DAY_LEN);
   const left = clock(s).replace(/^(DAY|NIGHT) (\d+ )?/, "");
   return (
-    <div className={`pointer-events-none flex min-w-[96px] flex-col gap-1 rounded-full bg-black/45 px-3 py-1 font-sans ring-1 ring-white/10 ${className}`} aria-label={day ? "Day" : "Night"}>
-      <div className="flex items-center justify-between gap-2 text-[10px] font-semibold leading-none">
+    <div className={`tr-hud pointer-events-none flex min-w-[104px] flex-col gap-1 !rounded-full px-3 py-1 ${className}`} aria-label={day ? "Day" : "Night"}>
+      <div className="tr-text flex items-center justify-between gap-2 text-[7px] leading-none">
         <span className={day ? "text-gold" : "text-suit-light"}>{day ? "☀ Day" : "☾ Night"} {s.day}</span>
         <span className="tabular-nums text-white/80">{left}</span>
       </div>
-      <div className="h-[2px] w-full rounded bg-white/15"><div className={`h-full rounded ${day ? "bg-gold" : "bg-suit-light"}`} style={{ width: `${Math.min(100, p * 100)}%` }} /></div>
+      <div className="h-[2px] w-full rounded bg-white/15"><div className={`h-full rounded transition-[width] duration-1000 ease-linear ${day ? "bg-gold" : "bg-suit-light"}`} style={{ width: `${Math.min(100, p * 100)}%` }} /></div>
     </div>
   );
 }

@@ -15,54 +15,14 @@ import { ITEMS } from "./items";
 import { feetBox, footprint, groundLine, moveWithCollision, overlaps, sortDepth, PLAYER_FOOT_Y, type Box } from "./solids";
 import { FONT_KEY, registerPixelFont, toFont } from "./pixelfont";
 import { WALK_SPEED, RUN_MULT, RUN_FATIGUE_S, runState, strideFrame } from "./movement";
-
-/**
- * Astronaut frames (10×12, facing right). Rows 0-7 are the upper body, 8-11 the legs.
- * Walk: 4 frames (contact / passing / contact other leg / passing). Run: body leans forward,
- * longer stride. Near leg is light (w/s boot), far leg is shaded (s/d boot) so the legs read apart.
- */
-const ASTRO_TOP = ["...wwws...", "..wwwwwws.", "..wwwvvvi.", "..wwwvvvv.", "..swwwwws.", ".bbwwwwws.", ".bbwwoows.", ".bbswwwss."];
-const ASTRO_LEGS: Record<string, string[]> = {
-  idle: ["...swwws..", "...s..w...", "...s..w...", "..dd..ss.."],
-  walk0: ["...swwws..", "...s...w..", "..s....w..", ".dd....ss."],
-  walk1: ["...swwws..", "...s.ww...", "...s.ss...", "..dd......"],
-  walk2: ["...swwws..", "...w...s..", "..w....s..", ".ss....dd."],
-  walk3: ["...swwws..", "...w.ss...", "...w.dd...", "..ss......"],
-  run0: ["....swwws.", "...s....w.", ".ss......w", "dd.......s"],
-  run1: ["....swwws.", "....sww...", "....s.ws..", "...dd.ss.."],
-  run2: ["....swwws.", "...w....s.", ".ww......s", "ss.......d"],
-  run3: ["....swwws.", "....wss...", "....w.sd..", "...ss.dd.."],
-};
-const lean = (rows: string[]) => rows.map((r) => `.${r.slice(0, -1)}`);
+import { makeSprites, HD } from "./sprites";
 
 const W = 640, H = 360;
+const isStation = (m: Module) => m.tipo === "taller" || m.tipo === "horno";
 const HAB = { x: 110, y: 170 } /* matches habitat in modulos.json */, ROCKET = { x: 540, y: 150 };
 const SHADOW = { x: 330, y: 270, rx: 120, ry: 60 };
 type NodeType = "hielo" | "regolito" | "chatarra";
 interface RNode { type: NodeType; amount: number; spr: Phaser.GameObjects.Image }
-
-/** Pixel sprite from a text map. Adds a 1 px dark outline around the shape so it reads on any ground. */
-function px(scene: Phaser.Scene, key: string, rows: string[], colors: Record<string, number>, outline: number | null = PAL.black) {
-  const g = scene.add.graphics();
-  const filled = (x: number, y: number) => colors[rows[y]?.[x] ?? "."] !== undefined;
-  const o = outline === null ? 0 : 1;
-  if (outline !== null) {
-    g.fillStyle(outline);
-    for (let y = -1; y <= rows.length; y++) for (let x = -1; x <= rows[0]!.length; x++)
-      if (!filled(x, y) && (filled(x - 1, y) || filled(x + 1, y) || filled(x, y - 1) || filled(x, y + 1))) g.fillRect(x + o, y + o, 1, 1);
-  }
-  rows.forEach((r, y) => [...r].forEach((c, x) => { if (colors[c] !== undefined) { g.fillStyle(colors[c]); g.fillRect(x + o, y + o, 1, 1); } }));
-  g.generateTexture(key, rows[0]!.length + o * 2, rows.length + o * 2); g.destroy();
-}
-
-/** Shaded 8-bit box: dark outline, base colour, light top/left edge, dark bottom/right edge. */
-function box(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, base: number, light: number, dark: number) {
-  g.fillStyle(PAL.black).fillRect(x, y, w, h);
-  g.fillStyle(base).fillRect(x + 1, y + 1, w - 2, h - 2);
-  g.fillStyle(light).fillRect(x + 1, y + 1, w - 2, 1).fillRect(x + 1, y + 1, 1, h - 2);
-  g.fillStyle(dark).fillRect(x + 1, y + h - 2, w - 2, 1).fillRect(x + w - 2, y + 2, 1, h - 3);
-}
-const dot = (g: Phaser.GameObjects.Graphics, c: number, x: number, y: number, w = 1, h = 1) => g.fillStyle(c).fillRect(x, y, w, h);
 
 /** Static solids that are not modules: the rocket and its two tanks (sprite size + centre). */
 const STATIC_SPRITES = [
@@ -95,44 +55,38 @@ export class LunarScene extends Phaser.Scene {
 
   create() {
     const T = PAL;
-    // Astronaut (faces right): helmet with a lit visor, backpack, chest light, two-tone legs and boots.
+    // HD pixel art (sprites.ts): every texture is drawn at HD× and shown at 1/HD scale; the camera zooms HD×.
+    makeSprites(this);
     registerPixelFont(Phaser, this);
-    const astroCols = { w: T.white, s: T.moon3, d: T.moon2, v: T.suit, i: T.ice, b: T.moon2, o: T.alert };
-    for (const [name, legs] of Object.entries(ASTRO_LEGS)) px(this, `astro_${name}`, [...(name.startsWith("run") ? lean(ASTRO_TOP) : ASTRO_TOP), ...legs], astroCols);
-    px(this, "dust", [".m.", "mmm", ".m."], { m: T.moon3 }, null);
-    // Resource nodes: light from the top-left, shade at the bottom.
-    px(this, "ice", ["..ww..", ".wccw.", "wcccdc", "ccdcdd", ".dddd."], { w: T.white, c: T.ice, d: T.suitL });
-    px(this, "reg", [".ll...", "lmml.l", "mmdmlm", "dmddmd", ".dd.d."], { l: T.moon3, m: T.moon2, d: T.moon1 });
-    px(this, "scrap", ["g..oo.", "gs.od.", ".sgg.d", "osdsg.", ".d..dd"], { g: T.moon4, s: T.moon3, o: T.alert, d: T.moon2 });
-    px(this, "al_abductor", ["..vvvv..", ".vwvvwv.", "vvvvvvvv", ".gg..gg.", "g......g"], { v: T.alien, w: T.white, g: T.ok });
-    px(this, "al_rastreador", [".v..v.", "vvvvvv", "vwvvwv", "vvvvvv", "v.vv.v"], { v: T.alien, w: T.red });
-    px(this, "al_saboteador", ["v..v", ".vv.", "vwwv", ".vv.", "v..v"], { v: T.alien, w: T.alert });
-    px(this, "al_nodriza", ["........vvvvvvvv........", ".....vvvwwvvvvwwvvv.....", "..vvvvvvvvvvvvvvvvvvvv..", "vvvgvvgvvgvvgvvgvvgvvgvv", "..vvvvvvvvvvvvvvvvvvvv..", ".....g.....gg.....g....."], { v: T.alien, w: T.ice, g: T.ok });
-    // Supply capsule: a small cargo rocket, clearly bigger than scrap (11x15 vs 4x4).
-    px(this, "capsule", ["....www....", "...wwwww...", "...wrrrw...", "..wwwwwww..", "..wgggggw..", "..wgyyygw..", "..wgggggw..", "..wwwwwww..", "..wbbbbbw..", "..wwwwwww..", ".rww...wwr.", "rr.w...w.rr", "r..o...o..r", "...o...o..."], { w: PAL.white, r: PAL.red, g: PAL.gold, y: PAL.alert, b: PAL.suit, o: PAL.moon3 });
-    px(this, "leak", [".a.a.", "a.r.a", ".rwr.", "a.r.a", ".a.a."], { a: T.alert, r: T.red, w: T.white });
-    this.makeModuleTextures();
     const lg = this.add.graphics();
     for (let r = 48; r > 0; r -= 4) { lg.fillStyle(0xffffff, 0.08); lg.fillCircle(48, 48, r); }
     lg.generateTexture("glow", 96, 96); lg.destroy();
 
-    // terrain
+    // terrain: fine grain, pebbles with a lit top, craters with lit rims and inner shadow
     const g = this.add.graphics();
     g.fillStyle(T.moon1).fillRect(0, 0, W, H);
-    for (let i = 0; i < 400; i++) { g.fillStyle(Phaser.Math.RND.pick([T.moon0, T.moon2])); g.fillRect(Phaser.Math.Between(0, W), Phaser.Math.Between(0, H), 2, 1); }
+    for (let i = 0; i < 1400; i++) { g.fillStyle(Phaser.Math.RND.pick([T.moon0, T.moon2, 0x55555f, 0x3a3a44])); g.fillRect(Phaser.Math.Between(0, W * 2) / 2, Phaser.Math.Between(0, H * 2) / 2, Phaser.Math.RND.pick([0.5, 1, 1.5]), 0.5); }
+    for (let i = 0; i < 70; i++) {
+      const x = Phaser.Math.Between(4, W - 4), y = Phaser.Math.Between(4, H - 4), s = Phaser.Math.RND.pick([1, 1.5, 2]);
+      g.fillStyle(0x14141c).fillEllipse(x, y + 0.5, s * 2 + 1, s + 1); g.fillStyle(T.moon2).fillEllipse(x, y, s * 2, s); g.fillStyle(T.moon3).fillRect(x - s / 2, y - s / 2, s / 2, 0.5);
+    }
     for (let i = 0; i < 18; i++) {
       const x = Phaser.Math.Between(20, W - 20), y = Phaser.Math.Between(20, H - 20), r = Phaser.Math.Between(6, 16);
       g.fillStyle(T.moon0).fillEllipse(x, y, r * 2, r * 1.4); g.fillStyle(T.moon2).fillEllipse(x + 1, y - 1, r * 1.6, r);
       g.fillStyle(T.moon1).fillEllipse(x + 2, y, r * 1.5, r * 0.9);
+      g.fillStyle(T.moon3, 0.6).fillEllipse(x - r * 0.35, y - r * 0.45, r * 0.9, 0.8); // lit rim
+      g.fillStyle(0x2a2a36, 0.7).fillEllipse(x + 1.5, y + r * 0.2, r * 1.1, r * 0.35); // inner shadow
     }
     g.fillStyle(T.moon0).fillEllipse(SHADOW.x, SHADOW.y, SHADOW.rx * 2 + 16, SHADOW.ry * 2 + 10);
     g.fillStyle(T.space).fillEllipse(SHADOW.x, SHADOW.y, SHADOW.rx * 2, SHADOW.ry * 2);
+    g.fillStyle(0x0b0b18).fillEllipse(SHADOW.x + 6, SHADOW.y + 4, SHADOW.rx * 1.6, SHADOW.ry * 1.5);
+    g.lineStyle(1, T.moon3, 0.5).strokeEllipse(SHADOW.x, SHADOW.y - 1, SHADOW.rx * 2 + 14, SHADOW.ry * 2 + 8);
     this.label(SHADOW.x, SHADOW.y - 3, "SHADOWED CRATER", PAL.moon2, 1);
 
     // rocket and tanks: separate sprites so the astronaut can walk behind them (depth sorted by their base)
     for (const s of STATIC_SPRITES) {
       this.add.image(s.x, s.y + s.h / 2, "shadow").setDisplaySize(s.w + 6, 8).setDepth(5.5);
-      this.add.image(s.x, s.y, s.key).setDepth(sortDepth(groundLine(s.y, s.h), H));
+      this.add.image(s.x, s.y, s.key).setScale(1 / HD).setDepth(sortDepth(groundLine(s.y, s.h), H));
     }
     this.label(ROCKET.x, ROCKET.y + 29, "ROCKET", PAL.moon4);
     this.label(ROCKET.x - 25, ROCKET.y + 23, "LH2", PAL.suitL); this.label(ROCKET.x + 25, ROCKET.y + 23, "LOX", PAL.ice);
@@ -145,16 +99,17 @@ export class LunarScene extends Phaser.Scene {
     for (let i = 0; i < Math.round(8 * k); i++) this.spawnNode("chatarra");
 
     this.preview = this.add.graphics().setDepth(35);
-    this.player = this.add.image(HAB.x, HAB.y + 30, "astro_idle").setDepth(10);
+    this.player = this.add.image(HAB.x, HAB.y + 30, "astro_idle0").setScale(1 / HD).setDepth(10);
     this.ring = this.add.graphics().setDepth(30);
     this.beam = this.add.graphics().setDepth(22);
     this.zone = this.add.graphics().setDepth(24);
     this.tint = this.add.rectangle(0, 0, W, H, PAL.red, 0).setOrigin(0).setScrollFactor(0).setDepth(26);
     this.night = this.add.rectangle(0, 0, W, H, PAL.black, 0).setOrigin(0).setScrollFactor(0).setDepth(20);
-    this.promptBg = this.add.rectangle(0, 0, 4, 9, PAL.black, 0.85).setOrigin(0).setDepth(39).setStrokeStyle(1, PAL.moon1).setVisible(false);
-    this.prompt = this.add.bitmapText(0, 0, FONT_KEY, "").setTint(PAL.gold).setDepth(40).setVisible(false);
+    // World text uses the pixel font at HD density (1 font pixel = 1 HD pixel), matching the sprites.
+    this.promptBg = this.add.rectangle(0, 0, 4, 5, 0x0b1230, 0.88).setOrigin(0).setDepth(39).setStrokeStyle(0.5, 0x6f86d6, 0.8).setVisible(false);
+    this.prompt = this.add.bitmapText(0, 0, FONT_KEY, "").setScale(1 / HD).setTint(PAL.gold).setDepth(40).setVisible(false);
 
-    this.cameras.main.setBounds(0, 0, W, H).startFollow(this.player, true, 0.15, 0.15).setRoundPixels(true);
+    this.cameras.main.setBounds(0, 0, W, H).startFollow(this.player, true, 0.15, 0.15).setRoundPixels(true).setZoom(HD);
     this.keys = this.input.keyboard!.addKeys("W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SHIFT,SPACE,ONE,TWO,THREE,FOUR,FIVE,C,Q") as LunarScene["keys"];
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
       const w = p.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
@@ -181,12 +136,12 @@ export class LunarScene extends Phaser.Scene {
     do {
       x = Phaser.Math.Between(16, W - 16); y = Phaser.Math.Between(16, H - 16);
     } while ((type === "hielo") !== inShadow(x, y) || Phaser.Math.Distance.Between(x, y, HAB.x, HAB.y) < 75 || Phaser.Math.Distance.Between(x, y, ROCKET.x, ROCKET.y) < 45);
-    const spr = this.add.image(x, y, type === "hielo" ? "ice" : type === "regolito" ? "reg" : "scrap").setDepth(4);
+    const spr = this.add.image(x, y, type === "hielo" ? "ice" : type === "regolito" ? "reg" : "scrap").setDepth(4).setScale(1 / HD);
     this.nodes.push({ type, amount: Phaser.Math.Between(2, 4), spr });
   }
 
   addLeakSprite(id: number, x: number, y: number) {
-    this.leakSprites.set(id, this.add.image(x, y, "leak").setDepth(12));
+    this.leakSprites.set(id, this.add.image(x, y, "leak").setDepth(12).setScale(1 / HD));
   }
 
   spawnLeak(forced?: LeakTarget) {
@@ -221,97 +176,6 @@ export class LunarScene extends Phaser.Scene {
     return best;
   }
 
-  makeModuleTextures() {
-    const T = PAL;
-    const draw = (key: string, w: number, h: number, f: (g: Phaser.GameObjects.Graphics) => void) => { const g = this.add.graphics(); f(g); g.generateTexture(key, w, h); g.destroy(); };
-    // Sizes match modulos.json (w × h) because placement and collisions use those numbers.
-    draw("m_habitat", 44, 28, (g) => {
-      box(g, 0, 8, 44, 20, T.moon3, T.moon4, T.moon2); // main hull
-      box(g, 3, 2, 38, 8, T.moon4, T.white, T.moon3); // curved roof
-      dot(g, T.black, 3, 2); dot(g, T.black, 40, 2); // rounded roof corners
-      dot(g, T.moon4, 36, 0, 1, 2); dot(g, T.red, 36, 0); // antenna with beacon
-      for (let x = 4; x < 42; x += 5) dot(g, T.moon2, x, 24); // rivets
-      box(g, 5, 12, 7, 6, T.suit, T.ice, T.moon0); box(g, 32, 12, 7, 6, T.suit, T.ice, T.moon0); // portholes
-      box(g, 17, 14, 10, 14, T.suit, T.suitL, T.moon0); dot(g, T.ice, 19, 16, 6, 2); dot(g, T.moon0, 21, 22, 2, 1); // airlock door
-      dot(g, T.ok, 29, 15, 2, 2); // status light
-    });
-    draw("m_panel", 18, 14, (g) => {
-      box(g, 0, 0, 18, 10, T.suit, T.suitL, T.moon0);
-      dot(g, T.moon0, 6, 1, 1, 8); dot(g, T.moon0, 11, 1, 1, 8); dot(g, T.moon0, 1, 5, 16, 1); // cell grid
-      dot(g, T.white, 2, 2); dot(g, T.white, 8, 2); dot(g, T.ice, 13, 2, 2, 1); // glints
-      box(g, 7, 9, 4, 4, T.moon3, T.moon4, T.moon1); dot(g, T.moon2, 4, 13, 10, 1); // mast + foot
-    });
-    draw("m_bateria", 12, 12, (g) => {
-      dot(g, T.black, 2, 0, 3, 3); dot(g, T.red, 3, 1); dot(g, T.black, 7, 0, 3, 3); dot(g, T.moon4, 8, 1); // + / - terminals
-      box(g, 0, 2, 12, 10, T.moon3, T.moon4, T.moon1);
-      dot(g, T.moon0, 2, 5, 8, 4); dot(g, T.ok, 3, 6, 2, 2); dot(g, T.ok, 5, 6, 2, 2); dot(g, T.moon1, 7, 6, 2, 2); // charge cells
-    });
-    draw("m_electrolisis", 16, 16, (g) => {
-      box(g, 0, 8, 16, 8, T.moon2, T.moon3, T.moon0);
-      box(g, 1, 0, 6, 10, T.suitL, T.ice, T.suit); dot(g, T.white, 3, 2, 1, 2); // H2 tank
-      box(g, 9, 0, 6, 10, T.white, T.white, T.moon3); dot(g, T.ice, 11, 2, 1, 2); // O2 tank
-      dot(g, T.moon4, 6, 4, 4, 1); dot(g, T.ok, 3, 12, 2, 1); dot(g, T.alert, 11, 12, 2, 1); // pipe + lights
-    });
-    draw("m_licuefactor", 14, 14, (g) => {
-      box(g, 2, 0, 10, 12, T.moon4, T.white, T.moon2);
-      dot(g, T.black, 2, 0); dot(g, T.black, 11, 0); // rounded cap
-      dot(g, T.ice, 3, 4, 8, 3); dot(g, T.suitL, 3, 6, 8, 1); dot(g, T.white, 4, 4, 2, 1); // frost band
-      dot(g, T.black, 2, 12, 3, 2); dot(g, T.moon2, 3, 12, 1, 1); dot(g, T.black, 9, 12, 3, 2); dot(g, T.moon2, 10, 12, 1, 1); // feet
-    });
-    draw("m_horno", 16, 14, (g) => {
-      box(g, 0, 2, 16, 12, T.moon2, T.moon3, T.moon0);
-      box(g, 11, 0, 4, 4, T.moon1, T.moon2, T.moon0); // chimney
-      box(g, 3, 5, 10, 7, T.moon0, T.moon1, T.black); // mouth
-      dot(g, T.red, 4, 9, 8, 2); dot(g, T.alert, 5, 8, 6, 2); dot(g, T.gold, 7, 8, 2, 1); // fire
-    });
-    draw("m_taller", 20, 14, (g) => {
-      box(g, 0, 3, 20, 11, T.moon1, T.moon2, T.moon0);
-      box(g, 0, 0, 20, 5, T.alert, T.gold, T.red);
-      for (let x = 2; x < 18; x += 4) dot(g, T.black, x, 2, 2, 1); // hazard stripes
-      box(g, 8, 7, 5, 7, T.moon0, T.moon1, T.black); // door
-      dot(g, T.moon4, 2, 8, 4, 1); dot(g, T.moon4, 3, 7, 1, 3); dot(g, T.moon4, 15, 7, 1, 4); dot(g, T.moon4, 14, 7, 3, 1); // tools
-    });
-    draw("m_taladro", 10, 14, (g) => {
-      dot(g, T.moon3, 1, 4, 1, 9); dot(g, T.moon3, 8, 4, 1, 9); dot(g, T.moon2, 2, 7, 6, 1); // frame
-      box(g, 2, 0, 6, 5, T.alert, T.gold, T.red); // motor
-      dot(g, T.black, 3, 5, 4, 7); dot(g, T.moon4, 4, 5, 1, 6); dot(g, T.moon2, 5, 5, 1, 6); dot(g, T.moon4, 4, 11, 2, 1); // bit
-      box(g, 0, 12, 10, 2, T.moon2, T.moon3, T.moon0);
-    });
-    draw("m_torre_luz", 6, 16, (g) => {
-      box(g, 0, 0, 6, 5, T.gold, T.white, T.alert);
-      dot(g, T.black, 1, 5, 4, 10); dot(g, T.moon3, 2, 5, 1, 10); dot(g, T.moon2, 3, 5, 1, 10); // pole
-      dot(g, T.black, 0, 15, 6, 1);
-    });
-
-    // Rocket (40×78): stepped nose cone, porthole, red band and fins, all outlined and shaded.
-    draw("rocket", 40, 78, (g) => {
-      const nose: [number, number, number, number][] = [[19, 0, 2, 2], [18, 2, 4, 3], [17, 5, 6, 3], [16, 8, 8, 3], [15, 11, 10, 3], [13, 14, 14, 3]];
-      for (const [x, y, w, h] of nose) dot(g, T.black, x - 1, y - (y ? 0 : 1), w + 2, h + 1);
-      const fins: [number, number, number, number][] = [[7, 56, 6, 16], [4, 62, 4, 10], [2, 66, 3, 8], [27, 56, 6, 16], [32, 62, 4, 10], [35, 66, 3, 8]];
-      for (const [x, y, w, h] of fins) dot(g, T.black, x - 1, y - 1, w + 2, h + 2);
-      for (const [x, y, w, h] of fins) dot(g, T.red, x, y, w, h);
-      dot(g, T.alert, 7, 56, 1, 16); dot(g, T.alert, 27, 56, 1, 16); // fin highlights
-      box(g, 12, 16, 16, 58, T.moon4, T.white, T.moon3); // body
-      for (const [i, [x, y, w, h]] of nose.entries()) { dot(g, i < 2 ? T.red : T.white, x, y, w, h); dot(g, T.moon3, x + w - 1, y, 1, h); }
-      box(g, 16, 23, 8, 8, T.suit, T.suitL, T.moon0); dot(g, T.ice, 18, 25, 2, 2); // porthole
-      dot(g, T.red, 13, 38, 14, 3); dot(g, T.alert, 13, 38, 14, 1); // band
-      for (let y = 46; y < 70; y += 6) dot(g, T.moon3, 14, y, 12, 1); // panel seams
-      box(g, 15, 72, 10, 6, T.moon2, T.moon3, T.moon0); // nozzle
-    });
-    for (const [key, band] of [["tank_lh2", T.suitL], ["tank_lox", T.ice]] as const) {
-      draw(key, 10, 30, (g) => {
-        box(g, 2, 0, 6, 3, T.moon3, T.moon4, T.moon1); // valve cap
-        box(g, 0, 2, 10, 26, T.moon2, T.moon3, T.moon0);
-        dot(g, T.black, 0, 2); dot(g, T.black, 9, 2); // rounded top
-        dot(g, band, 1, 8, 8, 3); dot(g, T.white, 2, 8, 2, 1); // frost band
-        dot(g, T.moon0, 1, 18, 8, 1); // weld seam
-        dot(g, T.black, 1, 28, 3, 2); dot(g, T.black, 6, 28, 3, 2); // legs
-      });
-    }
-    // Soft ground shadow, stretched under every structure.
-    draw("shadow", 32, 8, (g) => { g.fillStyle(PAL.black, 0.35).fillEllipse(16, 4, 32, 8); });
-  }
-
   syncModules(a: number) {
     const alive = new Set(sim.modules.map((m) => m.uid));
     for (const [uid, sp] of this.modSprites) if (!alive.has(uid)) { sp.img.destroy(); sp.shadow.destroy(); sp.warn.destroy(); sp.glow?.destroy(); this.modSprites.delete(uid); }
@@ -320,7 +184,7 @@ export class LunarScene extends Phaser.Scene {
       if (!sp) {
         const t = TIPOS[m.tipo];
         const shadow = this.add.image(m.x, groundLine(m.y, t.h), "shadow").setDisplaySize(t.w + 4, 6).setDepth(5.5);
-        const img = this.add.image(m.x, m.y, `m_${m.tipo}`).setDepth(sortDepth(groundLine(m.y, t.h), H));
+        const img = this.add.image(m.x, m.y, `m_${m.tipo}`).setScale(1 / HD).setDepth(sortDepth(groundLine(m.y, t.h), H));
         const warn = this.add.bitmapText(m.x - 1, m.y - TIPOS[m.tipo].h / 2 - 8, FONT_KEY, "!").setTint(PAL.alert).setDepth(36);
         const glow = m.tipo === "habitat" || m.tipo === "torre_luz" ? this.add.image(m.x, m.y, "glow").setScale(m.tipo === "habitat" ? 1.6 : 1.3).setDepth(21).setBlendMode(Phaser.BlendModes.ADD) : undefined;
         sp = { img, shadow, warn, glow }; this.modSprites.set(m.uid, sp);
@@ -407,6 +271,10 @@ export class LunarScene extends Phaser.Scene {
       addLog(sim, `You melted ice: +${w} kg of water for electrolysis.`); sfx.ok();
     } else if (Phaser.Math.Distance.Between(ROCKET.x, ROCKET.y, this.player.x, this.player.y) < 36) {
       useGame.getState().setOverlay("cohete");
+    } else {
+      // Crafting stations open their own interface (unless they need a repair: hold E for that).
+      const st = this.nearModule((m) => isStation(m) && m.durabilidad > 0, 26);
+      if (st) { sim.station = st.tipo as "taller" | "horno"; sim.stationUid = st.uid; sfx.click(); useGame.getState().publish(); useGame.getState().setOverlay("estacion"); }
     }
   }
 
@@ -459,7 +327,8 @@ export class LunarScene extends Phaser.Scene {
     sim.near.taller = !!this.nearModule((m) => m.tipo === "taller" && m.durabilidad > 0, 26);
     sim.near.horno = !!this.nearModule((m) => m.tipo === "horno" && m.durabilidad > 0, 26);
     const leak = this.nearestLeak();
-    const broken = leak ? undefined : this.nearModule((m) => m.durabilidad < 100);
+    // Working stations are repaired from their own panel; everything else (and broken stations) with hold-E.
+    const broken = leak ? undefined : this.nearModule((m) => m.durabilidad < 100 && !(isStation(m) && m.durabilidad > 0));
     if (broken && (k.E.isDown || touch.e) && broken.durabilidad < 60) {
       if (sim.inv.kits < 1) this.say("NO KITS: CRAFT ONE (INVENTORY)");
       else {
@@ -481,7 +350,7 @@ export class LunarScene extends Phaser.Scene {
         }
       }
     } else if (leak) leak.progress = Math.max(0, leak.progress - dt * 0.5);
-    for (const l of sim.leaks) { const s = this.leakSprites.get(l.id); if (s) s.setScale(0.8 + l.size * 0.25).setAlpha(Math.sin(this.time.now / 120) > 0 ? 1 : 0.4); }
+    for (const l of sim.leaks) { const s = this.leakSprites.get(l.id); if (s) s.setScale((0.8 + l.size * 0.25) / HD).setAlpha(Math.sin(this.time.now / 120) > 0 ? 1 : 0.4); }
 
     // prompts
     const n = this.nearestNode();
@@ -492,6 +361,8 @@ export class LunarScene extends Phaser.Scene {
     else if (this.nearHab() && sim.inv.hielo > 0) this.say("E: MELT ICE");
     else if (this.nearHab()) this.say("HABITAT: REFILLING O2");
     else if (Phaser.Math.Distance.Between(ROCKET.x, ROCKET.y, this.player.x, this.player.y) < 36) this.say("E: CHECK ROCKET");
+    else if (sim.near.taller) this.say("E: OPEN WORKSHOP");
+    else if (sim.near.horno) this.say("E: OPEN FURNACE");
     else if (this.winded && this.wantsRun) this.say("TOO TIRED TO RUN");
     else { this.prompt.setVisible(false); this.promptBg.setVisible(false); }
 
@@ -535,7 +406,7 @@ export class LunarScene extends Phaser.Scene {
     // capsules
     const alive = new Set(sim.capsules.map((c) => c.id));
     for (const [id, spr] of this.capSprites) if (!alive.has(id)) { spr.destroy(); this.capSprites.delete(id); }
-    for (const c of sim.capsules) if (!this.capSprites.has(c.id)) this.capSprites.set(c.id, this.add.image(c.x, c.y, "capsule").setDepth(5));
+    for (const c of sim.capsules) if (!this.capSprites.has(c.id)) this.capSprites.set(c.id, this.add.image(c.x, c.y, "capsule").setDepth(5).setScale(1 / HD));
     // Capsules: steady sprite plus a pulsing gold ring so they never look like scrap.
     const pulse = (Math.sin(this.time.now / 300) + 1) / 2;
     // meteor zone and impacts
@@ -584,7 +455,7 @@ export class LunarScene extends Phaser.Scene {
     for (const [id, spr] of this.alienSprites) if (!alive.has(id)) { spr.destroy(); this.alienSprites.delete(id); }
     for (const a of sim.aliens) {
       let spr = this.alienSprites.get(a.id);
-      if (!spr) { spr = this.add.image(a.x, a.y, `al_${a.tipo}`).setDepth(a.tipo === "nodriza" ? 25 : 23); this.alienSprites.set(a.id, spr); }
+      if (!spr) { spr = this.add.image(a.x, a.y, `al_${a.tipo}`).setDepth(a.tipo === "nodriza" ? 25 : 23).setScale(1 / HD); this.alienSprites.set(a.id, spr); }
       spr.setPosition(Math.round(a.x), Math.round(a.y + Math.sin(this.time.now / 200 + a.id) * 1.5)).setAlpha(a.stun > 0 ? 0.5 : 1);
     }
     this.beam.clear();
@@ -594,35 +465,38 @@ export class LunarScene extends Phaser.Scene {
     }
   }
 
+  /** Hint above the astronaut (crisp bitmap font on a dark plate), kept inside the visible part of the map. */
   say(s: string) {
     this.prompt.setText(toFont(s)).setVisible(true);
-    const w = Math.ceil(this.prompt.width), x = Math.round(this.player.x - w / 2), y = Math.round(this.player.y - 19);
+    // Snap to the HD pixel grid (0.5 world px) so every glyph pixel lands on a whole screen pixel.
+    const snap = (n: number) => Math.round(n * HD) / HD;
+    const v = this.cameras.main.worldView, w = this.prompt.getTextBounds().global.width;
+    const x = snap(Phaser.Math.Clamp(this.player.x - w / 2, v.x + 2, Math.max(v.x + 2, v.right - w - 2)));
+    const y = snap(Math.max(v.y + 2, this.player.y - 12));
     this.prompt.setPosition(x, y);
-    this.promptBg.setPosition(x - 2, y - 2).setSize(w + 3, 9).setVisible(true);
+    this.promptBg.setPosition(x - 1.5, y - 1).setSize(w + 2.5, 4.5).setVisible(true);
   }
 
-  /** Crisp world label (bitmap font), centred on x. */
+  /** Crisp world label (bitmap font at HD density), centred on x. */
   label(x: number, y: number, text: string, color: number, depth = 5.6) {
-    return this.add.bitmapText(Math.round(x), Math.round(y), FONT_KEY, toFont(text)).setOrigin(0.5, 0).setTint(color).setDepth(depth);
+    return this.add.bitmapText(Math.round(x), Math.round(y), FONT_KEY, toFont(text)).setScale(1 / HD).setOrigin(0.5, 0).setTint(color).setDepth(depth);
   }
 
   /** Walk/run cycle, idle breathing and dust puffs while running. */
   animatePlayer(dt: number, moving: boolean, running: boolean) {
-    const h = this.player.height;
     if (!moving) {
+      // Start the next walk on a passing frame so the first step looks natural; breathe while standing.
       this.animT = 0;
-      const breathe = Math.floor(this.time.now / 700) % 2;
-      this.player.setTexture("astro_idle").setOrigin(0.5, 0.5 + breathe / h);
+      this.player.setTexture(`astro_idle${Math.floor(this.time.now / 650) % 2}`);
       return;
     }
     this.animT += dt;
-    const { frame, lift } = strideFrame(this.animT, running);
-    this.player.setTexture(`astro_${running ? "run" : "walk"}${frame}`).setOrigin(0.5, 0.5 + lift / h);
+    this.player.setTexture(`astro_${running ? "run" : "walk"}${strideFrame(this.animT, running)}`);
     if (!running) return;
     this.dustT -= dt;
     if (this.dustT > 0) return;
-    this.dustT = 0.12;
-    const d = this.add.image(Math.round(this.player.x - this.facing * 3), Math.round(this.player.y + PLAYER_FOOT_Y), "dust").setDepth(this.player.depth - 0.01).setAlpha(0.8);
-    this.tweens.add({ targets: d, alpha: 0, scale: 1.8, x: d.x - this.facing * 3, y: d.y - 2, duration: 340, onComplete: () => d.destroy() });
+    this.dustT = 0.11;
+    const d = this.add.image(this.player.x - this.facing * 3, this.player.y + PLAYER_FOOT_Y - 0.5, "dust").setScale(1 / HD).setDepth(this.player.depth - 0.01).setAlpha(0.85);
+    this.tweens.add({ targets: d, alpha: 0, scale: 2 / HD, x: d.x - this.facing * 4, y: d.y - 1.5, duration: 380, ease: "Quad.easeOut", onComplete: () => d.destroy() });
   }
 }
