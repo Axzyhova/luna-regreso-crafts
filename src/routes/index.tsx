@@ -5,7 +5,8 @@ import { Intro, Rechazo, ModeSelect, Cinematic, Fuentes, Final } from "@/compone
 import { GameCanvas } from "@/components/game/GameCanvas";
 import { HUD, HUDTop, HUDBottom, Countdown, Overlays } from "@/components/game/HUD";
 import { TouchControls } from "@/components/game/TouchControls";
-import { Radar, DialogBox } from "@/components/game/StoryUI";
+import { NavCard, DialogBox } from "@/components/game/StoryUI";
+import { MobileMenu } from "@/components/game/TouchControls";
 import { usePortrait, useTouchDevice } from "@/hooks/use-device";
 import { GAME_TITLE } from "@/game/title";
 
@@ -34,7 +35,8 @@ function Game() {
         <div className="relative min-h-0 flex-1">
           <ClientOnly fallback={null}><GameCanvas /></ClientOnly>
           <Countdown />
-          <Radar className="absolute right-2 top-2" />
+          <NavCard className="absolute left-2 top-2" />
+          {touch && <MobileMenu className="absolute right-2 top-2" />}
           <DialogBox />
         </div>
         <HUDBottom touch={touch} />
@@ -54,7 +56,8 @@ function Game() {
           <TouchControls floating />
         </>
       ) : <HUD />}
-      <Radar className="absolute right-2 top-28" />
+      <NavCard className="absolute left-2 top-28" />
+      {touch && <MobileMenu className="absolute right-2 top-28" />}
       <div className="absolute inset-x-0 bottom-28"><DialogBox /></div>
       <Overlays />
     </div>

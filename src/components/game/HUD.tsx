@@ -84,7 +84,15 @@ export function HUDBottom({ className = "", touch = false }: { className?: strin
       <div className={`pointer-events-none flex flex-col items-center gap-1 bg-background/80 p-2 ${className}`}>
         <QuestTracker />
         {s.hint && <div className="text-[7px] text-ok">{s.hint}</div>}
-        <Hotbar />
+        <div className="flex items-center gap-1">
+          {touch && (
+            <button type="button" onClick={() => { sfx.click(); useGame.getState().setOverlay("inv"); }}
+              className="pointer-events-auto flex h-11 w-12 touch-manipulation flex-col items-center justify-center border-2 border-gold bg-secondary text-[12px]">
+              🎒<span className="text-[6px]">INV</span>
+            </button>
+          )}
+          <Hotbar />
+        </div>
         {!touch && <div className="text-[6px] text-muted-foreground">WASD mover · ESPACIO recoger/golpear · E interactuar (mantén para sellar/reparar) · TAB inventario · C construir · B base · L bitácora · ESC pausa · 1-5 o clic: elegir objeto</div>}
       </div>
   );

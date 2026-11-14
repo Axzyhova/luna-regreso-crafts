@@ -6,47 +6,40 @@ import { eventBanner } from "@/game/events";
 import { PRINCIPALES, currentMain, sideAvailable, MISIONES } from "@/game/quests";
 import { ITEMS } from "@/game/items";
 import { PixelIcon } from "./PixelIcon";
+import { navigation } from "@/game/nav";
 
-const RADAR_RANGE = 200; // world px shown from the center to the edge
-const DOT: Record<string, { c: string; label: string }> = {
-  alien: { c: "var(--color-alien)", label: "Alien" },
-  jefe: { c: "var(--color-destructive)", label: "Nodriza" },
-  capsula: { c: "var(--color-gold)", label: "Cápsula" },
-  hielo: { c: "var(--color-ice, #a8e4ff)", label: "Hielo" },
-  fuga: { c: "var(--color-alert)", label: "Fuga" },
-  meteoritos: { c: "var(--color-destructive)", label: "Meteoritos" },
-  base: { c: "var(--color-suit-light)", label: "Hábitat" },
-  cohete: { c: "#f2f2f2", label: "Cohete" },
-};
-const DIRS = ["E", "SE", "S", "SO", "O", "NO", "N", "NE"];
-const dir = (dx: number, dy: number) => DIRS[(Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) + 8) % 8]!;
-
-/** Small compass/radar: dots around the astronaut, plus a warning for what is closest. */
-export function Radar({ className = "" }: { className?: string }) {
-  const s = useGame((g) => g.snap);
-  const size = 76, half = size / 2;
-  const near = s.radar
-    .filter((r) => ["alien", "jefe", "capsula", "fuga", "meteoritos"].includes(r.k))
-    .map((r) => ({ ...r, d: Math.hypot(r.dx, r.dy) }))
-    .sort((a, b) => a.d - b.d)[0];
+function Arrow({ deg, size, warn }: { deg: number; size: number; warn?: boolean }) {
   return (
-    <div className={`pointer-events-none flex flex-col items-end gap-1 ${className}`}>
-      <div className="relative rounded-full border-2 border-moon-2 bg-background/70" style={{ width: size, height: size }}>
-        <span className="absolute left-1/2 top-0 -translate-x-1/2 text-[6px] text-gold">N</span>
-        <div className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 bg-white" />
-        {s.radar.map((r, i) => {
-          const d = Math.hypot(r.dx, r.dy);
-          const k = Math.min(1, d / RADAR_RANGE) * (half - 5) / (d || 1);
-          const edge = d > RADAR_RANGE;
-          return <div key={i} title={DOT[r.k]?.label} className={`absolute rounded-full ${r.k === "alien" || r.k === "jefe" || r.k === "meteoritos" ? "animate-pulse" : ""}`}
-            style={{ width: edge ? 3 : 5, height: edge ? 3 : 5, background: DOT[r.k]?.c ?? "#fff", left: half + r.dx * k - 2.5, top: half + r.dy * k - 2.5, opacity: edge ? 0.6 : 1 }} />;
-        })}
-      </div>
-      {near && near.d < 120 && (
-        <div className={`rounded bg-background/80 px-1 text-[6px] ${near.k === "capsula" ? "text-gold" : "text-alert"}`}>
-          {DOT[near.k]?.label} a {Math.round(near.d / 4)} m ({dir(near.dx, near.dy)})
+    <svg width={size} height={size} viewBox="0 0 24 24" style={{ transform: `rotate(${deg}deg)` }} className="shrink-0 transition-transform duration-200" aria-hidden>
+      <path d="M12 2 L20 13 H14.5 V22 H9.5 V13 H4 Z" fill={warn ? "#ff6b5b" : "#ffffff"} />
+    </svg>
+  );
+}
+
+/** GPS-style guidance card (like a car navigation screen): arrow, distance, target, "y luego" and ETA. */
+export function NavCard({ className = "" }: { className?: string }) {
+  const s = useGame((g) => g.snap);
+  const { primary, then, etaS } = navigation(s);
+  if (!primary) return null;
+  return (
+    <div className={`pointer-events-none flex w-40 flex-col gap-1.5 font-sans sm:w-56 lg:w-64 ${className}`}>
+      <div className="overflow-hidden rounded-2xl bg-[#111214]/95 text-white shadow-lg">
+        <div className="flex items-center gap-2 px-3 pb-1.5 pt-2.5 sm:gap-3 sm:px-4 sm:pt-3">
+          <Arrow deg={primary.deg} size={30} />
+          <span className="text-2xl font-bold tabular-nums sm:text-3xl">{primary.m} m</span>
         </div>
-      )}
+        <div className="truncate px-3 pb-2 text-sm font-bold sm:px-4 sm:text-base">{primary.label}</div>
+        {then && (
+          <div className={`flex items-center justify-between border-t border-white/15 px-3 py-1.5 text-[11px] sm:px-4 sm:text-sm ${then.warn ? "text-[#ff6b5b]" : "text-white/85"}`}>
+            <span className="truncate">y luego · {then.label} {then.m} m</span>
+            <Arrow deg={then.deg} size={14} warn={then.warn} />
+          </div>
+        )}
+      </div>
+      <div className="rounded-2xl bg-white/90 px-3 py-1.5 text-[#111214] shadow sm:px-4 sm:py-2">
+        <div className="text-sm font-bold sm:text-base">Llegada ~{etaS} s</div>
+        <div className="text-[10px] text-black/60 sm:text-xs">{primary.dir} · {primary.m} m</div>
+      </div>
     </div>
   );
 }

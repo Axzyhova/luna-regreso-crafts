@@ -34,3 +34,27 @@ describe("controles táctiles", () => {
     expect(touch.e).toBe(false);
   });
 });
+
+import { HUDBottom } from "@/components/game/HUD";
+import { MobileMenu } from "@/components/game/TouchControls";
+
+describe("interfaz móvil ordenada", () => {
+  it("el inventario está junto a la barra rápida solo en táctil", () => {
+    useGame.getState().newGame("realista", "normal");
+    const { unmount } = render(<HUDBottom touch />);
+    expect(screen.getByText("INV")).toBeTruthy();
+    fireEvent.click(screen.getByText("INV").closest("button")!);
+    expect(useGame.getState().overlay).toBe("inv");
+    unmount(); useGame.getState().setOverlay(null);
+    render(<HUDBottom />);
+    expect(screen.queryByText("INV")).toBeNull();
+  });
+  it("el menú ☰ despliega Base, Misiones, Log, Pausa y Pantalla completa", () => {
+    useGame.getState().setOverlay(null);
+    render(<MobileMenu />);
+    fireEvent.click(screen.getByLabelText("Menú"));
+    for (const t of ["Base", "Misiones", "Log", "Pausa", "Pantalla completa"]) expect(screen.getByText(t)).toBeTruthy();
+    fireEvent.click(screen.getByText("Base"));
+    expect(useGame.getState().overlay).toBe("base");
+  });
+});
