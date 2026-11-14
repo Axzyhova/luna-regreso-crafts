@@ -140,8 +140,8 @@ export function Hotbar({ editable = false, pending = null, onAssign }: { editabl
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   const close = () => useGame.getState().setOverlay(null);
   return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/70 p-4">
-      <div className="max-h-full w-full max-w-2xl overflow-auto border-4 border-suit bg-card p-4">
+    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/70 p-4 short:p-1">
+      <div className="max-h-full w-full max-w-2xl overflow-auto border-4 border-suit bg-card p-4 short:p-2">
         <div className="mb-4 flex items-center justify-between"><h3 className="text-[11px] text-gold">{title}</h3><button onClick={close} className="text-[9px] text-muted-foreground">[X]</button></div>
         {children}
       </div>

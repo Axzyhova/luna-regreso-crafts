@@ -108,8 +108,8 @@ export function QuestLog() {
   const s = useGame((g) => g.snap);
   const setOverlay = useGame((g) => g.setOverlay);
   return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/70 p-4">
-      <div className="max-h-full w-full max-w-2xl overflow-auto border-4 border-suit bg-card p-4">
+    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/70 p-4 short:p-1">
+      <div className="max-h-full w-full max-w-2xl overflow-auto border-4 border-suit bg-card p-4 short:p-2">
         <div className="mb-3 flex items-center justify-between"><h3 className="text-[11px] text-gold">MISSIONS</h3><button onClick={() => setOverlay(null)} className="text-[9px] text-muted-foreground">[X]</button></div>
         <div className="mb-2 text-[8px] text-suit-light">MAIN STORY</div>
         <ol className="mb-4 space-y-2">

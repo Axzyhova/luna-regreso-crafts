@@ -62,7 +62,7 @@ export function MobileGame() {
       </div>
 
       {/* left, below vitals: GPS card */}
-      <NavCard className="absolute left-[max(env(safe-area-inset-left),8px)] top-16 !w-40 scale-90 origin-top-left" />
+      <NavCard className="absolute left-[max(env(safe-area-inset-left),8px)] top-16 !w-40 scale-90 origin-top-left short:scale-75" />
 
       <Countdown />
 

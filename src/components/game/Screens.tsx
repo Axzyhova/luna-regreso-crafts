@@ -36,10 +36,10 @@ function Stars() {
 export function Intro() {
   const go = useGame((s) => s.go);
   return (
-    <div className="relative flex h-full flex-col items-center justify-center gap-8 p-6 text-center">
+    <div className="relative flex h-full flex-col items-center justify-center-safe gap-8 overflow-y-auto p-6 text-center short:gap-4 short:p-3">
       <Stars />
-      <h1 className="max-w-3xl text-xl leading-relaxed text-suit-light drop-shadow-[4px_4px_0_var(--color-suit)] sm:text-4xl sm:leading-snug">{GAME_TITLE}</h1>
-      <p className="max-w-xl text-[11px] leading-6 text-foreground">Welcome to the experience… are you ready to live a story in space?</p>
+      <h1 className="max-w-3xl text-xl leading-relaxed text-suit-light drop-shadow-[4px_4px_0_var(--color-suit)] sm:text-4xl sm:leading-snug short:text-2xl short:leading-snug">{GAME_TITLE}</h1>
+      <p className="max-w-xl text-[11px] leading-6 text-foreground short:text-[9px] short:leading-5">Welcome to the experience… are you ready to live a story in space?</p>
       <div className="flex gap-4">
         <PixelButton onClick={() => go("modo")}>Accept</PixelButton>
         <PixelButton tone="ghost" onClick={() => go("rechazo")}>Decline</PixelButton>
@@ -52,7 +52,7 @@ export function Intro() {
 export function Rechazo() {
   const go = useGame((s) => s.go);
   return (
-    <div className="relative flex h-full flex-col items-center justify-center gap-8 text-center">
+    <div className="relative flex h-full flex-col items-center justify-center-safe gap-8 overflow-y-auto p-4 text-center short:gap-4">
       <Stars />
       <p className="text-sm text-suit-light">See you next time, astronaut</p>
       <PixelButton tone="ghost" onClick={() => go("intro")}>Back to title</PixelButton>
@@ -65,18 +65,18 @@ export function ModeSelect() {
   const [mode, setMode] = useState<Mode>("realista");
   const [diff, setDiff] = useState<Difficulty>("normal");
   return (
-    <div className="relative flex h-full flex-col items-center justify-center gap-6 overflow-auto p-6">
+    <div className="relative flex h-full flex-col items-center justify-center-safe gap-6 overflow-y-auto p-6 short:gap-3 short:p-3">
       <Stars />
-      <h2 className="text-sm text-gold">CHOOSE YOUR EXPERIENCE</h2>
-      <div className="grid w-full max-w-3xl gap-3 sm:grid-cols-3">
+      <h2 className="text-sm text-gold short:text-xs">CHOOSE YOUR EXPERIENCE</h2>
+      <div className="grid w-full max-w-3xl gap-3 sm:grid-cols-3 short:grid-cols-3 short:gap-2">
         {(Object.keys(modos.modos) as Mode[]).map((m) => {
           const c = modos.modos[m];
           const tone = m === "realista" ? "border-ok" : m === "fantastico" ? "border-alien" : "border-destructive";
           return (
             <button key={m} onClick={() => { sfx.click(); setMode(m); }}
-              className={`relative border-4 bg-card p-4 text-left ${mode === m ? tone : "border-border opacity-70"}`}>
+              className={`relative border-4 bg-card p-4 text-left short:p-2 ${mode === m ? tone : "border-border opacity-70"}`}>
               <div className="text-[11px] text-foreground">{c.nombre}</div>
-              <div className="mt-3 text-[8px] leading-4 text-muted-foreground">{c.desc}</div>
+              <div className="mt-3 text-[8px] leading-4 text-muted-foreground short:mt-1 short:text-[7px]">{c.desc}</div>
             </button>
           );
         })}
@@ -84,7 +84,7 @@ export function ModeSelect() {
       <div className="flex gap-2">
         {(Object.keys(modos.dificultades) as Difficulty[]).map((d) => (
           <button key={d} onClick={() => { sfx.click(); setDiff(d); }}
-            className={`px-3 py-2 text-[9px] ${diff === d ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
+            className={`px-3 py-2 text-[9px] short:py-1.5 ${diff === d ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
             {modos.dificultades[d].nombre}
           </button>
         ))}
@@ -109,15 +109,18 @@ export function Cinematic() {
   const p = PANELS[i]!;
   const typed = useTypewriter(p.text);
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-6 p-6">
-      <div key={i} className="w-full max-w-lg animate-in fade-in duration-500">
+    // Tall screens: scene on top, text and buttons below. Short (landscape phone): side by side.
+    <div className="flex h-full flex-col items-center justify-center-safe gap-6 overflow-y-auto p-6 short:flex-row short:gap-5 short:p-3">
+      <div key={i} className="w-full max-w-lg animate-in fade-in duration-500 short:w-[min(48vw,calc((100dvh-24px)*2))] short:max-w-none short:shrink-0">
         <StoryAnimation scene={p.art as SceneId} />
-        <p className="mt-4 min-h-16 text-[10px] leading-5">{typed}<span className="animate-blink">▌</span></p>
-        <div className="mt-2 text-[8px] text-muted-foreground">{i + 1}/4</div>
       </div>
-      <div className="flex gap-3">
-        <PixelButton tone="ghost" onClick={() => go("juego")}>Skip</PixelButton>
-        <PixelButton onClick={() => (i < 3 ? setI(i + 1) : go("juego"))}>{i < 3 ? "Next" : "Start"}</PixelButton>
+      <div className="flex w-full max-w-lg flex-col gap-4 short:max-w-[42vw] short:gap-3">
+        <p className="min-h-16 text-[10px] leading-5 short:min-h-0 short:text-[9px]">{typed}<span className="animate-blink">▌</span></p>
+        <div className="text-[8px] text-muted-foreground">{i + 1}/4</div>
+        <div className="flex gap-3">
+          <PixelButton tone="ghost" onClick={() => go("juego")}>Skip</PixelButton>
+          <PixelButton onClick={() => (i < 3 ? setI(i + 1) : go("juego"))}>{i < 3 ? "Next" : "Start"}</PixelButton>
+        </div>
       </div>
     </div>
   );
@@ -126,7 +129,7 @@ export function Cinematic() {
 export function Fuentes() {
   const go = useGame((s) => s.go);
   return (
-    <div className="flex h-full flex-col items-center gap-6 overflow-auto p-8">
+    <div className="flex h-full flex-col items-center gap-6 overflow-y-auto p-8 short:gap-3 short:p-3">
       <h2 className="text-sm text-gold">SOURCES & CREDITS</h2>
       <p className="max-w-2xl text-[7px] leading-4 text-muted-foreground"><span className="text-ok">NASA-LIST</span>: official challenge resource · <span className="text-gold">EXTERNAL</span>: real data outside the list · <span className="text-alert">FICTION</span>: made up for the game</p>
       <ul className="max-w-2xl space-y-4">
@@ -150,9 +153,9 @@ export function Final() {
   const s = useGame((g) => g.snap);
   const r = s.result;
   return (
-    <div className="relative flex h-full flex-col items-center justify-center gap-6 overflow-auto p-6 text-center">
+    <div className="relative flex h-full flex-col items-center justify-center-safe gap-6 overflow-y-auto p-6 text-center short:gap-3 short:p-3">
       <Stars />
-      <h2 className="text-2xl text-ok drop-shadow-[3px_3px_0_var(--color-moon-0)]">BACK HOME!</h2>
+      <h2 className="text-2xl text-ok drop-shadow-[3px_3px_0_var(--color-moon-0)] short:text-lg">BACK HOME!</h2>
       {r && (
         <div className="max-w-xl space-y-2 text-[9px] leading-5">
           {MISIONES.final.map((l) => <p key={l} className="text-suit-light">{l}</p>)}

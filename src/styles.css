@@ -186,3 +186,6 @@
   50%, 80% { transform: rotate(-90deg); }
   100% { transform: rotate(0deg); }
 }
+
+/* Short screens (phones in landscape): compact layouts use the `short:` prefix. */
+@custom-variant short (@media (max-height: 520px));
