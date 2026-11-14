@@ -1,10 +1,18 @@
-# Publica una versión estática (SPA, sin servidor) en GitHub Pages para pruebas rápidas.
+# Publica en GitHub Pages DOS versiones separadas del juego, al mismo tiempo:
+#
+#   main  ->  https://<usuario>.github.io/<repo>/
+#   jean  ->  https://<usuario>.github.io/<repo>/jean/
+#
+# GitHub Pages solo admite un sitio por repositorio, así que cada ejecución compila las dos ramas
+# (cada una con su propia ruta base) y publica el resultado junto. Así un push a cualquiera de las
+# dos ramas deja ambas versiones al día, sin que una pise a la otra.
+#
 # No toca la configuración de Lovable (vite.config.ts); usa vite.pages.config.ts.
 name: GitHub Pages
 
 on:
   push:
-    branches: [ccr-ff201ec2-32ek5l]
+    branches: [main, jean]
   workflow_dispatch:
 
 permissions:
@@ -12,35 +20,65 @@ permissions:
   pages: write
   id-token: write
 
+# Cada ejecución es autosuficiente (compila el último estado de ambas ramas), así que si llegan dos
+# pushes seguidos basta con la más reciente.
 concurrency:
   group: pages
   cancel-in-progress: true
+
+env:
+  REPO: ${{ github.event.repository.name }}
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main-src
+      - uses: actions/checkout@v4
+        with:
+          ref: jean
+          path: jean-src
       - uses: oven-sh/setup-bun@v2
-      - name: Instalar dependencias
+
+      - name: Dependencias (main)
+        working-directory: main-src
         run: bun install --frozen-lockfile
-      - name: Compilar versión estática
+      - name: Dependencias (jean)
+        working-directory: jean-src
+        run: bun install --frozen-lockfile
+
+      - name: Compilar main en /
+        working-directory: main-src
         env:
-          PAGES_BASE: /${{ github.event.repository.name }}/
+          PAGES_BASE: /${{ env.REPO }}/
         run: npx vite build -c vite.pages.config.ts
-      - name: Preparar sitio (fallback SPA y .nojekyll)
+      - name: Compilar jean en /jean/
+        working-directory: jean-src
+        env:
+          PAGES_BASE: /${{ env.REPO }}/jean/
+        run: npx vite build -c vite.pages.config.ts
+
+      - name: Unir las dos versiones en un solo sitio
         run: |
-          cd .output/public
-          cp _shell.html index.html
-          cp _shell.html 404.html
-          rm -f _headers _shell.html
-          touch .nojekyll
+          mkdir -p site/jean
+          cp -r main-src/.output/public/. site/
+          cp -r jean-src/.output/public/. site/jean/
+          # Cada versión es una SPA: su index.html es la "shell" de la app.
+          cp site/_shell.html site/index.html
+          cp site/_shell.html site/404.html
+          cp site/jean/_shell.html site/jean/index.html
+          rm -f site/_shell.html site/_headers site/jean/_shell.html site/jean/_headers
+          touch site/.nojekyll
+
       - uses: actions/configure-pages@v5
         with:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .output/public
+          path: site
 
   deploy:
     needs: build
@@ -51,3 +89,10 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+      - name: Enlaces
+        run: |
+          {
+            echo "### Sitio publicado"
+            echo "- **main**: ${{ steps.deployment.outputs.page_url }}"
+            echo "- **jean**: ${{ steps.deployment.outputs.page_url }}jean/"
+          } >> "$GITHUB_STEP_SUMMARY"
