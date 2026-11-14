@@ -13,12 +13,12 @@ interface RNode { type: NodeType; amount: number; spr: Phaser.GameObjects.Image 
 function px(scene: Phaser.Scene, key: string, rows: string[], colors: Record<string, number>) {
   const g = scene.add.graphics();
   rows.forEach((r, y) => [...r].forEach((c, x) => { if (colors[c] !== undefined) { g.fillStyle(colors[c]); g.fillRect(x, y, 1, 1); } }));
-  g.generateTexture(key, rows[0].length, rows.length); g.destroy();
+  g.generateTexture(key, rows[0]!.length, rows.length); g.destroy();
 }
 
 export class LunarScene extends Phaser.Scene {
   player!: Phaser.GameObjects.Image;
-  keys!: Record<string, Phaser.Input.Keyboard.Key>;
+  keys!: Record<"W" | "A" | "S" | "D" | "UP" | "DOWN" | "LEFT" | "RIGHT" | "E", Phaser.Input.Keyboard.Key>;
   nodes: RNode[] = [];
   leakSprites = new Map<number, Phaser.GameObjects.Image>();
   ring!: Phaser.GameObjects.Graphics;
@@ -81,7 +81,7 @@ export class LunarScene extends Phaser.Scene {
     this.prompt = this.add.text(0, 0, "", { fontFamily: '"Press Start 2P"', fontSize: "5px", color: "#f2d24f", backgroundColor: "#0b0b14" }).setDepth(40).setPadding(2);
 
     this.cameras.main.setBounds(0, 0, W, H).startFollow(this.player, true, 0.15, 0.15).setRoundPixels(true);
-    this.keys = this.input.keyboard!.addKeys("W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE,ONE,TWO,THREE,FOUR,FIVE") as Record<string, Phaser.Input.Keyboard.Key>;
+    this.keys = this.input.keyboard!.addKeys("W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE,ONE,TWO,THREE,FOUR,FIVE") as LunarScene["keys"];
     this.input.on("pointerdown", () => this.useTool());
     this.input.keyboard!.on("keydown-SPACE", () => this.useTool());
     this.input.keyboard!.on("keydown-E", () => this.interact());
@@ -130,7 +130,7 @@ export class LunarScene extends Phaser.Scene {
     const n = this.nearestNode();
     if (!n) return;
     this.useCd = (sim.inv.taladro ?? 0) > 0 ? 0.25 : (sim.inv.pala_mejorada ?? 0) > 0 ? 0.35 : 0.5;
-    sim.inv[n.type] = (sim.inv[n.type] ?? 0) + 1; n.amount -= 1; sfx.pick();
+    sim.inv[n.type] += 1; n.amount -= 1; sfx.pick();
     this.tweens.add({ targets: n.spr, y: n.spr.y - 2, yoyo: true, duration: 60 });
     if (n.amount <= 0) { n.spr.destroy(); this.nodes = this.nodes.filter((x) => x !== n); this.time.delayedCall(40000, () => this.spawnNode(n.type)); }
   }
@@ -146,7 +146,7 @@ export class LunarScene extends Phaser.Scene {
     }
   }
 
-  update(_t: number, ms: number) {
+  override update(_t: number, ms: number) {
     const dt = Math.min(0.1, ms / 1000);
     const overlay = useGame.getState().overlay;
     if (overlay) return;

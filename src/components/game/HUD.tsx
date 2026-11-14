@@ -21,7 +21,7 @@ const HOTBAR = ["Pala", "Taladro", "Kit", "Linterna", "Escáner"];
 export function HUD() {
   const s = useGame((g) => g.snap);
   const ratio = s.lh2 > 0.01 ? s.lox / s.lh2 : 0;
-  const acto = modos.actos[s.act - 1] ?? modos.actos[3];
+  const acto = modos.actos[s.act - 1] ?? modos.actos[3]!;
   return (
     <>
       <div className="pointer-events-none absolute inset-x-0 top-0 space-y-1 bg-background/80 p-2">
@@ -80,8 +80,9 @@ function Inventory() {
             <div key={r.id} className="flex items-center justify-between gap-2 border-b border-border pb-2 text-[8px]">
               <div><div>{r.nombre}</div><div className="text-muted-foreground">{Object.entries(r.ingredientes).map(([k, v]) => `${v} ${k}`).join(" + ")}{!r.disponible && " · próximamente"}</div></div>
               <button disabled={!ok} onClick={() => {
-                for (const [k, v] of Object.entries(r.ingredientes)) sim.inv[k] -= v;
-                for (const [k, v] of Object.entries(r.resultado)) sim.inv[k] = (sim.inv[k] ?? 0) + v;
+                const inv = sim.inv as unknown as Record<string, number>;
+                for (const [k, v] of Object.entries(r.ingredientes)) inv[k] = (inv[k] ?? 0) - (v ?? 0);
+                for (const [k, v] of Object.entries(r.resultado)) inv[k] = (inv[k] ?? 0) + (v ?? 0);
                 addLog(sim, `Crafteaste: ${r.nombre}.`); sfx.ok(); publish();
               }} className="bg-primary px-2 py-1 text-primary-foreground disabled:opacity-30">CREAR</button>
             </div>
@@ -104,8 +105,8 @@ function Base() {
             <span className="w-40">{m.nombre}</span>
             <div className="h-2 flex-1 bg-moon-0"><div className={`h-full ${m.durabilidad < 25 ? "bg-alert" : "bg-ok"}`} style={{ width: `${m.durabilidad}%` }} /></div>
             <span className="w-8">{m.durabilidad.toFixed(0)}%</span>
-            <button onClick={() => { sim.modules[i].activo = !sim.modules[i].activo; publish(); sfx.click(); }} className={`w-10 px-1 py-1 ${m.activo ? "bg-ok text-background" : "bg-secondary"}`}>{m.activo ? "ON" : "OFF"}</button>
-            <button disabled={s.inv.kits < 1 || m.durabilidad >= 100} onClick={() => { sim.inv.kits -= 1; sim.modules[i].durabilidad = Math.min(100, m.durabilidad + 30); addLog(sim, `Mantenimiento: ${m.nombre}.`); publish(); sfx.ok(); }} className="bg-primary px-2 py-1 text-primary-foreground disabled:opacity-30">+30% (1 KIT)</button>
+            <button onClick={() => { sim.modules[i]!.activo = !sim.modules[i]!.activo; publish(); sfx.click(); }} className={`w-10 px-1 py-1 ${m.activo ? "bg-ok text-background" : "bg-secondary"}`}>{m.activo ? "ON" : "OFF"}</button>
+            <button disabled={s.inv.kits < 1 || m.durabilidad >= 100} onClick={() => { sim.inv.kits -= 1; sim.modules[i]!.durabilidad = Math.min(100, m.durabilidad + 30); addLog(sim, `Mantenimiento: ${m.nombre}.`); publish(); sfx.ok(); }} className="bg-primary px-2 py-1 text-primary-foreground disabled:opacity-30">+30% (1 KIT)</button>
           </div>
         ))}
       </div>

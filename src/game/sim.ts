@@ -12,6 +12,8 @@ export const CYCLE = DAY_LEN + NIGHT_LEN;
 export const LH2_CAP = 100;
 export const LOX_CAP = 600;
 
+export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; pala_mejorada: number; taladro: number; aislamiento: number; baterias: number; paneles: number }
+
 export function createSim(mode: Mode, difficulty: Difficulty) {
   return {
     mode, difficulty,
@@ -20,7 +22,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     battery: 60, energyIn: 0, energyOut: 0,
     habitatO2: 80,
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
-    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1 } as Record<string, number>,
+    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, pala_mejorada: 0, taladro: 0, aislamiento: 0, baterias: 0, paneles: 0 } as Inv,
     hotbar: 1,
     act: 1,
     actFlags: { leakFixed: false },
@@ -76,8 +78,9 @@ export function splitO2(o2: number, lh2: number, lox: number) {
   const toLox = Math.min(o2, want);
   return { toLox, rest: o2 - toLox };
 }
-export function canCraft(inv: Record<string, number>, ing: Record<string, number>) {
-  return Object.entries(ing).every(([k, v]) => (inv[k] ?? 0) >= v);
+export function canCraft(inv: Inv, ing: Record<string, number | undefined>) {
+  const m = inv as unknown as Record<string, number>;
+  return Object.entries(ing).every(([k, v]) => (m[k] ?? 0) >= (v ?? 0));
 }
 
 /** Advance the simulation by dt seconds (excluding positional effects handled by the scene). */

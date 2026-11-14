@@ -108,7 +108,7 @@ function PanelArt({ art }: { art: string }) {
 export function Cinematic() {
   const go = useGame((s) => s.go);
   const [i, setI] = useState(0);
-  const p = PANELS[i];
+  const p = PANELS[i]!;
   return (
     <div className="flex h-full flex-col items-center justify-center gap-6 p-6">
       <div className="w-full max-w-lg">
