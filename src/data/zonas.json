@@ -1,0 +1,17 @@
+{
+ "nota": "World regions. The landing site is the original map; the other three are gated by gear or materials. Coordinates in world px (the world is 1280x720).",
+ "mundo": { "w": 1280, "h": 720 },
+ "celda_niebla": 40,
+ "radio_vision": 90,
+ "zonas": [
+  { "id": "base", "nombre": "Landing Site", "rect": [0, 0, 640, 360], "color": "#45454f", "suelo": "#45454f" },
+  { "id": "ice", "nombre": "Frozen Basin", "rect": [0, 360, 640, 360], "color": "#26456e", "suelo": "#32557e", "temp": -45,
+    "req": { "equip": "traje_termico" }, "bloqueo": "Too cold: equip the Thermal suit to enter the Frozen Basin.", "recurso": "cristal_hielo" },
+  { "id": "fire", "nombre": "Scorch Fields", "rect": [640, 0, 640, 360], "color": "#6e3418", "suelo": "#7a3e20", "temp": 75,
+    "req": { "equip": "capa_reflectante" }, "bloqueo": "Too hot: equip the Reflective cape to cross the Scorch Fields.", "recurso": "titanio" },
+  { "id": "hive", "nombre": "Alien Hive", "rect": [640, 360, 640, 360], "color": "#3c1a4e", "suelo": "#3a2448",
+    "req": { "puente": true }, "bloqueo": "A ravine blocks the way: build the bridge at the marked spot (10 Metal, 6 Regolith, 2 Titanium).", "recurso": "aleacion" }
+ ],
+ "puente": { "x": 960, "y": 352, "costo": { "metal": 10, "regolito": 6, "titanio": 2 } },
+ "colmena": { "max": 6, "velocidad": 22, "vision": 130, "dano_s": 7, "vida": 3 }
+}

@@ -13,11 +13,11 @@ const NOTE = {
   horno: "Bake regolith into insulation. While powered, the furnace also turns regolith into O2 and metal on its own.",
 } as const;
 
-function Slot({ item, n, big, warn, active, onClick, title }: { item?: string | undefined; n?: number | string | undefined; big?: boolean; warn?: boolean; active?: boolean; onClick?: () => void; title?: string | undefined }) {
+function Slot({ item, n, big, warn, active, dim, onClick, title }: { item?: string | undefined; n?: number | string | undefined; big?: boolean; warn?: boolean; active?: boolean; dim?: boolean; onClick?: () => void; title?: string | undefined }) {
   const size = big ? "h-16 w-16" : "h-11 w-11";
   return (
     <button type="button" onClick={onClick} disabled={!onClick} title={title}
-      className={`tr-slot relative flex ${size} shrink-0 items-center justify-center ${active ? "tr-slot-active" : ""} ${warn ? "ring-2 ring-destructive" : ""}`}>
+      className={`tr-slot relative flex ${size} shrink-0 items-center justify-center ${active ? "tr-slot-active" : ""} ${warn ? "ring-2 ring-destructive" : ""} ${dim ? "opacity-55 grayscale" : ""}`}>
       {item && <PixelIcon item={item} size={big ? 34 : 22} />}
       {n !== undefined && n !== "" && <span className="tr-text absolute bottom-0 right-1 text-[9px]">{n}</span>}
     </button>
@@ -83,7 +83,9 @@ export function StationPanel() {
             <div className="grid grid-cols-4 gap-1">
               {list.map((r) => {
                 const out = Object.keys(r.resultado)[0]!;
-                return <Slot key={r.id} item={out} active={r.id === sel?.id}  title={r.nombre} onClick={() => { setSelId(r.id); sfx.click(); }} n={recipeBlock(s, r) ? "" : "✓"} />;
+                const b = recipeBlock(s, r);
+                // Craftable: full colour with ✓. Not craftable: greyed out, red outline when materials are missing.
+                return <Slot key={r.id} item={out} active={r.id === sel?.id} dim={!!b} warn={b === "Missing materials"} title={`${r.nombre}${b ? ` — ${b}` : " — ready to craft"}`} onClick={() => { setSelId(r.id); sfx.click(); }} n={b ? "" : "✓"} />;
               })}
             </div>
           </div>
@@ -102,7 +104,7 @@ export function StationPanel() {
                   })}
                 </div>
                 <span className="tr-title text-[22px] text-white/80">➜</span>
-                <Slot item={result[0]} n={result[1]} big title={ITEMS[result[0]]?.nombre} />
+                <Slot item={result[0]} n={result[1]} big dim={!!block} title={ITEMS[result[0]]?.nombre} />
               </div>
               <p className="text-[9px] leading-4 text-white/80">{ITEMS[result[0]]?.desc}</p>
               <div className="flex items-center gap-2">

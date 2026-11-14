@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import modos from "@/data/modos.json";
 import recetas from "@/data/recetas.json";
 import { useGame, sim, saveGame } from "@/game/store";
-import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft, PLACEABLE, SUBSISTEMAS, UMBRAL_VERDE, repairBlock, repairSubsystem, subCap } from "@/game/sim";
+import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft, PLACEABLE, upgradeCost, canUpgrade, upgradeModule, UPGRADES, SUBSISTEMAS, UMBRAL_VERDE, repairBlock, repairSubsystem, subCap } from "@/game/sim";
 import { launchBlockers, startLaunch, countdownLength, currentWindow, nextWindow, windowSecondsLeft, windowsUntil, VENTANAS_PROVISIONALES } from "@/game/mission";
 import { CubeSatDesigner } from "./CubeSatDesigner";
 import { Vitals, DayClock } from "./Vitals";
 import { StationPanel } from "./StationPanel";
+import { MapPanel } from "./MapPanel";
 import { DeathScreen, NoticeToast, AchievementList, SuitControl } from "./SurvivalUI";
 import { EventBanner, EffectsBar, QuestTracker, QuestLog } from "./StoryUI";
 import { GEAR, CONSUMIBLES, toggleEquip, consumeItem } from "@/game/effects";
@@ -93,8 +94,9 @@ export function HUDBottom({ className = "", touch = false }: { className?: strin
             </button>
           )}
           <Hotbar />
+          {!touch && <button type="button" onClick={() => { sfx.click(); useGame.getState().setOverlay("mapa"); }} className="tr-btn pointer-events-auto ml-1 h-10 px-2 text-[10px]" title="Map (M)">🗺 MAP</button>}
         </div>
-        {!touch && <div className="text-[6px] text-muted-foreground">WASD move · SPACE pick up/hit · E interact (hold to seal/repair) · TAB inventory · C build · B base · L log · M missions · V suit · ESC pause · 1-5 or click: pick item</div>}
+        {!touch && <div className="text-[6px] text-muted-foreground">WASD move · SPACE pick up/hit · E interact (hold to seal/repair) · TAB inventory · C build · B base · L log · M map · J missions · V suit · ESC pause · 1-5 or click: pick item</div>}
       </div>
   );
 }
@@ -201,7 +203,7 @@ function Inventory() {
           {recetas.map((r) => {
             const block = recipeBlock(s, r);
             return (
-              <div key={r.id} className="flex items-center justify-between gap-2 border-b border-border pb-2 text-[8px]">
+              <div key={r.id} className={`flex items-center justify-between gap-2 border-b border-border pb-2 text-[8px] ${block ? "opacity-60 grayscale" : ""}`}>
                 <div className="flex items-center gap-2">
                   <PixelIcon item={Object.keys(r.resultado)[0]!} size={20} />
                   <div>
@@ -248,11 +250,17 @@ function Base() {
           const e = moduleEnergy(m, day);
           return (
             <div key={m.uid} className="flex flex-wrap items-center gap-2 text-[8px]">
-              <span className="w-36">{t.nombre}</span>
+              <span className="w-36">{t.nombre} <span className="text-gold">Lv{m.level ?? 1}</span></span>
               <div className="h-2 w-24 bg-moon-0"><div className={`h-full ${m.durabilidad < 25 ? "bg-alert" : "bg-ok"}`} style={{ width: `${m.durabilidad}%` }} /></div>
               <span className="w-8">{m.durabilidad.toFixed(0)}%</span>
               <span className={`w-14 ${e > 0 ? "text-ok" : e < 0 ? "text-destructive" : "text-muted-foreground"}`}>{e > 0 ? "+" : ""}{e.toFixed(1)}/s</span>
               <button onClick={() => { const mm = sim.modules.find((x) => x.uid === m.uid); if (mm) mm.activo = !mm.activo; publish(); sfx.click(); }} className={`w-10 px-1 py-1 ${m.activo ? "bg-ok text-background" : "bg-secondary"}`}>{m.activo ? "ON" : "OFF"}</button>
+              {upgradeCost(m) && (
+                <button title={`${UPGRADES[m.tipo]?.efecto} · Cost: ${Object.entries(upgradeCost(m)!).map(([k, v]) => `${v} ${ITEMS[k]?.nombre ?? k}`).join(", ")}`}
+                  onClick={() => { const mm = sim.modules.find((x) => x.uid === m.uid); if (mm && upgradeModule(sim, mm)) { sfx.ok(); publish(); } else sfx.bad(); }}
+                  className={`tr-btn px-1.5 py-1 text-[8px] ${canUpgrade(s, m) ? "" : "opacity-40 grayscale"}`}>⬆ Lv{(m.level ?? 1) + 1}</button>
+              )}
+              {upgradeCost(m) && <span className="text-[7px] text-muted-foreground">{Object.entries(upgradeCost(m)!).map(([k, v]) => `${v} ${ITEMS[k]?.nombre ?? k}`).join(" · ")}</span>}
               {m.durabilidad < 25 && <span className="animate-blink text-[7px] text-alert">Needs maintenance</span>}
             </div>
           );
@@ -365,7 +373,7 @@ export function Overlays() {
   const overlay = useGame((g) => g.overlay);
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      const map: Record<string, "inv" | "base" | "log" | "pausa" | "misiones"> = { Tab: "inv", b: "base", B: "base", l: "log", L: "log", m: "misiones", M: "misiones", Escape: "pausa" };
+      const map: Record<string, "inv" | "base" | "log" | "pausa" | "misiones" | "mapa"> = { Tab: "inv", b: "base", B: "base", l: "log", L: "log", j: "misiones", J: "misiones", m: "mapa", M: "mapa", Escape: "pausa" };
       const o = map[e.key];
       if (!o) return;
       if (e.key === "Escape" && sim.buildMode && !useGame.getState().overlay) { e.preventDefault(); sim.buildMode = null; useGame.getState().publish(); return; }
@@ -380,6 +388,6 @@ export function Overlays() {
   const panel =
     overlay === "inv" ? <Inventory /> : overlay === "base" ? <Base /> : overlay === "log" ? <Log /> : overlay === "pausa" ? <Pause /> :
     overlay === "cohete" ? <Rocket /> : overlay === "cubesat" ? <CubeSatDesigner /> : overlay === "misiones" ? <QuestLog /> :
-    overlay === "estacion" ? <StationPanel /> : null;
+    overlay === "estacion" ? <StationPanel /> : overlay === "mapa" ? <MapPanel /> : null;
   return <>{panel}<NoticeToast /><DeathScreen /></>;
 }

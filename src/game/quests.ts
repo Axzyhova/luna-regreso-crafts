@@ -28,6 +28,10 @@ export const COND: Record<string, (s: Sim) => boolean> = {
   reparaciones_5: (s) => s.stats.reparaciones >= 5,
   aliens_5: (s) => s.stats.aliens >= 5,
   mezcla: (s) => s.logros.includes("Perfect 6:1 mix"),
+  visit_fire: (s) => s.visited.includes("fire"),
+  cristales_5: (s) => s.inv.cristal_hielo >= 5,
+  puente: (s) => s.bridge,
+  aleacion_3: (s) => s.inv.aleacion >= 3,
 };
 
 export const currentMain = (s: Sim): Quest | null => PRINCIPALES[s.quest.main] ?? null;

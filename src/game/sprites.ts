@@ -66,6 +66,30 @@ export function makeSprites(scene: Phaser.Scene) {
     r(5, 0, 8, 2, T.red); r(8, 0, 2, 4, T.red);
   });
 
+  // Zone resources.
+  tex(scene, "n_cristal", 7, 8, (g, r) => {
+    g.fillStyle(OUT).fillPoints(toPts([7, 0, 13, 7, 7, 15, 1, 7], 1), true);
+    g.fillStyle(0x9fd8ff).fillPoints(toPts([7, 0, 13, 7, 7, 15, 1, 7], 0), true);
+    g.fillStyle(0xd8f2ff).fillPoints(toPts([7, 1, 7, 14, 2, 7], 0), true);
+    r(6, 4, 1, 4, 0xffffff); r(9, 9, 2, 1, 0x5aa0d8);
+  });
+  tex(scene, "n_titanio", 7, 6, (g, r) => {
+    g.fillStyle(OUT).fillEllipse(7, 7, 14, 10); g.fillStyle(0x6b6b75).fillEllipse(7, 7, 12, 8);
+    r(3, 4, 3, 2, 0xd8e0ea); r(8, 6, 3, 2, 0xb8c6d8); r(5, 8, 2, 1, 0xffffff); r(9, 4, 1, 1, 0xffffff);
+  });
+  tex(scene, "n_aleacion", 7, 7, (g, r) => {
+    g.fillStyle(0x4fc26a, 0.35).fillCircle(7, 7, 7);
+    g.fillStyle(OUT).fillPoints(toPts([7, 1, 12, 5, 11, 12, 3, 12, 2, 5], 1), true);
+    g.fillStyle(0x3a9a52).fillPoints(toPts([7, 1, 12, 5, 11, 12, 3, 12, 2, 5], 0), true);
+    r(5, 4, 2, 4, 0x9ff0b4); r(8, 8, 2, 2, T.alien);
+  });
+  // Warning sign at the ravine where the bridge goes.
+  tex(scene, "gate", 9, 11, (g, r) => {
+    r(8, 10, 2, 12, OUT); r(8, 10, 1, 12, 0x9a9aa3);
+    g.fillStyle(OUT).fillTriangle(9, 0, 0, 12, 18, 12); g.fillStyle(T.gold).fillTriangle(9, 2, 2, 11, 16, 11);
+    r(8, 4, 2, 4, OUT); r(8, 9, 2, 1, OUT);
+  });
+
   // Ice crystals: faceted shards with highlights.
   tex(scene, "ice", 6, 6, (g) => {
     const shard = (pts: number[], fill: number, edge: number) => {

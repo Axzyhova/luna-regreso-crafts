@@ -1,0 +1,13 @@
+{
+ "nota": "Module upgrades. Level 1 is the base; each entry is the cost to reach the next level. Higher levels need materials from the new zones.",
+ "efecto_por_nivel": 0.5,
+ "mejoras": {
+  "panel":        { "efecto": "+50% power per level", "costos": [{ "metal": 3, "regolito": 2 }, { "metal": 2, "titanio": 2 }] },
+  "bateria":      { "efecto": "+50% storage per level", "costos": [{ "metal": 3, "chatarra": 2 }, { "titanio": 2, "cristal_hielo": 1 }] },
+  "taladro":      { "efecto": "+50% ice per level", "costos": [{ "metal": 4 }, { "titanio": 2, "aleacion": 1 }] },
+  "electrolisis": { "efecto": "+50% water processed per level", "costos": [{ "metal": 4, "chatarra": 2 }, { "titanio": 2, "aleacion": 1 }] },
+  "licuefactor":  { "efecto": "-30% boil-off per level", "costos": [{ "metal": 3, "cristal_hielo": 2 }, { "cristal_hielo": 3, "aleacion": 1 }] },
+  "horno":        { "efecto": "+50% speed per level", "costos": [{ "metal": 4, "titanio": 1 }] },
+  "habitat":      { "efecto": "habitat air lasts longer and refills your suit faster", "costos": [{ "metal": 6, "regolito": 4 }, { "titanio": 3, "aleacion": 2 }] }
+ }
+}
