@@ -205,3 +205,40 @@
   font-family: var(--font-title);
   font-size-adjust: none;
 }
+
+/*
+ * HD pixel UI skin (inspired by modern 2D pixel games): translucent blue panels with a
+ * dark outline and inner light bevel, rounded inventory slots, and outlined text.
+ * Only the look changes; layout and behaviour stay the same.
+ */
+.tr-panel {
+  background: linear-gradient(180deg, rgba(46, 66, 140, 0.94), rgba(24, 34, 86, 0.94));
+  border: 2px solid #0b1230;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 2px rgba(150, 180, 255, 0.35), inset 0 2px 0 3px rgba(255, 255, 255, 0.06), 0 6px 0 rgba(0, 0, 0, 0.35);
+  color: #fff;
+}
+.tr-slot {
+  background: linear-gradient(180deg, rgba(74, 98, 186, 0.9), rgba(52, 72, 150, 0.9));
+  border: 2px solid #101a40;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 1px rgba(175, 200, 255, 0.35);
+}
+.tr-slot-active {
+  border-color: #f2d24f;
+  box-shadow: inset 0 0 0 1px #fff3a6, 0 0 6px rgba(242, 210, 79, 0.55);
+}
+.tr-btn {
+  background: linear-gradient(180deg, #5b6fb8, #3a4a8e);
+  border: 2px solid #0b1230;
+  border-radius: 7px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 3px 0 rgba(0, 0, 0, 0.45);
+  color: #fff;
+  text-shadow: 1px 1px 0 #0b1230;
+}
+.tr-btn:active { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25); }
+.tr-btn-primary { background: linear-gradient(180deg, #ffd45a, #e09a1e); color: #2a1a04; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
+.tr-text { text-shadow: 1px 1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000; color: #fff; }
+.font-pixel h1, .font-pixel h2, .font-pixel h3, .tr-title {
+  text-shadow: 2px 2px 0 #0b0b14, -1px -1px 0 #0b0b14, 1px -1px 0 #0b0b14, -1px 1px 0 #0b0b14;
+}

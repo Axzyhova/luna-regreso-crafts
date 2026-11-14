@@ -20,10 +20,10 @@ function useTypewriter(text: string, cps = 38) {
 import { MISIONES, sideAvailable } from "@/game/quests";
 
 export function PixelButton({ children, onClick, tone = "primary", disabled }: { children: React.ReactNode; onClick?: () => void; tone?: "primary" | "ghost" | "alert"; disabled?: boolean }) {
-  const t = tone === "primary" ? "bg-primary text-primary-foreground" : tone === "alert" ? "bg-alert text-background" : "bg-secondary text-secondary-foreground";
+  const t = tone === "primary" ? "tr-btn tr-btn-primary" : tone === "alert" ? "tr-btn !bg-[linear-gradient(180deg,#f08a24,#c25a10)]" : "tr-btn";
   return (
     <button disabled={disabled} onClick={() => { sfx.click(); onClick?.(); }}
-      className={`${t} px-4 py-3 text-[10px] uppercase shadow-[0_4px_0_0_var(--color-moon-0)] active:translate-y-1 active:shadow-none disabled:opacity-40 hover:brightness-110`}>
+      className={`${t} px-4 py-3 text-[11px] font-semibold uppercase disabled:opacity-40 hover:brightness-110`}>
       {children}
     </button>
   );
@@ -74,7 +74,7 @@ export function ModeSelect() {
           const tone = m === "realista" ? "border-ok" : m === "fantastico" ? "border-alien" : "border-destructive";
           return (
             <button key={m} onClick={() => { sfx.click(); setMode(m); }}
-              className={`relative border-4 bg-card p-4 text-left short:p-2 ${mode === m ? tone : "border-border opacity-70"}`}>
+              className={`tr-panel relative border-4 p-4 text-left short:p-2 ${mode === m ? tone : "opacity-70"}`}>
               <div className="text-[11px] text-foreground">{c.nombre}</div>
               <div className="mt-3 text-[8px] leading-4 text-muted-foreground short:mt-1 short:text-[7px]">{c.desc}</div>
             </button>

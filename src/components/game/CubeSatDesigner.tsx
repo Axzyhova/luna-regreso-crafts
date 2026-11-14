@@ -34,7 +34,7 @@ export function CubeSatDesigner() {
 
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/70 p-4 short:p-1">
-      <div className="max-h-full w-full max-w-3xl overflow-auto border-4 border-suit bg-card p-4 short:p-2">
+      <div className="tr-panel max-h-full w-full max-w-3xl overflow-auto p-4 short:p-2">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-[11px] text-gold">CUBESAT RELAY DESIGNER (3U)</h3>
           <button onClick={() => setOverlay("cohete")} className="text-[9px] text-muted-foreground">[BACK TO ROCKET]</button>

@@ -73,6 +73,8 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     result: null as null | { ok: boolean; dia: number; ventana: string; lh2Sobra: number; loxSobra: number },
     hotbarItems: ["kits", "chatarra", "metal", null, null] as (string | null)[],
     near: { taller: false, horno: false },
+    station: null as null | "taller" | "horno",
+    stationUid: 0,
     buildMode: null as string | null,
     nextUid: 100,
     hotbar: 1,

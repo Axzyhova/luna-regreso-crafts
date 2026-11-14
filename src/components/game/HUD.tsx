@@ -6,6 +6,7 @@ import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, module
 import { launchBlockers, startLaunch, countdownLength, currentWindow, nextWindow, windowSecondsLeft, windowsUntil, VENTANAS_PROVISIONALES } from "@/game/mission";
 import { CubeSatDesigner } from "./CubeSatDesigner";
 import { Vitals, DayClock } from "./Vitals";
+import { StationPanel } from "./StationPanel";
 import { EventBanner, EffectsBar, QuestTracker, QuestLog } from "./StoryUI";
 import { GEAR, CONSUMIBLES, toggleEquip, consumeItem } from "@/game/effects";
 import { ITEMS } from "@/game/items";
@@ -126,10 +127,10 @@ export function Hotbar({ editable = false, pending = null, onAssign }: { editabl
           onDrop={(e) => { const k = e.dataTransfer.getData("text/item"); if (!k) return; sim.hotbarItems = sim.hotbarItems.map((x) => (x === k ? null : x)); sim.hotbarItems[i] = k; sfx.click(); publish(); }}
           onContextMenu={(e) => { if (!editable) return; e.preventDefault(); sim.hotbarItems[i] = null; publish(); }}
           title={editable ? "Tap or drop an item here · right-click to clear" : ITEMS[key ?? ""]?.nombre}
-          className={`relative flex h-11 w-11 touch-manipulation items-center justify-center border-2 bg-moon-0 sm:h-10 sm:w-10 ${s.hotbar === i + 1 ? "border-gold" : "border-moon-2"} ${editable && pending ? "animate-pulse border-ok" : ""}`}>
-          <span className="absolute left-0.5 top-0 text-[6px] text-muted-foreground">{i + 1}</span>
+          className={`tr-slot relative flex h-11 w-11 touch-manipulation items-center justify-center sm:h-10 sm:w-10 ${s.hotbar === i + 1 ? "tr-slot-active" : ""} ${editable && pending ? "animate-pulse border-ok" : ""}`}>
+          <span className="tr-text absolute left-1 top-0 text-[7px]">{i + 1}</span>
           {key && <PixelIcon item={key} size={22} />}
-          {key && <span className="absolute bottom-0 right-0.5 text-[6px]">{Math.floor(inv[key] ?? 0)}</span>}
+          {key && <span className="tr-text absolute bottom-0 right-1 text-[8px]">{Math.floor(inv[key] ?? 0)}</span>}
         </button>
       ))}
     </div>
@@ -140,8 +141,8 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
   const close = () => useGame.getState().setOverlay(null);
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/70 p-4 short:p-1">
-      <div className="max-h-full w-full max-w-2xl overflow-auto border-4 border-suit bg-card p-4 short:p-2">
-        <div className="mb-4 flex items-center justify-between"><h3 className="text-[11px] text-gold">{title}</h3><button onClick={close} className="text-[9px] text-muted-foreground">[X]</button></div>
+      <div className="tr-panel max-h-full w-full max-w-2xl overflow-auto p-4 short:p-2">
+        <div className="mb-4 flex items-center justify-between"><h3 className="tr-title text-[11px] text-gold">{title}</h3><button onClick={close} className="text-[9px] text-muted-foreground">[X]</button></div>
         {children}
       </div>
     </div>
@@ -179,8 +180,8 @@ function Inventory() {
                 onDragStart={(e) => c && e.dataTransfer.setData("text/item", c.key)}
                 onMouseEnter={() => setHover(c?.key ?? null)} onMouseLeave={() => setHover(null)}
                 onClick={() => { if (!c) return; setHover(c.key); setPending(pending === c.key ? null : c.key); sfx.click(); }}
-                className={`relative flex h-16 w-16 flex-col items-center justify-center border-2 bg-moon-0 ${c ? `cursor-grab hover:border-gold ${pending === c.key ? "border-ok" : "border-moon-2"}` : "border-border"}`}>
-                {c && <><PixelIcon item={c.key} size={28} /><span className="mt-0.5 max-w-full truncate px-0.5 text-[5px] text-muted-foreground">{ITEMS[c.key]?.nombre}</span><span className="absolute bottom-0.5 right-1 text-[8px] text-gold">{c.n}</span></>}
+                className={`tr-slot relative flex h-16 w-16 flex-col items-center justify-center ${c ? `cursor-grab ${pending === c.key ? "tr-slot-active" : ""}` : "opacity-80"}`}>
+                {c && <><PixelIcon item={c.key} size={28} /><span className="mt-0.5 max-w-full truncate px-0.5 text-[5px] text-muted-foreground">{ITEMS[c.key]?.nombre}</span><span className="tr-text absolute bottom-0.5 right-1 text-[9px]">{c.n}</span></>}
               </div>
             ))}
           </div>
@@ -381,5 +382,6 @@ export function Overlays() {
   if (overlay === "cohete") return <Rocket />;
   if (overlay === "cubesat") return <CubeSatDesigner />;
   if (overlay === "misiones") return <QuestLog />;
+  if (overlay === "estacion") return <StationPanel />;
   return null;
 }

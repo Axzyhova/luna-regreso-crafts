@@ -81,7 +81,7 @@ export function DialogBox() {
   if (!line) return null;
   const color = line.quien === "CONTROL" ? "border-ok text-ok" : line.quien === "ARIA" ? "border-suit-light text-suit-light" : "border-gold text-gold";
   return (
-    <button type="button" onClick={next} className={`absolute inset-x-2 bottom-2 z-[7] mx-auto max-w-xl border-4 bg-card/95 p-3 text-left ${color.split(" ")[0]}`}>
+    <button type="button" onClick={next} className={`absolute inset-x-2 bottom-2 z-[7] mx-auto max-w-xl tr-panel border-[3px] p-3 text-left ${color.split(" ")[0]}`}>
       <div className={`mb-1 text-[8px] ${color.split(" ")[1]}`}>{line.quien === "CONTROL" ? "📡 MISSION CONTROL" : line.quien === "ARIA" ? "🤖 ARIA" : line.quien}</div>
       <div className="text-[8px] leading-4 text-foreground">{line.texto}</div>
       <div className="mt-1 text-right text-[6px] text-muted-foreground">{s.dialog.length > 1 ? `tap to continue (${s.dialog.length - 1})` : "tap to close"} ▶</div>
@@ -106,7 +106,7 @@ export function QuestLog() {
   const setOverlay = useGame((g) => g.setOverlay);
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/70 p-4 short:p-1">
-      <div className="max-h-full w-full max-w-2xl overflow-auto border-4 border-suit bg-card p-4 short:p-2">
+      <div className="tr-panel max-h-full w-full max-w-2xl overflow-auto p-4 short:p-2">
         <div className="mb-3 flex items-center justify-between"><h3 className="text-[11px] text-gold">MISSIONS</h3><button onClick={() => setOverlay(null)} className="text-[9px] text-muted-foreground">[X]</button></div>
         <div className="mb-2 text-[8px] text-suit-light">MAIN STORY</div>
         <ol className="mb-4 space-y-2">

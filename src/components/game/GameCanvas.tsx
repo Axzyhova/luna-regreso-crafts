@@ -3,13 +3,15 @@ import { useEffect, useRef } from "react";
 /**
  * Internal pixel resolution that matches the container's shape, so a vertical phone
  * shows a vertical slice of the map instead of a tiny letterboxed strip.
- * The world is 640x360, so neither side may exceed it.
+ * At the HD camera zoom the visible area is half of these numbers (world is 640x360).
  */
 export function gameSize(cw: number, ch: number) {
-  if (cw <= 0 || ch <= 0) return { w: 320, h: 180 };
+  // HD render: twice the old 320x180 canvas; the scene zooms the camera by the same factor,
+  // so the visible slice of the map is unchanged but every sprite has double the detail.
+  if (cw <= 0 || ch <= 0) return { w: 640, h: 360 };
   const portrait = ch > cw;
-  const w = portrait ? 200 : 320;
-  const h = Math.round(Math.min(360, Math.max(120, (w * ch) / cw)));
+  const w = portrait ? 400 : 640;
+  const h = Math.round(Math.min(720, Math.max(240, (w * ch) / cw)));
   return { w, h };
 }
 
