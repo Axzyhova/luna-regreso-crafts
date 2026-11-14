@@ -4,6 +4,7 @@ import fuentes from "@/data/fuentes.json";
 import { useGame, hasSave } from "@/game/store";
 import type { Mode, Difficulty } from "@/game/sim";
 import { sfx } from "@/game/audio";
+import { GAME_TITLE } from "@/game/title";
 
 export function PixelButton({ children, onClick, tone = "primary", disabled }: { children: React.ReactNode; onClick?: () => void; tone?: "primary" | "ghost" | "alert"; disabled?: boolean }) {
   const t = tone === "primary" ? "bg-primary text-primary-foreground" : tone === "alert" ? "bg-alert text-background" : "bg-secondary text-secondary-foreground";
@@ -24,7 +25,7 @@ export function Intro() {
   return (
     <div className="relative flex h-full flex-col items-center justify-center gap-8 p-6 text-center">
       <Stars />
-      <h1 className="text-3xl text-suit-light drop-shadow-[4px_4px_0_var(--color-suit)] sm:text-5xl">VARADOS</h1>
+      <h1 className="max-w-3xl text-xl leading-relaxed text-suit-light drop-shadow-[4px_4px_0_var(--color-suit)] sm:text-4xl sm:leading-snug">{GAME_TITLE}</h1>
       <p className="max-w-xl text-[11px] leading-6 text-foreground">Bienvenido a la experiencia… ¿estás preparado para vivir una historia en el espacio?</p>
       <div className="flex gap-4">
         <PixelButton onClick={() => go("modo")}>Aceptar</PixelButton>

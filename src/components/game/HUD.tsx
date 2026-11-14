@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import modos from "@/data/modos.json";
 import recetas from "@/data/recetas.json";
 import { useGame, sim, saveGame } from "@/game/store";
-import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft, SUBSISTEMAS, UMBRAL_VERDE, repairBlock, repairSubsystem, subCap } from "@/game/sim";
+import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft, PLACEABLE, SUBSISTEMAS, UMBRAL_VERDE, repairBlock, repairSubsystem, subCap } from "@/game/sim";
 import { launchBlockers, startLaunch, countdownLength, currentWindow, nextWindow, windowSecondsLeft, windowsUntil, VENTANAS_PROVISIONALES } from "@/game/mission";
 import { CubeSatDesigner } from "./CubeSatDesigner";
 import { ITEMS } from "@/game/items";
@@ -20,14 +20,23 @@ function Bar({ label, v, max = 100, tone = "bg-ok", warn = 25 }: { label: string
     </div>
   );
 }
+/** Desktop/landscape: HUD floats over the game. */
 export function HUD() {
-  const s = useGame((g) => g.snap);
-  const ratio = s.lh2 > 0.01 ? s.lox / s.lh2 : 0;
-  const acto = modos.actos[s.act - 1] ?? modos.actos[3]!;
-  const net = s.energyIn - s.energyOut;
   return (
     <>
-      <div className="pointer-events-none absolute inset-x-0 top-0 space-y-1 bg-background/80 p-2">
+      <HUDTop className="absolute inset-x-0 top-0" />
+      <Countdown />
+      <HUDBottom className="absolute inset-x-0 bottom-0" />
+    </>
+  );
+}
+
+export function HUDTop({ className = "", touch = false }: { className?: string; touch?: boolean }) {
+  const s = useGame((g) => g.snap);
+  const ratio = s.lh2 > 0.01 ? s.lox / s.lh2 : 0;
+  const net = s.energyIn - s.energyOut;
+  return (
+      <div className={`pointer-events-none space-y-1 bg-background/80 p-2 ${className}`}>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <Bar label="O2" v={s.suitO2} tone="bg-suit-light" />
           <Bar label="SALUD" v={s.health} />
@@ -45,45 +54,71 @@ export function HUD() {
           <div className="flex items-center justify-center gap-2 text-[8px] text-alien">
             <span className="animate-blink">ABDUCCIÓN</span>
             <div className="h-2 w-32 bg-moon-0"><div className="h-full bg-alien" style={{ width: `${s.abduction}%` }} /></div>
-            <span className="text-[6px] text-muted-foreground">corre a la luz o golpéalo (ESPACIO)</span>
+            <span className="text-[6px] text-muted-foreground">corre a la luz o golpéalo ({touch ? "botón ACCIÓN" : "ESPACIO"})</span>
           </div>
         )}
         {s.aliens.some((a) => a.tipo !== "nodriza") && s.abduction === 0 && <div className="text-center text-[7px] text-alien">👾 {s.aliens.filter((a) => a.tipo !== "nodriza").length} alien(s) en la base</div>}
-        {s.buildMode && <div className="text-center text-[8px] text-ok">MODO CONSTRUCCIÓN: {ITEMS[s.buildMode]?.nombre} — clic para colocar · Q cambiar · C salir</div>}
+        {s.buildMode && <div className="text-center text-[8px] leading-4 text-ok">MODO CONSTRUCCIÓN: {ITEMS[s.buildMode]?.nombre} — {touch ? "ACCIÓN coloca frente a ti o toca el mapa · ⟳ cambiar · ✕ salir" : "clic para colocar · Q cambiar · C salir"}</div>}
       </div>
-      {s.countdown !== null && (
-        <div className="pointer-events-none absolute inset-x-0 top-24 text-center">
-          <div className="text-2xl text-gold drop-shadow-[3px_3px_0_var(--color-moon-0)]">T-{Math.ceil(s.countdown)}</div>
-          {s.aliens.some((a) => a.tipo === "nodriza") && <div className="animate-blink text-[8px] text-alien">¡LA NODRIZA ATACA EL COHETE! Golpéala (ESPACIO junto al cohete) y enciende torres de luz cerca</div>}
-        </div>
-      )}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-1 bg-background/80 p-2">
-        <div className="text-[8px] text-gold">ACTO {acto.n} · {acto.titulo.toUpperCase()}: <span className="text-foreground">{acto.meta}</span></div>
-        {s.hint && <div className="text-[7px] text-ok">{s.hint}</div>}
-        <Hotbar />
-        <div className="text-[6px] text-muted-foreground">WASD mover · ESPACIO recoger/golpear · E interactuar (mantén para sellar/reparar) · TAB inventario · C construir · B base · L bitácora · ESC pausa</div>
-      </div>
-    </>
   );
 }
 
-function Hotbar({ editable = false }: { editable?: boolean }) {
+export function Countdown() {
+  const s = useGame((g) => g.snap);
+  if (s.countdown === null) return null;
+  return (
+        <div className="pointer-events-none absolute inset-x-0 top-24 z-[5] px-4 text-center">
+          <div className="text-2xl text-gold drop-shadow-[3px_3px_0_var(--color-moon-0)]">T-{Math.ceil(s.countdown)}</div>
+          {s.aliens.some((a) => a.tipo === "nodriza") && <div className="animate-blink text-[8px] leading-4 text-alien">¡LA NODRIZA ATACA EL COHETE! Golpéala junto al cohete y enciende torres de luz cerca</div>}
+        </div>
+  );
+}
+
+export function HUDBottom({ className = "", touch = false }: { className?: string; touch?: boolean }) {
+  const s = useGame((g) => g.snap);
+  const acto = modos.actos[s.act - 1] ?? modos.actos[3]!;
+  return (
+      <div className={`pointer-events-none flex flex-col items-center gap-1 bg-background/80 p-2 ${className}`}>
+        <div className="text-center text-[8px] leading-4 text-gold">ACTO {acto.n} · {acto.titulo.toUpperCase()}: <span className="text-foreground">{acto.meta}</span></div>
+        {s.hint && <div className="text-[7px] text-ok">{s.hint}</div>}
+        <Hotbar />
+        {!touch && <div className="text-[6px] text-muted-foreground">WASD mover · ESPACIO recoger/golpear · E interactuar (mantén para sellar/reparar) · TAB inventario · C construir · B base · L bitácora · ESC pausa · 1-5 o clic: elegir objeto</div>}
+      </div>
+  );
+}
+
+/** Hotbar. In play: tap/click a slot to hold that item (modules enter build mode).
+ *  In the inventory (editable): tap a slot to drop the item picked above, or drag on desktop. */
+function Hotbar({ editable = false, pending = null, onAssign }: { editable?: boolean; pending?: string | null; onAssign?: () => void }) {
   const s = useGame((g) => g.snap);
   const publish = useGame((g) => g.publish);
   const inv = s.inv as unknown as Record<string, number>;
+  const tap = (i: number) => {
+    const key = sim.hotbarItems[i] ?? null;
+    if (editable) {
+      if (!pending) return;
+      sim.hotbarItems = sim.hotbarItems.map((x) => (x === pending ? null : x));
+      sim.hotbarItems[i] = pending; sfx.click(); onAssign?.(); publish();
+      return;
+    }
+    sim.hotbar = i + 1;
+    if (key && PLACEABLE[key] && (inv[key] ?? 0) >= 1) sim.buildMode = sim.buildMode === key ? null : key;
+    else if (sim.buildMode) sim.buildMode = null;
+    sfx.click(); publish();
+  };
   return (
-    <div className={`flex gap-1 ${editable ? "pointer-events-auto" : ""}`}>
+    <div className="pointer-events-auto flex gap-1">
       {s.hotbarItems.map((key, i) => (
-        <div key={i}
+        <button type="button" key={i} onClick={() => tap(i)}
           onDragOver={(e) => editable && e.preventDefault()}
           onDrop={(e) => { const k = e.dataTransfer.getData("text/item"); if (!k) return; sim.hotbarItems = sim.hotbarItems.map((x) => (x === k ? null : x)); sim.hotbarItems[i] = k; sfx.click(); publish(); }}
           onContextMenu={(e) => { if (!editable) return; e.preventDefault(); sim.hotbarItems[i] = null; publish(); }}
-          title={editable ? "Suelta aquí un objeto · clic derecho para vaciar" : undefined}
-          className={`relative flex h-10 w-10 items-center justify-center border-2 bg-moon-0 ${s.hotbar === i + 1 ? "border-gold" : "border-moon-2"}`}>
+          title={editable ? "Toca o suelta aquí un objeto · clic derecho para vaciar" : ITEMS[key ?? ""]?.nombre}
+          className={`relative flex h-11 w-11 touch-manipulation items-center justify-center border-2 bg-moon-0 sm:h-10 sm:w-10 ${s.hotbar === i + 1 ? "border-gold" : "border-moon-2"} ${editable && pending ? "animate-pulse border-ok" : ""}`}>
           <span className="absolute left-0.5 top-0 text-[6px] text-muted-foreground">{i + 1}</span>
           {key && <PixelIcon item={key} size={22} />}
           {key && <span className="absolute bottom-0 right-0.5 text-[6px]">{Math.floor(inv[key] ?? 0)}</span>}
-        </div>
+        </button>
       ))}
     </div>
   );
@@ -108,6 +143,7 @@ function Inventory() {
   const publish = useGame((g) => g.publish);
   const [tab, setTab] = useState<"inv" | "craft">("inv");
   const [hover, setHover] = useState<string | null>(null);
+  const [pending, setPending] = useState<string | null>(null);
   const inv = s.inv as unknown as Record<string, number>;
   const stacks: { key: string; n: number }[] = [];
   for (const key of INV_ORDER) {
@@ -130,15 +166,17 @@ function Inventory() {
               <div key={i} draggable={!!c}
                 onDragStart={(e) => c && e.dataTransfer.setData("text/item", c.key)}
                 onMouseEnter={() => setHover(c?.key ?? null)} onMouseLeave={() => setHover(null)}
-                className={`relative flex h-16 w-16 flex-col items-center justify-center border-2 bg-moon-0 ${c ? "cursor-grab border-moon-2 hover:border-gold" : "border-border"}`}>
+                onClick={() => { if (!c) return; setHover(c.key); setPending(pending === c.key ? null : c.key); sfx.click(); }}
+                className={`relative flex h-16 w-16 flex-col items-center justify-center border-2 bg-moon-0 ${c ? `cursor-grab hover:border-gold ${pending === c.key ? "border-ok" : "border-moon-2"}` : "border-border"}`}>
                 {c && <><PixelIcon item={c.key} size={28} /><span className="mt-0.5 max-w-full truncate px-0.5 text-[5px] text-muted-foreground">{ITEMS[c.key]?.nombre}</span><span className="absolute bottom-0.5 right-1 text-[8px] text-gold">{c.n}</span></>}
               </div>
             ))}
           </div>
           <div className="min-h-10 max-w-sm text-center text-[8px] leading-4">
-            {hover ? <><span className="text-gold">{ITEMS[hover]?.nombre}:</span> {ITEMS[hover]?.desc}</> : <span className="text-muted-foreground">Pasa el cursor sobre un objeto. Arrástralo a la barra rápida.</span>}
+            {hover ? <><span className="text-gold">{ITEMS[hover]?.nombre}:</span> {ITEMS[hover]?.desc}</> : <span className="text-muted-foreground">Toca un objeto y luego un espacio de la barra rápida (o arrástralo).</span>}
+            {pending && <div className="text-ok">Ahora toca un espacio de la barra rápida para ponerlo ahí.</div>}
           </div>
-          <Hotbar editable />
+          <Hotbar editable pending={pending} onAssign={() => setPending(null)} />
         </div>
       ) : (
         <div className="space-y-2">

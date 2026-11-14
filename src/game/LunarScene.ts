@@ -5,6 +5,7 @@ import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem
 import { sfx } from "./audio";
 import { stepAliens, hitAlien, type World } from "./aliens";
 import { stepCountdown } from "./mission";
+import { touch } from "./touch";
 
 const W = 640, H = 360;
 const HAB = { x: 110, y: 170 } /* matches habitat in modulos.json */, ROCKET = { x: 540, y: 150 };
@@ -31,6 +32,7 @@ export class LunarScene extends Phaser.Scene {
   modSprites = new Map<number, { img: Phaser.GameObjects.Image; warn: Phaser.GameObjects.Text; glow: Phaser.GameObjects.Image | undefined }>();
   buildValid = false;
   prompt!: Phaser.GameObjects.Text;
+  touchMode = false;
   pubT = 0; saveT = 0; repairT = 0; leakT = 0; useCd = 0; facing = 1;
   constructor() { super("lunar"); }
 
@@ -83,16 +85,23 @@ export class LunarScene extends Phaser.Scene {
     this.player = this.add.image(HAB.x, HAB.y + 30, "astro").setDepth(10);
     this.ring = this.add.graphics().setDepth(30);
     this.beam = this.add.graphics().setDepth(22);
-    this.night = this.add.rectangle(0, 0, 320, 180, PAL.black, 0).setOrigin(0).setScrollFactor(0).setDepth(20);
+    this.night = this.add.rectangle(0, 0, W, H, PAL.black, 0).setOrigin(0).setScrollFactor(0).setDepth(20);
     this.prompt = this.add.text(0, 0, "", { fontFamily: '"Press Start 2P"', fontSize: "5px", color: "#f2d24f", backgroundColor: "#0b0b14" }).setDepth(40).setPadding(2);
 
     this.cameras.main.setBounds(0, 0, W, H).startFollow(this.player, true, 0.15, 0.15).setRoundPixels(true);
     this.keys = this.input.keyboard!.addKeys("W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE,ONE,TWO,THREE,FOUR,FIVE,C,Q") as LunarScene["keys"];
-    this.input.on("pointerdown", () => (sim.buildMode ? this.place() : this.useTool()));
+    this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
+      const w = p.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
+      if (sim.buildMode) this.place(p.wasTouch ? { x: w.x, y: w.y } : undefined); else this.useTool();
+    });
+    this.input.on("pointermove", (p: Phaser.Input.Pointer) => { if (!p.wasTouch) this.touchMode = false; });
     this.input.keyboard!.on("keydown-C", () => this.toggleBuild());
     this.input.keyboard!.on("keydown-Q", () => this.cycleBuild());
     this.input.keyboard!.on("keydown-SPACE", () => (sim.buildMode ? this.place() : this.useTool()));
     this.input.keyboard!.on("keydown-E", () => this.interact());
+    const t = (f: () => void) => () => { this.touchMode = true; f(); };
+    touch.act = { use: t(() => (sim.buildMode ? this.place() : this.useTool())), interact: t(() => this.interact()), build: t(() => this.toggleBuild()), cycle: t(() => this.cycleBuild()) };
+    this.events.once("shutdown", () => { touch.act = { use: () => {}, interact: () => {}, build: () => {}, cycle: () => {} }; });
     (["ONE", "TWO", "THREE", "FOUR", "FIVE"] as const).forEach((n, i) => this.input.keyboard!.on(`keydown-${n}`, () => { sim.hotbar = i + 1; sfx.click(); }));
     for (const l of sim.leaks) this.addLeakSprite(l.id, l.x, l.y);
     if (!sim.log.length) addLog(sim, "Aterrizaje de emergencia en el polo sur lunar. Sin combustible.");
@@ -191,10 +200,16 @@ export class LunarScene extends Phaser.Scene {
     if (!!t.en_crater !== this.inShadowAt(x, y)) return false;
     return sim.modules.every((m) => { const o = TIPOS[m.tipo]; return Math.abs(m.x - x) * 2 >= o.w + t.w + 4 || Math.abs(m.y - y) * 2 >= o.h + t.h + 4; });
   }
-  place() {
+  /** Where a module would go: under the mouse, or in front of the astronaut on touch screens. */
+  buildTarget() {
+    if (this.touchMode) return { x: Math.round(this.player.x + this.facing * 22), y: Math.round(this.player.y) };
+    const p = this.input.activePointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
+    return { x: Math.round(p.x), y: Math.round(p.y) };
+  }
+  place(at?: { x: number; y: number }) {
     const key = sim.buildMode; if (!key) return;
     const tipo = PLACEABLE[key]!;
-    const p = this.input.activePointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
+    const p = at ?? this.buildTarget();
     const x = Math.round(p.x), y = Math.round(p.y);
     if (!this.checkPlace(tipo, x, y)) { sfx.bad(); this.say(TIPOS[tipo].en_crater ? "EL TALADRO VA DENTRO DEL CRÁTER" : "LUGAR NO VÁLIDO"); return; }
     (sim.inv as unknown as Record<string, number>)[key]! -= 1;
@@ -241,10 +256,11 @@ export class LunarScene extends Phaser.Scene {
     let vx = 0, vy = 0;
     if (k.A.isDown || k.LEFT.isDown) vx -= 1; if (k.D.isDown || k.RIGHT.isDown) vx += 1;
     if (k.W.isDown || k.UP.isDown) vy -= 1; if (k.S.isDown || k.DOWN.isDown) vy += 1;
-    const len = Math.hypot(vx, vy) || 1;
+    let len = Math.hypot(vx, vy) || 1;
+    if (!vx && !vy && (touch.vx || touch.vy)) { vx = touch.vx; vy = touch.vy; len = 1; } // analog joystick
     this.player.x = Phaser.Math.Clamp(this.player.x + (vx / len) * sp * dt, 4, W - 4);
     this.player.y = Phaser.Math.Clamp(this.player.y + (vy / len) * sp * dt, 4, H - 4);
-    if (vx) { this.facing = vx; this.player.setFlipX(vx < 0); }
+    if (vx) { this.facing = Math.sign(vx); this.player.setFlipX(vx < 0); }
     this.useCd = Math.max(0, this.useCd - dt);
 
     const inShadow = ((this.player.x - SHADOW.x) / SHADOW.rx) ** 2 + ((this.player.y - SHADOW.y) / SHADOW.ry) ** 2 < 1;
@@ -265,7 +281,7 @@ export class LunarScene extends Phaser.Scene {
     sim.near.horno = !!this.nearModule((m) => m.tipo === "horno" && m.durabilidad > 0, 26);
     const leak = this.nearestLeak();
     const broken = leak ? undefined : this.nearModule((m) => m.durabilidad < 100);
-    if (broken && k.E.isDown && broken.durabilidad < 60) {
+    if (broken && (k.E.isDown || touch.e) && broken.durabilidad < 60) {
       if (sim.inv.kits < 1) this.say("SIN KITS: CRAFTEA UNO (TAB)");
       else {
         this.repairT += dt;
@@ -273,7 +289,7 @@ export class LunarScene extends Phaser.Scene {
         if (this.repairT >= 2.5) { this.repairT = 0; sim.inv.kits -= 1; broken.durabilidad = 100; addLog(sim, `Reparaste: ${TIPOS[broken.tipo].nombre}. -1 kit.`); sfx.ok(); }
       }
     } else this.repairT = 0;
-    if (leak && k.E.isDown) {
+    if (leak && (k.E.isDown || touch.e)) {
       if (sim.inv.kits < 1) { this.say("SIN KITS: CRAFTEA UNO (TAB)"); }
       else {
         leak.progress += dt / (1.5 + leak.size * 0.8);
@@ -308,7 +324,7 @@ export class LunarScene extends Phaser.Scene {
     this.preview.clear();
     if (sim.buildMode) {
       const tipo = PLACEABLE[sim.buildMode]!; const t = TIPOS[tipo];
-      const p = this.input.activePointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
+      const p = this.buildTarget();
       const ok = this.checkPlace(tipo, Math.round(p.x), Math.round(p.y));
       this.preview.fillStyle(ok ? PAL.ok : PAL.red, 0.45).fillRect(Math.round(p.x) - t.w / 2, Math.round(p.y) - t.h / 2, t.w, t.h);
       this.preview.lineStyle(1, ok ? PAL.ok : PAL.red).strokeRect(Math.round(p.x) - t.w / 2, Math.round(p.y) - t.h / 2, t.w, t.h);

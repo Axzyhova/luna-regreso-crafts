@@ -80,11 +80,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     // twitter:image here: every page without its own would inherit the root's preview image.
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "VARADOS" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" },
+      { name: "theme-color", content: "#0b0b14" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { title: "The Last Contact On Earth" },
       { name: "description", content: "Juego de supervivencia lunar 8-bit." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "VARADOS" },
+      { property: "og:title", content: "The Last Contact On Earth" },
       { property: "og:description", content: "Juego de supervivencia lunar 8-bit." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
