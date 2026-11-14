@@ -1,0 +1,13 @@
+[
+  {"id":"metal","nombre":"Fundir chatarra en metal","ingredientes":{"chatarra":2},"resultado":{"metal":1},"disponible":true},
+  {"id":"kit","nombre":"Kit de reparación","ingredientes":{"chatarra":2,"metal":1},"resultado":{"kits":1},"disponible":true},
+  {"id":"pala_mejorada","nombre":"Pala mejorada","ingredientes":{"metal":3},"resultado":{"pala_mejorada":1},"disponible":true},
+  {"id":"taladro","nombre":"Taladro","ingredientes":{"metal":4,"chatarra":2},"resultado":{"taladro":1},"disponible":true},
+  {"id":"aislamiento","nombre":"Aislamiento","ingredientes":{"regolito":4,"chatarra":1},"resultado":{"aislamiento":1},"disponible":true},
+  {"id":"bateria","nombre":"Batería","ingredientes":{"metal":3,"chatarra":2},"resultado":{"baterias":1},"disponible":true},
+  {"id":"panel_solar","nombre":"Panel solar","ingredientes":{"metal":3,"regolito":2},"resultado":{"paneles":1},"disponible":true},
+  {"id":"torre_luz","nombre":"Torre de luz","ingredientes":{"metal":2,"chatarra":2},"resultado":{"torres_luz":1},"disponible":false},
+  {"id":"planta_electrolisis","nombre":"Planta de electrólisis","ingredientes":{"metal":6,"chatarra":4},"resultado":{"planta_electrolisis":1},"disponible":false},
+  {"id":"criotanque","nombre":"Criotanque","ingredientes":{"metal":5,"aislamiento":2},"resultado":{"criotanque":1},"disponible":false},
+  {"id":"pieza_motor","nombre":"Pieza de motor","ingredientes":{"metal":6,"chatarra":3},"resultado":{"pieza_motor":1},"disponible":false}
+]

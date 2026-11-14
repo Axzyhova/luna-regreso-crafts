@@ -1,0 +1,6 @@
+{"provisional":true,"nota":"Valores PROVISIONALES de juego, no son cálculos reales de trayectoria.",
+"ventanas":[
+ {"id":"V1","dia_inicio":3,"duracion_h":6,"lh2_kg":95,"lox_kg":570},
+ {"id":"V2","dia_inicio":5,"duracion_h":8,"lh2_kg":90,"lox_kg":540},
+ {"id":"V3","dia_inicio":8,"duracion_h":10,"lh2_kg":85,"lox_kg":510}
+]}

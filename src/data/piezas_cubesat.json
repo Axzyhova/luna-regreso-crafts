@@ -1,0 +1,8 @@
+{"limite_masa_kg":4.0,"cuadricula":{"columnas":3,"filas":6},"nota":"Valores aproximados para el minijuego (próxima iteración).",
+"piezas":[
+ {"id":"panel","nombre":"Panel solar","masa_kg":0.3,"energia_w":4,"forma":[[1,1]]},
+ {"id":"bateria","nombre":"Batería","masa_kg":0.5,"energia_w":0,"forma":[[1],[1]]},
+ {"id":"radio","nombre":"Radio","masa_kg":0.4,"energia_w":-3,"forma":[[1,1],[1,0]]},
+ {"id":"computadora","nombre":"Computadora","masa_kg":0.3,"energia_w":-1.5,"forma":[[1]]},
+ {"id":"estructura","nombre":"Estructura","masa_kg":0.8,"energia_w":0,"forma":[[1,1,1]]}
+]}

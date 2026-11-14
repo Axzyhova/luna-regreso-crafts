@@ -28,3 +28,6 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+- Game sim lives in `src/game/sim.ts` as a mutable object owned by the Phaser scene; React reads a cloned snapshot published by the store a few times per second. Why: avoids re-rendering React every frame.
+- Phaser is only imported dynamically inside `GameCanvas` useEffect. Why: Phaser touches `window` at import time and would break SSR.

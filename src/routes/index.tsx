@@ -1,23 +1,40 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ClientOnly } from "@tanstack/react-router";
+import { useGame } from "@/game/store";
+import { Intro, Rechazo, ModeSelect, Cinematic, Fuentes } from "@/components/game/Screens";
+import { GameCanvas } from "@/components/game/GameCanvas";
+import { HUD, Overlays } from "@/components/game/HUD";
 
-// The home route ships no og:image, so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "VARADOS — Supervivencia lunar 8-bit" },
+      { name: "description", content: "Sobrevive en el polo sur de la Luna, fabrica combustible con hielo y regresa a la Tierra." },
+      { property: "og:title", content: "VARADOS — Supervivencia lunar 8-bit" },
+      { property: "og:description", content: "Juego 2D de supervivencia y crafteo en la Luna: hielo, electrólisis, fugas y despegue." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
+  const screen = useGame((s) => s.screen);
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
+    <main className="h-screen w-screen overflow-hidden bg-background font-pixel text-foreground">
+      {screen === "intro" && <Intro />}
+      {screen === "rechazo" && <Rechazo />}
+      {screen === "modo" && <ModeSelect />}
+      {screen === "cinematica" && <Cinematic />}
+      {screen === "fuentes" && <Fuentes />}
+      {screen === "juego" && (
+        <div className="relative h-full w-full">
+          <ClientOnly fallback={null}><GameCanvas /></ClientOnly>
+          <HUD />
+          <Overlays />
+        </div>
+      )}
+    </main>
   );
 }
