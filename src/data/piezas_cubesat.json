@@ -1,8 +1,20 @@
-{"limite_masa_kg":4.0,"cuadricula":{"columnas":3,"filas":6},"nota":"Valores aproximados para el minijuego (próxima iteración).",
-"piezas":[
- {"id":"panel","nombre":"Panel solar","masa_kg":0.3,"energia_w":4,"forma":[[1,1]]},
- {"id":"bateria","nombre":"Batería","masa_kg":0.5,"energia_w":0,"forma":[[1],[1]]},
- {"id":"radio","nombre":"Radio","masa_kg":0.4,"energia_w":-3,"forma":[[1,1],[1,0]]},
- {"id":"computadora","nombre":"Computadora","masa_kg":0.3,"energia_w":-1.5,"forma":[[1]]},
- {"id":"estructura","nombre":"Estructura","masa_kg":0.8,"energia_w":0,"forma":[[1,1,1]]}
-]}
+{
+  "fuente": "CubeSat 101 (NASA CSLI): formato por unidades (1U ≈ 10×10×10 cm) y masa limitada por unidad. Un 3U ronda los 4 kg.",
+  "nota": "Valores aproximados para el minijuego.",
+  "limite_masa_kg": 4.0,
+  "cuadricula": { "columnas": 3, "filas": 6, "filas_por_U": 2 },
+  "lanzamiento_relay": { "lh2_kg": 3, "lox_kg": 18, "explicacion": "El cohete pequeño que sube el relé también quema LH2 y LOX: es combustible que ya no tendrás para regresar." },
+  "requisitos": [
+    { "pieza": "radio", "texto": "Necesita una radio: sin ella no hay enlace con la Tierra." },
+    { "pieza": "computadora", "texto": "Necesita una computadora de a bordo que controle la radio." },
+    { "pieza": "bateria", "texto": "Necesita batería: en la sombra de la órbita los paneles no generan." },
+    { "pieza": "panel", "texto": "Necesita al menos un panel solar para recargar la batería." }
+  ],
+  "piezas": [
+    { "id": "panel", "nombre": "Panel solar", "masa_kg": 0.3, "energia_w": 4, "forma": [[1, 1]], "costo": { "metal": 1, "regolito": 1 }, "desc": "Genera energía cuando le da el Sol." },
+    { "id": "bateria", "nombre": "Batería", "masa_kg": 0.5, "energia_w": 0, "forma": [[1], [1]], "costo": { "metal": 1, "chatarra": 1 }, "desc": "Guarda energía para la parte en sombra de la órbita." },
+    { "id": "radio", "nombre": "Radio", "masa_kg": 0.4, "energia_w": -3, "forma": [[1, 1], [1, 0]], "costo": { "metal": 1, "chatarra": 2 }, "desc": "Transmite a la Tierra. Es lo que más energía consume." },
+    { "id": "computadora", "nombre": "Computadora", "masa_kg": 0.3, "energia_w": -1.5, "forma": [[1]], "costo": { "chatarra": 2 }, "desc": "Controla el satélite y la radio." },
+    { "id": "estructura", "nombre": "Estructura", "masa_kg": 0.8, "energia_w": 0, "forma": [[1, 1, 1]], "costo": { "metal": 2 }, "desc": "Refuerzo: aguanta el lanzamiento, pero pesa mucho." }
+  ]
+}

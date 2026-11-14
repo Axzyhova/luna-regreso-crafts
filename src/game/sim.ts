@@ -36,6 +36,8 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
     inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0 } as Inv,
     relay: false,
+    cubesat: [] as { uid: number; id: string; x: number; y: number; rot: number }[],
+    result: null as null | { ok: boolean; dia: number; ventana: string; lh2Sobra: number; loxSobra: number },
     hotbarItems: ["kits", "chatarra", "metal", null, null] as (string | null)[],
     near: { taller: false, horno: false },
     buildMode: null as string | null,
@@ -139,17 +141,6 @@ export function repairSubsystem(s: Sim, sub: Subsistema) {
   addLog(s, `Cohete: reparaste ${sub.id} (${s.rocket[sub.id]}%).`);
   return true;
 }
-/** Everything still missing before launch, in plain language. */
-export function launchBlockers(s: Sim): string[] {
-  const out: string[] = [];
-  const rojos = SUBSISTEMAS.filter((x) => (s.rocket[x.id] ?? 0) < UMBRAL_VERDE).map((x) => x.id);
-  if (rojos.length) out.push(`Subsistemas por debajo de ${UMBRAL_VERDE}%: ${rojos.join(", ")}`);
-  if (tankLeaks(s)) out.push("Hay fugas en los tanques");
-  if (s.lh2 < LH2_CAP * 0.99 || s.lox < LOX_CAP * 0.99) out.push(`Tanques incompletos: LH2 ${s.lh2.toFixed(0)}/${LH2_CAP} · LOX ${s.lox.toFixed(0)}/${LOX_CAP} kg`);
-  if (!s.relay) out.push("Sin ventana de regreso: lanza el CubeSat relé para recibirla");
-  return out;
-}
-
 export function addLog(s: Sim, text: string) {
   s.log.unshift({ t: stamp(s), text });
   if (s.log.length > 60) s.log.pop();

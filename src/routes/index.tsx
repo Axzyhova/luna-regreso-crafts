@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ClientOnly } from "@tanstack/react-router";
 import { useGame } from "@/game/store";
-import { Intro, Rechazo, ModeSelect, Cinematic, Fuentes } from "@/components/game/Screens";
+import { Intro, Rechazo, ModeSelect, Cinematic, Fuentes, Final } from "@/components/game/Screens";
 import { GameCanvas } from "@/components/game/GameCanvas";
 import { HUD, Overlays } from "@/components/game/HUD";
 
@@ -28,6 +28,7 @@ function Index() {
       {screen === "modo" && <ModeSelect />}
       {screen === "cinematica" && <Cinematic />}
       {screen === "fuentes" && <Fuentes />}
+      {screen === "final" && <Final />}
       {screen === "juego" && (
         <div className="relative h-full w-full">
           <ClientOnly fallback={null}><GameCanvas /></ClientOnly>

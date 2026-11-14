@@ -144,3 +144,25 @@ export function Fuentes() {
     </div>
   );
 }
+
+/** Basic end screen after a successful launch (the full explanatory report comes in a later iteration). */
+export function Final() {
+  const go = useGame((s) => s.go);
+  const s = useGame((g) => g.snap);
+  const r = s.result;
+  return (
+    <div className="relative flex h-full flex-col items-center justify-center gap-6 overflow-auto p-6 text-center">
+      <Stars />
+      <h2 className="text-2xl text-ok drop-shadow-[3px_3px_0_var(--color-moon-0)]">¡REGRESO A CASA!</h2>
+      {r && (
+        <div className="max-w-xl space-y-2 text-[9px] leading-5">
+          <p>Despegaste el día {r.dia} en la ventana {r.ventana}.</p>
+          <p>Combustible de sobra: LH2 {r.lh2Sobra.toFixed(1)} kg · LOX {r.loxSobra.toFixed(1)} kg</p>
+          <p className="text-gold">Logros: {s.logros.join(" · ") || "—"}</p>
+          <p className="text-[7px] text-muted-foreground">Las ventanas y el combustible requerido son provisionales hasta calcularlos con GMAT.</p>
+        </div>
+      )}
+      <PixelButton onClick={() => go("intro")}>Volver al inicio</PixelButton>
+    </div>
+  );
+}

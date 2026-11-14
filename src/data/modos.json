@@ -11,6 +11,6 @@
 "actos":[
  {"n":1,"titulo":"Sobrevivir","meta":"Junta 6 hielo y 4 chatarra, y tapa una fuga"},
  {"n":2,"titulo":"Evaluar recursos","meta":"Lleva hielo al hábitat (E) y produce 5 kg de LH2"},
- {"n":3,"titulo":"Plan de regreso","meta":"Diseña el CubeSat relé (próxima versión)"},
- {"n":4,"titulo":"Diseño final y despegue","meta":"Despega en una ventana de regreso (próxima versión)"}],
+ {"n":3,"titulo":"Plan de regreso","meta":"Diseña y lanza el CubeSat relé desde el cohete (E)"},
+ {"n":4,"titulo":"Diseño final y despegue","meta":"Repara el cohete, llena los tanques y despega en una ventana"}],
 "logros":["Primer litro de LH2","Cero fugas en una noche","Mezcla perfecta 6:1","Contacto con la Tierra","Regreso a casa"]}

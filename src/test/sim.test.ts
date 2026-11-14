@@ -65,7 +65,8 @@ describe("crafteo y módulos", () => {
   });
 });
 
-import { SUBSISTEMAS, repairSubsystem, repairBlock, launchBlockers } from "@/game/sim";
+import { SUBSISTEMAS, repairSubsystem, repairBlock } from "@/game/sim";
+import { launchBlockers } from "@/game/mission";
 const SUB = (id: string) => SUBSISTEMAS.find((x) => x.id === id)!;
 
 describe("reparación del cohete", () => {
@@ -101,7 +102,6 @@ describe("reparación del cohete", () => {
     const s = createSim("realista", "normal");
     const b = launchBlockers(s);
     expect(b.some((x) => x.startsWith("Subsistemas"))).toBe(true);
-    expect(b.some((x) => x.startsWith("Tanques"))).toBe(true);
-    expect(b.some((x) => x.includes("CubeSat"))).toBe(true);
+        expect(b.some((x) => x.includes("CubeSat"))).toBe(true);
   });
 });

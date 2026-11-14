@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import modos from "@/data/modos.json";
 import recetas from "@/data/recetas.json";
 import { useGame, sim, saveGame } from "@/game/store";
-import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft, SUBSISTEMAS, UMBRAL_VERDE, repairBlock, repairSubsystem, subCap, launchBlockers } from "@/game/sim";
+import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft, SUBSISTEMAS, UMBRAL_VERDE, repairBlock, repairSubsystem, subCap } from "@/game/sim";
+import { launchBlockers, launch, currentWindow, nextWindow, windowSecondsLeft, windowsUntil, VENTANAS_PROVISIONALES } from "@/game/mission";
+import { CubeSatDesigner } from "./CubeSatDesigner";
 import { ITEMS } from "@/game/items";
 import { PixelIcon } from "./PixelIcon";
 import { sfx } from "@/game/audio";
@@ -230,7 +232,11 @@ function Rocket() {
         })}
         <div className="pt-1 text-[8px]">Tanques: LH2 {s.lh2.toFixed(1)}/{LH2_CAP} kg · LOX {s.lox.toFixed(1)}/{LOX_CAP} kg</div>
       </div>
-      <div className="mt-3"><PixelButton disabled={blockers.length > 0}>Despegar</PixelButton></div>
+      <Windows />
+      <div className="mt-3 flex flex-wrap gap-3">
+        <PixelButton disabled={blockers.length > 0} onClick={() => { if (launch(sim)) { sfx.ok(); saveGame(); publish(); useGame.getState().setOverlay(null); useGame.getState().go("final"); } }}>Despegar</PixelButton>
+        <PixelButton tone="ghost" onClick={() => useGame.getState().setOverlay("cubesat")}>{s.relay ? "Ver CubeSat relé" : "Diseñar CubeSat relé"}</PixelButton>
+      </div>
       {blockers.length > 0 && (
         <ul className="mt-2 space-y-1 text-[7px] text-alert">
           <li>No puedes despegar todavía:</li>
@@ -238,6 +244,28 @@ function Rocket() {
         </ul>
       )}
     </Panel>
+  );
+}
+
+function Windows() {
+  const s = useGame((g) => g.snap);
+  if (!s.relay) return <p className="mt-3 text-[7px] leading-4 text-muted-foreground">VENTANAS DE REGRESO: desconocidas. Sin antena no recibes los datos de Control de Misión. Lanza el CubeSat relé.</p>;
+  const cur = currentWindow(s);
+  const next = nextWindow(s);
+  const list = windowsUntil(s.day + 9).filter((w) => w.abre_dia >= s.day).slice(0, 4);
+  return (
+    <div className="mt-3 space-y-1 text-[8px]">
+      <div className="text-gold">VENTANAS DE REGRESO {VENTANAS_PROVISIONALES && <span className="text-[6px] text-alert">(PROVISIONALES · generar con GMAT)</span>}</div>
+      {cur ? <div className="animate-blink text-ok">¡VENTANA {cur.id} ABIERTA! Cierra en {fmtTime(windowSecondsLeft(s))}</div> : <div className="text-muted-foreground">Próxima: {next.id}, día {next.abre_dia}</div>}
+      {list.map((w) => (
+        <div key={w.id} className={`flex flex-wrap gap-3 text-[7px] ${cur?.id === w.id ? "text-ok" : ""}`}>
+          <span className="w-10">{w.id}</span><span className="w-14">Día {w.abre_dia}</span><span className="w-20">dura {Math.round(w.dura_s / 60)} min</span>
+          <span className={s.lh2 >= w.lh2_kg ? "text-ok" : "text-muted-foreground"}>LH2 {w.lh2_kg} kg</span>
+          <span className={s.lox >= w.lox_kg ? "text-ok" : "text-muted-foreground"}>LOX {w.lox_kg} kg</span>
+        </div>
+      ))}
+      <p className="text-[6px] leading-3 text-muted-foreground">Esperar una ventana posterior pide menos combustible, pero cada día gastas oxígeno y energía.</p>
+    </div>
   );
 }
 
@@ -285,5 +313,6 @@ export function Overlays() {
   if (overlay === "log") return <Log />;
   if (overlay === "pausa") return <Pause />;
   if (overlay === "cohete") return <Rocket />;
+  if (overlay === "cubesat") return <CubeSatDesigner />;
   return null;
 }
