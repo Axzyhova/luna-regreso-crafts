@@ -3,11 +3,13 @@ import { PAL } from "./palette";
 import { sim, useGame, saveGame } from "./store";
 import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, TIPOS, PLACEABLE, type LeakTarget, type Module, type ModType } from "./sim";
 import { sfx } from "./audio";
+import { toolFor, gainXp, toolCooldown, bonusChance, TOOLS } from "./tools";
 
 const W = 640, H = 360;
 const HAB = { x: 110, y: 170 } /* matches habitat in modulos.json */, ROCKET = { x: 540, y: 150 };
 const SHADOW = { x: 330, y: 270, rx: 120, ry: 60 };
-type NodeType = "hielo" | "regolito" | "chatarra";
+type NodeType = "hielo" | "regolito" | "chatarra" | "ilmenita" | "silicio";
+const DOOR = { x: HAB.x, y: HAB.y + 14 };
 interface RNode { type: NodeType; amount: number; spr: Phaser.GameObjects.Image }
 
 function px(scene: Phaser.Scene, key: string, rows: string[], colors: Record<string, number>) {
@@ -36,6 +38,8 @@ export class LunarScene extends Phaser.Scene {
     px(this, "ice", [".cc.", "cwcc", "cccw", ".cc."], { c: T.ice, w: T.white });
     px(this, "reg", [".mm.", "mlmm", "mmlm", ".mm."], { m: T.moon2, l: T.moon3 });
     px(this, "scrap", ["o.gg", ".gog", "gg.o", "g.g."], { o: T.alert, g: T.moon4 });
+    px(this, "ilm", [".kk.", "kmkk", "kkmk", ".kk."], { k: T.moon0, m: T.alien });
+    px(this, "sil", [".w..", "wcw.", "cccw", ".cc."], { c: T.ok, w: T.white });
     px(this, "leak", [".a.a.", "a.r.a", ".rwr.", "a.r.a", ".a.a."], { a: T.alert, r: T.red, w: T.white });
     this.makeModuleTextures();
     const lg = this.add.graphics();
@@ -67,9 +71,8 @@ export class LunarScene extends Phaser.Scene {
 
     // resources
     const k = modeCfg(sim).recursos;
-    for (let i = 0; i < Math.round(12 * k); i++) this.spawnNode("hielo");
-    for (let i = 0; i < Math.round(10 * k); i++) this.spawnNode("regolito");
-    for (let i = 0; i < Math.round(8 * k); i++) this.spawnNode("chatarra");
+    const counts: [NodeType, number][] = [["hielo", 18], ["regolito", 16], ["chatarra", 12], ["ilmenita", 8], ["silicio", 7]];
+    for (const [t, n] of counts) for (let i = 0; i < Math.round(n * k); i++) this.spawnNode(t);
 
     this.preview = this.add.graphics().setDepth(35);
     this.player = this.add.image(HAB.x, HAB.y + 30, "astro").setDepth(10);
@@ -79,11 +82,13 @@ export class LunarScene extends Phaser.Scene {
 
     this.cameras.main.setBounds(0, 0, W, H).startFollow(this.player, true, 0.15, 0.15).setRoundPixels(true);
     this.keys = this.input.keyboard!.addKeys("W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE,ONE,TWO,THREE,FOUR,FIVE,C,Q") as LunarScene["keys"];
-    this.input.on("pointerdown", () => (sim.buildMode ? this.place() : this.useTool()));
+    this.input.on("pointerdown", () => sim.inside ? undefined : (sim.buildMode ? this.place() : this.useTool()));
     this.input.keyboard!.on("keydown-C", () => this.toggleBuild());
     this.input.keyboard!.on("keydown-Q", () => this.cycleBuild());
-    this.input.keyboard!.on("keydown-SPACE", () => (sim.buildMode ? this.place() : this.useTool()));
+    this.input.keyboard!.on("keydown-SPACE", () => sim.inside ? undefined : (sim.buildMode ? this.place() : this.useTool()));
     this.input.keyboard!.on("keydown-E", () => this.interact());
+    this.input.keyboard!.on("keyup-E", () => { if (!sim.inside && !useGame.getState().overlay && this.nearDoor() && this.repairT < 0.35 && !this.nearestLeak()) this.enterHabitat(); });
+    if (sim.inside) this.scene.launch("habitat");
     (["ONE", "TWO", "THREE", "FOUR", "FIVE"] as const).forEach((n, i) => this.input.keyboard!.on(`keydown-${n}`, () => { sim.hotbar = i + 1; sfx.click(); }));
     for (const l of sim.leaks) this.addLeakSprite(l.id, l.x, l.y);
     if (!sim.log.length) addLog(sim, "Aterrizaje de emergencia en el polo sur lunar. Sin combustible.");
@@ -96,8 +101,9 @@ export class LunarScene extends Phaser.Scene {
     do {
       x = Phaser.Math.Between(16, W - 16); y = Phaser.Math.Between(16, H - 16);
     } while ((type === "hielo") !== inShadow(x, y) || Phaser.Math.Distance.Between(x, y, HAB.x, HAB.y) < 75 || Phaser.Math.Distance.Between(x, y, ROCKET.x, ROCKET.y) < 45);
-    const spr = this.add.image(x, y, type === "hielo" ? "ice" : type === "regolito" ? "reg" : "scrap").setDepth(4);
-    this.nodes.push({ type, amount: Phaser.Math.Between(2, 4), spr });
+    const tex = { hielo: "ice", regolito: "reg", chatarra: "scrap", ilmenita: "ilm", silicio: "sil" }[type];
+    const spr = this.add.image(x, y, tex).setDepth(4);
+    this.nodes.push({ type, amount: Phaser.Math.Between(3, 6), spr });
   }
 
   addLeakSprite(id: number, x: number, y: number) {
@@ -163,7 +169,7 @@ export class LunarScene extends Phaser.Scene {
 
   ownedPlaceables() { return Object.keys(PLACEABLE).filter((k) => (sim.inv as unknown as Record<string, number>)[k]! >= 1); }
   toggleBuild() {
-    if (useGame.getState().overlay) return;
+    if (useGame.getState().overlay || sim.inside) return;
     if (sim.buildMode) { sim.buildMode = null; this.preview.clear(); return; }
     const own = this.ownedPlaceables();
     if (!own.length) { this.say("NO TIENES MÓDULOS: FABRÍCALOS (TAB)"); sfx.bad(); return; }
@@ -198,20 +204,30 @@ export class LunarScene extends Phaser.Scene {
     if (useGame.getState().overlay || this.useCd > 0) return;
     const n = this.nearestNode();
     if (!n) return;
-    this.useCd = (sim.inv.taladro ?? 0) > 0 ? 0.25 : (sim.inv.pala_mejorada ?? 0) > 0 ? 0.35 : 0.5;
-    if (!addItem(sim, n.type, 1)) { this.say("INVENTARIO LLENO"); sfx.bad(); return; }
+    const tid = toolFor(n.type); const tool = sim.tools[tid];
+    if (!tool.tiene) { this.say(`NECESITAS ${TOOLS[tid].nombre.toUpperCase()} (TAB > CRAFTEO)`); sfx.bad(); this.useCd = 0.4; return; }
+    this.useCd = toolCooldown(tool.nivel);
+    const amount = 1 + (Math.random() < bonusChance(tool.nivel) ? 1 : 0);
+    if (!addItem(sim, n.type, amount)) { this.say("INVENTARIO LLENO"); sfx.bad(); return; }
     n.amount -= 1; sfx.pick();
+    if (gainXp(sim, tid)) { addLog(sim, `Tu ${TOOLS[tid].nombre.toLowerCase()} mejoró a nivel ${tool.nivel}.`); sfx.ok(); this.say(`¡${TOOLS[tid].nombre.toUpperCase()} NIVEL ${tool.nivel}!`); }
     this.tweens.add({ targets: n.spr, y: n.spr.y - 2, yoyo: true, duration: 60 });
     if (n.amount <= 0) { n.spr.destroy(); this.nodes = this.nodes.filter((x) => x !== n); this.time.delayedCall(40000, () => this.spawnNode(n.type)); }
   }
 
+  nearDoor() { return Phaser.Math.Distance.Between(DOOR.x, DOOR.y, this.player.x, this.player.y) < 14; }
+  enterHabitat() {
+    sim.inside = true; sim.buildMode = null; this.preview.clear(); this.prompt.setVisible(false);
+    this.scene.launch("habitat"); sfx.ok();
+  }
+  exitHabitat() {
+    sim.inside = false; this.player.setPosition(DOOR.x, DOOR.y + 10);
+  }
   interact() {
-    if (useGame.getState().overlay) return;
+    if (useGame.getState().overlay || sim.inside) return;
     if (this.nearestLeak()) return; // hold handled in update
-    if (this.nearHab() && sim.inv.hielo > 0) {
-      const w = sim.inv.hielo * 2; sim.inv.agua += w; sim.inv.hielo = 0;
-      addLog(sim, `Derretiste hielo: +${w} kg de agua para electrólisis.`); sfx.ok();
-    } else if (Phaser.Math.Distance.Between(ROCKET.x, ROCKET.y, this.player.x, this.player.y) < 36) {
+    if (this.nearDoor()) return; // tap E enters on release (hold repairs)
+    if (Phaser.Math.Distance.Between(ROCKET.x, ROCKET.y, this.player.x, this.player.y) < 36) {
       useGame.getState().setOverlay("cohete");
     }
   }
@@ -222,6 +238,12 @@ export class LunarScene extends Phaser.Scene {
     if (overlay) return;
     const k = this.keys;
     const sp = 60;
+    if (sim.inside) {
+      step(sim, dt, { inHabitat: true, inShadow: false });
+      this.tickEvents(dt);
+      if (sim.health <= 0) { onDeath(sim); sfx.bad(); }
+      return;
+    }
     let vx = 0, vy = 0;
     if (k.A.isDown || k.LEFT.isDown) vx -= 1; if (k.D.isDown || k.RIGHT.isDown) vx += 1;
     if (k.W.isDown || k.UP.isDown) vy -= 1; if (k.S.isDown || k.DOWN.isDown) vy += 1;
@@ -232,20 +254,14 @@ export class LunarScene extends Phaser.Scene {
     this.useCd = Math.max(0, this.useCd - dt);
 
     const inShadow = ((this.player.x - SHADOW.x) / SHADOW.rx) ** 2 + ((this.player.y - SHADOW.y) / SHADOW.ry) ** 2 < 1;
-    step(sim, dt, { inHabitat: this.nearHab(), inShadow });
-
-    // leaks
-    this.leakT -= dt;
-    if (this.leakT <= 0) {
-      this.leakT = (55 / (diffCfg(sim).eventos * sim.eventScale)) * Phaser.Math.FloatBetween(0.7, 1.3) * (isDay(sim) ? 1.2 : 0.8);
-      if (sim.leaks.length < 4) this.spawnLeak();
-    }
+    step(sim, dt, { inHabitat: false, inShadow });
+    this.tickEvents(dt);
     this.ring.clear();
     sim.near.taller = !!this.nearModule((m) => m.tipo === "taller" && m.durabilidad > 0, 26);
     sim.near.horno = !!this.nearModule((m) => m.tipo === "horno" && m.durabilidad > 0, 26);
     const leak = this.nearestLeak();
     const broken = leak ? undefined : this.nearModule((m) => m.durabilidad < 100);
-    if (broken && k.E.isDown && broken.durabilidad < 60) {
+    if (broken && k.E.isDown && broken.durabilidad < 60 && (!this.nearDoor() || k.E.getDuration() > 350)) {
       if (sim.inv.kits < 1) this.say("SIN KITS: CRAFTEA UNO (TAB)");
       else {
         this.repairT += dt;
@@ -265,15 +281,13 @@ export class LunarScene extends Phaser.Scene {
         }
       }
     } else if (leak) leak.progress = Math.max(0, leak.progress - dt * 0.5);
-    for (const l of sim.leaks) { const s = this.leakSprites.get(l.id); if (s) s.setScale(0.8 + l.size * 0.25).setAlpha(Math.sin(this.time.now / 120) > 0 ? 1 : 0.4); }
 
     // prompts
     const n = this.nearestNode();
     if (leak) this.say(`MANTÉN E: SELLAR FUGA (${sim.inv.kits} KITS)`);
-    else if (n) this.say(`ESPACIO: RECOGER ${n.type.toUpperCase()}`);
-    else if (broken && broken.durabilidad < 60 && !(this.nearHab() && sim.inv.hielo > 0)) this.say(`MANTÉN E: REPARAR ${TIPOS[broken.tipo].nombre.toUpperCase()} (1 KIT)`);
-    else if (this.nearHab() && sim.inv.hielo > 0) this.say("E: DERRETIR HIELO");
-    else if (this.nearHab()) this.say("HÁBITAT: RECARGANDO O2");
+    else if (n) { const tid = toolFor(n.type); const t = sim.tools[tid]; this.say(t.tiene ? `ESPACIO: ${n.type.toUpperCase()} (${TOOLS[tid].nombre.toUpperCase()} NV${t.nivel})` : `${n.type.toUpperCase()}: NECESITAS ${TOOLS[tid].nombre.toUpperCase()}`); }
+    else if (broken && broken.durabilidad < 60 && !this.nearDoor()) this.say(`MANTÉN E: REPARAR ${TIPOS[broken.tipo].nombre.toUpperCase()} (1 KIT)`);
+    else if (this.nearDoor()) this.say("E: ENTRAR AL HÁBITAT");
     else if (Phaser.Math.Distance.Between(ROCKET.x, ROCKET.y, this.player.x, this.player.y) < 36) this.say("E: REVISAR COHETE");
     else this.prompt.setVisible(false);
 
@@ -294,8 +308,17 @@ export class LunarScene extends Phaser.Scene {
       this.preview.lineStyle(1, ok ? PAL.ok : PAL.red).strokeRect(Math.round(p.x) - t.w / 2, Math.round(p.y) - t.h / 2, t.w, t.h);
     }
 
-    if (sim.health <= 0) { onDeath(sim); sfx.bad(); this.player.setPosition(HAB.x, HAB.y + 30); }
+    if (sim.health <= 0) { onDeath(sim); sfx.bad(); this.enterHabitat(); }
+  }
 
+  /** Shared per-frame events that run whether the player is outside or inside. */
+  tickEvents(dt: number) {
+    this.leakT -= dt;
+    if (this.leakT <= 0) {
+      this.leakT = (55 / (diffCfg(sim).eventos * sim.eventScale)) * Phaser.Math.FloatBetween(0.7, 1.3) * (isDay(sim) ? 1.2 : 0.8);
+      if (sim.leaks.length < 4) this.spawnLeak();
+    }
+    for (const l of sim.leaks) { const s = this.leakSprites.get(l.id); if (s) s.setScale(0.8 + l.size * 0.25).setAlpha(Math.sin(this.time.now / 120) > 0 ? 1 : 0.4); }
     this.pubT += dt; this.saveT += dt;
     if (this.pubT > 0.15) { this.pubT = 0; useGame.getState().publish(); }
     if (this.saveT > 20) { this.saveT = 0; saveGame(); }

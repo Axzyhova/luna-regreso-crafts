@@ -64,3 +64,25 @@ describe("crafteo y módulos", () => {
     expect(energyBalance(s, false).out).toBe(before - 3);
   });
 });
+
+import { gainXp, toolFor, xpNeeded, toolCooldown } from "@/game/tools";
+describe("herramientas", () => {
+  it("cada material usa su herramienta", () => {
+    expect(toolFor("hielo")).toBe("pala");
+    expect(toolFor("ilmenita")).toBe("pico");
+    expect(toolFor("chatarra")).toBe("cortador");
+  });
+  it("las herramientas suben de nivel al recolectar y se vuelven más rápidas", () => {
+    const s = createSim("realista", "normal");
+    for (let i = 0; i < xpNeeded(1); i++) gainXp(s, "pala");
+    expect(s.tools.pala.nivel).toBe(2);
+    expect(toolCooldown(2)).toBeLessThan(toolCooldown(1));
+  });
+  it("el pico se fabrica y luego se mejora", () => {
+    const s = createSim("realista", "normal");
+    s.inv.metal = 4; s.inv.chatarra = 2;
+    expect(s.tools.pico.tiene).toBe(false);
+    craft(s, R("pico")); expect(s.tools.pico.tiene).toBe(true);
+    craft(s, R("pico")); expect(s.tools.pico.nivel).toBe(2);
+  });
+});

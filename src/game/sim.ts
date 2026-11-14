@@ -1,6 +1,7 @@
 import modos from "@/data/modos.json";
 import modulos from "@/data/modulos.json";
 import recetas from "@/data/recetas.json";
+import { createTools, upgradeTool, type ToolId } from "./tools";
 
 export type Mode = "realista" | "fantastico" | "terrorifico";
 export type Difficulty = "facil" | "normal" | "dificil";
@@ -23,7 +24,7 @@ export const CYCLE = DAY_LEN + NIGHT_LEN;
 export const LH2_CAP = 100;
 export const LOX_CAP = 600;
 
-export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number }
+export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; ilmenita: number; silicio: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number }
 
 export function createSim(mode: Mode, difficulty: Difficulty) {
   return {
@@ -33,10 +34,13 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     battery: 60, energyIn: 0, energyOut: 0,
     habitatO2: 80,
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
-    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0 } as Inv,
+    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, ilmenita: 0, silicio: 0, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0 } as Inv,
     hotbarItems: ["kits", "chatarra", "metal", null, null] as (string | null)[],
     near: { taller: false, horno: false },
     buildMode: null as string | null,
+    tools: createTools(),
+    inside: false,
+    restCd: 0,
     nextUid: 100,
     hotbar: 1,
     act: 1,
@@ -109,7 +113,10 @@ export function craft(s: Sim, r: Receta) {
   if (recipeBlock(s, r)) return false;
   const inv = s.inv as unknown as Record<string, number>;
   for (const [k, v] of Object.entries(r.ingredientes)) inv[k] = (inv[k] ?? 0) - (v ?? 0);
-  for (const [k, v] of Object.entries(r.resultado)) inv[k] = (inv[k] ?? 0) + (v ?? 0);
+  for (const [k, v] of Object.entries(r.resultado as Record<string, number | undefined>)) {
+    if (k.startsWith("tool:")) upgradeTool(s, k.slice(5) as ToolId);
+    else inv[k] = (inv[k] ?? 0) + (v ?? 0);
+  }
   s.log.unshift({ t: stamp(s), text: `Día ${s.day}: fabricaste ${r.nombre.replace(/ \(módulo\)/, "").toLowerCase()}` });
   return true;
 }

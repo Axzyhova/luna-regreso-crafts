@@ -5,6 +5,7 @@ import { useGame, sim, saveGame } from "@/game/store";
 import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft } from "@/game/sim";
 import { ITEMS } from "@/game/items";
 import { PixelIcon } from "./PixelIcon";
+import { TOOLS, MAX_LVL, xpNeeded, toolCooldown, bonusChance, type ToolId } from "@/game/tools";
 import { sfx } from "@/game/audio";
 import { PixelButton } from "./Screens";
 
@@ -44,10 +45,31 @@ export function HUD() {
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-1 bg-background/80 p-2">
         <div className="text-[8px] text-gold">ACTO {acto.n} · {acto.titulo.toUpperCase()}: <span className="text-foreground">{acto.meta}</span></div>
         {s.hint && <div className="text-[7px] text-ok">{s.hint}</div>}
-        <Hotbar />
+        <div className="flex items-end gap-4"><Tools /><Hotbar /></div>
         <div className="text-[6px] text-muted-foreground">WASD mover · ESPACIO recoger · E interactuar (mantén para sellar/reparar) · TAB inventario · C construir · B base · L bitácora · ESC pausa</div>
       </div>
     </>
+  );
+}
+
+function Tools({ big = false }: { big?: boolean }) {
+  const s = useGame((g) => g.snap);
+  return (
+    <div className={`flex gap-2 ${big ? "flex-wrap" : ""}`}>
+      {(Object.keys(TOOLS) as ToolId[]).map((id) => {
+        const t = s.tools[id];
+        return (
+          <div key={id} className={`flex items-center gap-1 border-2 px-1 ${t.tiene ? "border-moon-2" : "border-border opacity-40"} ${big ? "p-2" : ""}`} title={TOOLS[id].desc}>
+            <PixelIcon item={`tool:${id}`} size={big ? 24 : 16} />
+            <div className="text-[6px] leading-3">
+              <div>{TOOLS[id].nombre} {t.tiene ? `NV${t.nivel}` : "—"}</div>
+              {t.tiene && <div className="h-1 w-10 bg-moon-0"><div className="h-full bg-gold" style={{ width: `${t.nivel >= MAX_LVL ? 100 : (t.xp / xpNeeded(t.nivel)) * 100}%` }} /></div>}
+              {big && <div className="text-muted-foreground">{TOOLS[id].desc}{t.tiene ? ` · cada golpe ${toolCooldown(t.nivel).toFixed(2)}s · ${Math.round(bonusChance(t.nivel) * 100)}% extra` : " · fabrícala en Crafteo"}</div>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -85,7 +107,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-const INV_ORDER = ["hielo", "agua", "regolito", "chatarra", "metal", "kits", "baterias", "paneles", "taladro", "taller", "horno", "torres_luz", "pala_mejorada", "aislamiento"];
+const INV_ORDER = ["hielo", "agua", "regolito", "chatarra", "ilmenita", "silicio", "metal", "kits", "baterias", "paneles", "taladro", "taller", "horno", "torres_luz", "pala_mejorada", "aislamiento"];
 
 function Inventory() {
   const s = useGame((g) => g.snap);
@@ -122,6 +144,7 @@ function Inventory() {
           <div className="min-h-10 max-w-sm text-center text-[8px] leading-4">
             {hover ? <><span className="text-gold">{ITEMS[hover]?.nombre}:</span> {ITEMS[hover]?.desc}</> : <span className="text-muted-foreground">Pasa el cursor sobre un objeto. Arrástralo a la barra rápida.</span>}
           </div>
+          <div className="w-full"><div className="mb-2 text-[8px] text-gold">HERRAMIENTAS (mejoran al usarlas)</div><Tools big /></div>
           <Hotbar editable />
         </div>
       ) : (

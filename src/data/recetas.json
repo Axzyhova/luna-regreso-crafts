@@ -1,15 +1,209 @@
 [
-  {"id":"kit","nombre":"Kit de reparación","lugar":"mano","ingredientes":{"chatarra":2,"metal":1},"resultado":{"kits":1},"disponible":true},
-  {"id":"metal","nombre":"Fundir chatarra en metal","lugar":"mano","ingredientes":{"chatarra":2},"resultado":{"metal":1},"disponible":true},
-  {"id":"taller","nombre":"Taller (módulo)","lugar":"mano","ingredientes":{"chatarra":4,"metal":2},"resultado":{"taller":1},"disponible":true},
-  {"id":"horno","nombre":"Horno de regolito (módulo)","lugar":"mano","ingredientes":{"regolito":5,"metal":3,"chatarra":2},"resultado":{"horno":1},"disponible":true},
-  {"id":"pala_mejorada","nombre":"Pala mejorada","lugar":"taller","ingredientes":{"metal":3},"resultado":{"pala_mejorada":1},"disponible":true},
-  {"id":"taladro","nombre":"Taladro de hielo (módulo)","lugar":"taller","ingredientes":{"metal":4,"chatarra":2},"resultado":{"taladro":1},"disponible":true},
-  {"id":"bateria","nombre":"Batería (módulo)","lugar":"taller","ingredientes":{"metal":3,"chatarra":2},"resultado":{"baterias":1},"disponible":true},
-  {"id":"panel_solar","nombre":"Panel solar (módulo)","lugar":"taller","ingredientes":{"metal":3,"regolito":2},"resultado":{"paneles":1},"disponible":true},
-  {"id":"torre_luz","nombre":"Torre de luz (módulo)","lugar":"taller","ingredientes":{"metal":2,"chatarra":2},"resultado":{"torres_luz":1},"disponible":true},
-  {"id":"aislamiento","nombre":"Aislamiento","lugar":"horno","ingredientes":{"regolito":3,"chatarra":1},"resultado":{"aislamiento":1},"disponible":true},
-  {"id":"planta_electrolisis","nombre":"Planta de electrólisis","lugar":"taller","ingredientes":{"metal":6,"chatarra":4},"resultado":{"planta_electrolisis":1},"disponible":false},
-  {"id":"criotanque","nombre":"Criotanque","lugar":"taller","ingredientes":{"metal":5,"aislamiento":2},"resultado":{"criotanque":1},"disponible":false},
-  {"id":"pieza_motor","nombre":"Pieza de motor","lugar":"taller","ingredientes":{"metal":6,"chatarra":3},"resultado":{"pieza_motor":1},"disponible":false}
+ {
+  "id": "kit",
+  "nombre": "Kit de reparación",
+  "lugar": "mano",
+  "ingredientes": {
+   "chatarra": 2,
+   "metal": 1
+  },
+  "resultado": {
+   "kits": 1
+  },
+  "disponible": true
+ },
+ {
+  "id": "metal",
+  "nombre": "Fundir chatarra en metal",
+  "lugar": "mano",
+  "ingredientes": {
+   "chatarra": 2
+  },
+  "resultado": {
+   "metal": 1
+  },
+  "disponible": true
+ },
+ {
+  "id": "taller",
+  "nombre": "Taller (módulo)",
+  "lugar": "mano",
+  "ingredientes": {
+   "chatarra": 4,
+   "metal": 2
+  },
+  "resultado": {
+   "taller": 1
+  },
+  "disponible": true
+ },
+ {
+  "id": "horno",
+  "nombre": "Horno de regolito (módulo)",
+  "lugar": "mano",
+  "ingredientes": {
+   "regolito": 5,
+   "metal": 3,
+   "chatarra": 2
+  },
+  "resultado": {
+   "horno": 1
+  },
+  "disponible": true
+ },
+ {
+  "id": "pico",
+  "nombre": "Pico (o mejorarlo +1 nivel)",
+  "lugar": "mano",
+  "ingredientes": {
+   "metal": 2,
+   "chatarra": 1
+  },
+  "resultado": {
+   "tool:pico": 1
+  },
+  "disponible": true
+ },
+ {
+  "id": "pala_mejorada",
+  "nombre": "Mejorar pala (+1 nivel)",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 3,
+   "ilmenita": 1
+  },
+  "resultado": {
+   "tool:pala": 1
+  },
+  "disponible": true
+ },
+ {
+  "id": "cortador_mejorado",
+  "nombre": "Mejorar cortador (+1 nivel)",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 2,
+   "silicio": 1
+  },
+  "resultado": {
+   "tool:cortador": 1
+  },
+  "disponible": true
+ },
+ {
+  "id": "taladro",
+  "nombre": "Taladro de hielo (módulo)",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 4,
+   "chatarra": 2
+  },
+  "resultado": {
+   "taladro": 1
+  },
+  "disponible": true
+ },
+ {
+  "id": "bateria",
+  "nombre": "Batería (módulo)",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 3,
+   "chatarra": 2
+  },
+  "resultado": {
+   "baterias": 1
+  },
+  "disponible": true
+ },
+ {
+  "id": "panel_solar",
+  "nombre": "Panel solar (módulo)",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 2,
+   "silicio": 3
+  },
+  "resultado": {
+   "paneles": 1
+  },
+  "disponible": true
+ },
+ {
+  "id": "torre_luz",
+  "nombre": "Torre de luz (módulo)",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 2,
+   "chatarra": 2
+  },
+  "resultado": {
+   "torres_luz": 1
+  },
+  "disponible": true
+ },
+ {
+  "id": "aislamiento",
+  "nombre": "Aislamiento",
+  "lugar": "horno",
+  "ingredientes": {
+   "regolito": 3,
+   "chatarra": 1
+  },
+  "resultado": {
+   "aislamiento": 1
+  },
+  "disponible": true
+ },
+ {
+  "id": "fundir_ilmenita",
+  "nombre": "Fundir ilmenita en metal",
+  "lugar": "horno",
+  "ingredientes": {
+   "ilmenita": 2
+  },
+  "resultado": {
+   "metal": 2
+  },
+  "disponible": true
+ },
+ {
+  "id": "planta_electrolisis",
+  "nombre": "Planta de electrólisis",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 6,
+   "chatarra": 4
+  },
+  "resultado": {
+   "planta_electrolisis": 1
+  },
+  "disponible": false
+ },
+ {
+  "id": "criotanque",
+  "nombre": "Criotanque",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 5,
+   "aislamiento": 2
+  },
+  "resultado": {
+   "criotanque": 1
+  },
+  "disponible": false
+ },
+ {
+  "id": "pieza_motor",
+  "nombre": "Pieza de motor",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 6,
+   "chatarra": 3
+  },
+  "resultado": {
+   "pieza_motor": 1
+  },
+  "disponible": false
+ }
 ]
