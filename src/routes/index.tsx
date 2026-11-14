@@ -4,7 +4,7 @@ import { useGame } from "@/game/store";
 import { Intro, Rechazo, ModeSelect, Cinematic, Fuentes, Final } from "@/components/game/Screens";
 import { GameCanvas } from "@/components/game/GameCanvas";
 import { HUD, Overlays } from "@/components/game/HUD";
-import { NavCard, DialogBox, TutorialCard } from "@/components/game/StoryUI";
+import { DialogBox, TutorialCard } from "@/components/game/StoryUI";
 import { MobileGame, RotateNotice } from "@/components/game/MobileLayout";
 import { usePortrait, useTouchDevice } from "@/hooks/use-device";
 import { GAME_TITLE } from "@/game/title";
@@ -31,7 +31,6 @@ function Game() {
     <div className="relative h-full w-full">
       <ClientOnly fallback={null}><GameCanvas /></ClientOnly>
       <HUD />
-      <NavCard className="absolute left-2 top-28" />
       <TutorialCard className="absolute left-1/2 top-28 -translate-x-1/2" />
       <div className="absolute inset-x-0 bottom-28"><DialogBox /></div>
       <Overlays />

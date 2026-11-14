@@ -7,6 +7,8 @@ export const touch = {
   vy: 0,
   /** "E" held down (seal leaks / repair modules). */
   e: false,
+  /** Sprint toggle (the RUN button). Keyboard players hold Shift instead. */
+  run: false,
   act: {
     use: () => {},
     interact: () => {},

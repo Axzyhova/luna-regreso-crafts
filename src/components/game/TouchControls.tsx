@@ -74,9 +74,12 @@ function McButton({ label, sub, onPress, onRelease, size = 56, className = "" }:
 export function ActionPad() {
   const s = useGame((g) => g.snap);
   const publish = useGame((g) => g.publish);
+  const [run, setRun] = useState(touch.run);
+  const toggleRun = () => { touch.run = !touch.run; setRun(touch.run); sfx.click(); };
   return (
     <div className="flex select-none items-end gap-2">
       <div className="flex flex-col gap-2">
+        <McButton label="🏃" sub={run ? "RUN ON" : "RUN"} size={46} onPress={toggleRun} className={run ? "!border-ok !bg-ok/45" : ""} />
         {s.buildMode ? (
           <>
             <McButton label="⟳" sub="SWITCH" size={46} onPress={() => { touch.act.cycle(); publish(); }} />

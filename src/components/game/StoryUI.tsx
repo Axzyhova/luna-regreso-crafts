@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useGame, sim } from "@/game/store";
 import { sfx } from "@/game/audio";
 import { EFECTOS, type EffectId } from "@/game/effects";
@@ -10,58 +10,111 @@ import { navigation } from "@/game/nav";
 import { TUTORIAL, tutorialStep } from "@/game/tutorial";
 import { useTouchDevice } from "@/hooks/use-device";
 
-function Arrow({ deg, size, warn }: { deg: number; size: number; warn?: boolean }) {
+/** Pixel compass: N at the top, needle points at the target (0° = north, clockwise). */
+function Compass({ deg, size, warn }: { deg: number; size: number; warn?: boolean }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" style={{ transform: `rotate(${deg}deg)` }} className="shrink-0 transition-transform duration-200" aria-hidden>
-      <path d="M12 2 L20 13 H14.5 V22 H9.5 V13 H4 Z" fill={warn ? "#ff6b5b" : "#ffffff"} />
+    <svg width={size} height={size} viewBox="0 0 32 32" className="shrink-0" aria-hidden shapeRendering="crispEdges">
+      <rect x="1" y="1" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.4" />
+      <rect x="4" y="4" width="2" height="2" fill="currentColor" opacity="0.4" />
+      <rect x="26" y="4" width="2" height="2" fill="currentColor" opacity="0.4" />
+      <rect x="4" y="26" width="2" height="2" fill="currentColor" opacity="0.4" />
+      <rect x="26" y="26" width="2" height="2" fill="currentColor" opacity="0.4" />
+      <rect x="15" y="2" width="2" height="4" fill="currentColor" />
+      <g style={{ transform: `rotate(${deg}deg)`, transformOrigin: "16px 16px", transition: "transform 200ms steps(4)" }}>
+        <path d="M16 6 L20 16 L16 14 L12 16 Z" fill={warn ? "var(--alert)" : "currentColor"} />
+        <path d="M16 26 L12 16 L16 18 L20 16 Z" fill="currentColor" opacity="0.3" />
+      </g>
+      <rect x="15" y="15" width="2" height="2" fill="var(--background)" />
     </svg>
   );
 }
 
 /**
- * Compact GPS card in the style of a phone's car navigation: rounded dark tile with the
- * turn arrow and distance, the target name, and a slim "then" row. Kept small on purpose.
+ * Compact navigation chip: compass needle + target, distance, direction and ETA on two short lines.
+ * Leaks switch to the alert tone. A threat or capsule nearby adds a third tiny line.
  */
 export function NavCard({ className = "" }: { className?: string }) {
   const s = useGame((g) => g.snap);
   const { primary, then, etaS } = navigation(s);
   if (!primary) return null;
+  const leak = primary.k === "fuga";
+  const frame = leak ? "border-alert" : "border-moon-1";
+  const text = leak ? "text-alert" : "text-suit-light";
   return (
-    <div className={`pointer-events-none w-[132px] overflow-hidden rounded-[14px] bg-[#1c1c1e]/90 font-sans text-white shadow-[0_4px_14px_rgba(0,0,0,0.35)] ring-1 ring-white/10 backdrop-blur-sm sm:w-[164px] ${className}`}>
-      <div className="flex items-center gap-1.5 px-2.5 pt-2">
-        <Arrow deg={primary.deg} size={18} />
-        <span className="text-[17px] font-semibold leading-none tabular-nums sm:text-[20px]">{primary.m} m</span>
-      </div>
-      <div className="truncate px-2.5 pb-1.5 pt-0.5 text-[11px] font-semibold sm:text-[12px]">{primary.label}</div>
-      <div className={`flex items-center justify-between border-t border-white/10 px-2.5 py-1 text-[9px] sm:text-[10px] ${then?.warn ? "text-[#ff6b5b]" : "text-white/70"}`}>
-        <span className="truncate">{then ? `then ${then.label}` : `~${etaS} s · ${primary.dir}`}</span>
-        {then && <Arrow deg={then.deg} size={10} warn={then.warn} />}
+    <div className={`pointer-events-none inline-flex items-center gap-1.5 border-2 bg-background/85 py-1 pl-1 pr-2 ${frame} ${className}`}>
+      <span className={`${text} ${leak ? "animate-blink" : ""}`}>
+        <Compass deg={primary.deg} size={22} warn={leak} />
+      </span>
+      <div className="leading-tight">
+        <div className={`text-[6px] ${text}`}>{leak ? "⚠ " : "▸ "}{primary.label.toUpperCase()}</div>
+        <div className="mt-0.5 text-[8px] tabular-nums text-foreground">
+          {primary.m}m {primary.dir} <span className="text-[6px] text-muted-foreground">~{etaS}s</span>
+        </div>
+        {then && <div className={`mt-0.5 text-[5px] ${then.warn ? "text-alert" : "text-muted-foreground"}`}>THEN {then.label.toUpperCase()} {then.m}m</div>}
       </div>
     </div>
   );
 }
 
-/** Natural-event alert with countdown, plus short toasts. */
-export function EventBanner() {
-  const s = useGame((g) => g.snap);
+type AlertItem = { key: string; text: string; tone: string; blink?: boolean; title?: string };
+
+/** Everything that needs the player's attention, most urgent first. (Stamina is already a bar in Vitals.) */
+function collectAlerts(s: ReturnType<typeof useGame.getState>["snap"]): AlertItem[] {
+  const out: AlertItem[] = [];
+  if (s.alert) out.push({ key: "alert", text: `⚠ ${s.alert}`, tone: "border-alert text-alert", blink: true });
   const b = eventBanner(s);
+  if (b) out.push({ key: "event", text: `${b.icono} ${b.texto}`, tone: b.activo ? "border-destructive text-destructive" : "border-alert text-alert", blink: b.activo });
+  const aliens = s.aliens.filter((a) => a.tipo !== "nodriza").length;
+  if (aliens && s.abduction === 0) out.push({ key: "aliens", text: `👾 ${aliens} alien(s) at the base`, tone: "border-alien text-alien" });
+  for (const e of s.effects as EffectId[]) out.push({ key: `fx-${e}`, text: `${EFECTOS[e]?.icono ?? ""} ${EFECTOS[e]?.nombre ?? e}`, tone: "border-alert text-alert", title: EFECTOS[e]?.desc });
+  return out;
+}
+
+/**
+ * Warnings side panel: one short line per warning, collapsible to a small badge so it never covers the game.
+ * The abduction meter and short toasts live here too.
+ */
+export function AlertsPanel({ className = "" }: { className?: string }) {
+  const s = useGame((g) => g.snap);
+  const [open, setOpen] = useState(true);
+  const items = collectAlerts(s);
+  const n = items.length + (s.abduction > 0 ? 1 : 0);
+  if (!n && !s.toast) return null;
   return (
-    <>
-      {b && <div className={`text-center text-[8px] leading-4 ${b.activo ? "animate-blink text-destructive" : "text-alert"}`}>{b.icono} {b.texto}</div>}
-      {s.toast && <div className="text-center text-[8px] leading-4 text-gold">{s.toast.text}</div>}
-    </>
+    <div className={`pointer-events-none flex w-44 flex-col items-end gap-1 ${className}`}>
+      {n > 0 && (
+        <button type="button" onClick={() => { sfx.click(); setOpen((o) => !o); }} aria-expanded={open}
+          className={`pointer-events-auto flex items-center gap-1.5 border-2 bg-background/85 px-1.5 py-1 text-[6px] ${items[0]?.key === "alert" ? "border-alert text-alert" : "border-moon-1 text-gold"}`}>
+          <span className={items[0]?.blink ? "animate-blink" : ""}>⚠</span> ALERTS <span className="bg-alert px-1 text-background">{n}</span> <span className="text-muted-foreground">{open ? "▴" : "▾"}</span>
+        </button>
+      )}
+      {open && n > 0 && (
+        <ul className="flex w-full flex-col gap-0.5">
+          {s.abduction > 0 && (
+            <li className="border-l-2 border-alien bg-background/80 px-1.5 py-1 text-[6px] text-alien">
+              <span className="animate-blink">ABDUCTION</span> · run to the light
+              <div className="mt-0.5 h-1 w-full bg-moon-0"><div className="h-full bg-alien" style={{ width: `${s.abduction}%` }} /></div>
+            </li>
+          )}
+          {items.map((i) => (
+            <li key={i.key} title={i.title} className={`border-l-2 bg-background/80 px-1.5 py-1 text-[6px] leading-3 ${i.tone}`}>
+              <span className={i.blink ? "animate-blink" : ""}>{i.text}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {s.toast && <div className="w-full border-l-2 border-gold bg-background/80 px-1.5 py-1 text-[6px] leading-3 text-gold">{s.toast.text}</div>}
+    </div>
   );
 }
 
-/** Active negative states and worn gear. */
-export function EffectsBar() {
+/** Worn gear, shown inside the astronaut panel. */
+export function GearRow() {
   const s = useGame((g) => g.snap);
-  if (!s.effects.length && !s.equip.length && s.fatigue < 40) return null;
+  if (!s.equip.length) return null;
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2 text-[7px]">
-      {(s.effects as EffectId[]).map((e) => <span key={e} title={EFECTOS[e]?.desc} className="animate-pulse text-alert">{EFECTOS[e]?.icono} {EFECTOS[e]?.nombre}</span>)}
-      {!s.effects.includes("cansancio") && s.fatigue >= 40 && <span className="text-muted-foreground">😮‍💨 Fatigue {Math.round(s.fatigue)}%</span>}
-      {s.equip.map((g) => <span key={g} className="flex items-center gap-1 text-ok"><PixelIcon item={g} size={10} />{ITEMS[g]?.nombre}</span>)}
+    <div className="flex flex-wrap items-center gap-1.5 text-[6px] text-ok">
+      {s.equip.map((g) => <span key={g} className="flex items-center gap-0.5"><PixelIcon item={g} size={8} />{ITEMS[g]?.nombre}</span>)}
     </div>
   );
 }

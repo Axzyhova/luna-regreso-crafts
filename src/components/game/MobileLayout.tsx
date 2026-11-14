@@ -1,10 +1,10 @@
 import { ClientOnly } from "@tanstack/react-router";
 import { useGame } from "@/game/store";
-import { LH2_CAP, LOX_CAP } from "@/game/sim";
+import { LH2_CAP, LOX_CAP, batteryCap } from "@/game/sim";
 import { sfx } from "@/game/audio";
 import { GameCanvas } from "./GameCanvas";
 import { Countdown, Overlays, Hotbar } from "./HUD";
-import { NavCard, DialogBox, EventBanner, EffectsBar, QuestTracker } from "./StoryUI";
+import { NavCard, DialogBox, AlertsPanel, GearRow, QuestTracker } from "./StoryUI";
 import { DPad, ActionPad, MenuBar, MC_BTN } from "./TouchControls";
 import { Vitals, DayClock } from "./Vitals";
 import { TutorialCard } from "./StoryUI";
@@ -29,31 +29,35 @@ export function MobileGame() {
     <div className="relative h-full w-full select-none">
       <ClientOnly fallback={null}><GameCanvas /></ClientOnly>
 
-      {/* top-left: vitals */}
-      <div className="pointer-events-none absolute left-[max(env(safe-area-inset-left),8px)] top-2 flex flex-col gap-1">
-        <Vitals className="rounded-[10px] bg-black/25 p-1" />
+      {/* top-left: astronaut (vitals + gear), navigation chip below */}
+      <div className="pointer-events-none absolute left-[max(env(safe-area-inset-left),8px)] top-2 flex flex-col items-start gap-1.5">
+        <div className="flex flex-col gap-1 rounded-[10px] bg-black/25 p-1">
+          <span className="text-[5px] tracking-wider text-gold">👨‍🚀 ASTRONAUT</span>
+          <Vitals />
+          <GearRow />
+        </div>
+        <NavCard />
       </div>
 
-      {/* top-center: menu buttons, alerts below */}
+      {/* top-center: menu buttons and tutorial only (warnings live in the side panel) */}
       <div className="pointer-events-none absolute inset-x-0 top-2 flex flex-col items-center gap-1 px-40">
         <div className="pointer-events-auto"><MenuBar /></div>
         <TutorialCard />
-        {s.alert && <div className="animate-blink text-center text-[8px] text-alert">⚠ {s.alert}</div>}
-        <EventBanner />
-        <EffectsBar />
-        {s.abduction > 0 && <div className="flex items-center gap-1 text-[7px] text-alien"><span className="animate-blink">ABDUCTION</span><div className="h-1.5 w-24 bg-black/50"><div className="h-full bg-alien" style={{ width: `${s.abduction}%` }} /></div></div>}
       </div>
 
-      {/* top-right: power, fuel, clock */}
-      <div className="pointer-events-none absolute right-[max(env(safe-area-inset-right),8px)] top-2 flex flex-col items-end gap-1">
+      {/* top-right: clock, base power + rocket fuel, warnings panel below */}
+      <div className="pointer-events-none absolute right-[max(env(safe-area-inset-right),8px)] top-2 flex flex-col items-end gap-1.5">
         <DayClock />
-        <span className={`text-[6px] ${net >= 0 ? "text-ok" : "text-destructive"}`}>⚡ +{s.energyIn.toFixed(0)}/-{s.energyOut.toFixed(0)}</span>
-        <MiniBar label="LH2" v={s.lh2} max={LH2_CAP} color="var(--color-suit-light)" />
-        <MiniBar label="LOX" v={s.lox} max={LOX_CAP} color="var(--color-suit)" />
+        <div className="flex flex-col items-end gap-1 bg-black/25 p-1">
+          <span className="text-[5px] tracking-wider text-gold">🏠 BASE</span>
+          <span className={`text-[6px] ${net >= 0 ? "text-ok" : "text-destructive"}`}>⚡ +{s.energyIn.toFixed(0)}/-{s.energyOut.toFixed(0)}</span>
+          <MiniBar label="BAT" v={s.battery} max={batteryCap(s)} color="var(--color-gold)" />
+          <span className="mt-0.5 text-[5px] tracking-wider text-gold">🚀 ROCKET</span>
+          <MiniBar label="LH2" v={s.lh2} max={LH2_CAP} color="var(--color-suit-light)" />
+          <MiniBar label="LOX" v={s.lox} max={LOX_CAP} color="var(--color-suit)" />
+        </div>
+        <AlertsPanel className="!w-36" />
       </div>
-
-      {/* left, below vitals: GPS card */}
-      <NavCard className="absolute left-[max(env(safe-area-inset-left),8px)] top-[62px]" />
 
       <Countdown />
 

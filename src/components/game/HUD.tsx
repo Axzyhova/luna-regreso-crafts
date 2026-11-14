@@ -6,62 +6,95 @@ import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, module
 import { launchBlockers, startLaunch, countdownLength, currentWindow, nextWindow, windowSecondsLeft, windowsUntil, VENTANAS_PROVISIONALES } from "@/game/mission";
 import { CubeSatDesigner } from "./CubeSatDesigner";
 import { Vitals, DayClock } from "./Vitals";
-import { EventBanner, EffectsBar, QuestTracker, QuestLog } from "./StoryUI";
+import { CharacterDoll, useGearTouchDrag } from "./CharacterDoll";
+import { AlertsPanel, GearRow, NavCard, QuestTracker, QuestLog } from "./StoryUI";
 import { GEAR, CONSUMIBLES, toggleEquip, consumeItem } from "@/game/effects";
 import { ITEMS } from "@/game/items";
 import { PixelIcon } from "./PixelIcon";
 import { sfx } from "@/game/audio";
 import { PixelButton } from "./Screens";
 
-function Bar({ label, v, max = 100, tone = "bg-ok", warn = 25 }: { label: string; v: number; max?: number; tone?: string; warn?: number }) {
+function Bar({ label, v, max = 100, tone = "bg-ok", warn = 25, value }: { label: string; v: number; max?: number; tone?: string; warn?: number; value?: string }) {
   const pct = Math.max(0, Math.min(100, (v / max) * 100));
   return (
     <div className="flex min-w-0 items-center gap-1">
-      <span className="text-[7px] text-muted-foreground">{label}</span>
-      <div className="h-2 w-14 bg-moon-0 sm:w-20"><div className={`h-full ${pct < warn ? "bg-alert" : tone}`} style={{ width: `${pct}%` }} /></div>
-      <span className="w-8 text-[7px]">{Math.round(pct)}%</span>
+      <span className="w-7 text-[6px] text-muted-foreground">{label}</span>
+      <div className="h-1.5 w-14 bg-moon-0 sm:w-16"><div className={`h-full ${pct < warn ? "bg-alert" : tone}`} style={{ width: `${pct}%` }} /></div>
+      <span className="w-9 text-right text-[6px] tabular-nums">{value ?? `${Math.round(pct)}%`}</span>
     </div>
   );
 }
-/** Desktop/landscape: HUD floats over the game. */
+
+/** A titled HUD group so it's clear what each bar belongs to. */
+function HudGroup({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`border-2 border-moon-1 bg-background/85 px-1.5 pb-1.5 pt-1 ${className}`}>
+      <div className="mb-1 text-[6px] tracking-wider text-gold">{title}</div>
+      <div className="flex flex-col gap-1">{children}</div>
+    </div>
+  );
+}
+
+/** Astronaut: the player's own body and suit (vitals + thermometer) and worn gear. */
+export function AstronautPanel() {
+  return (
+    <HudGroup title="👨‍🚀 ASTRONAUT">
+      <Vitals />
+      <GearRow />
+    </HudGroup>
+  );
+}
+
+/** Base installations (power) and the rocket (fuel). */
+export function BaseRocketPanel() {
+  const s = useGame((g) => g.snap);
+  const ratio = s.lh2 > 0.01 ? s.lox / s.lh2 : 0;
+  const net = s.energyIn - s.energyOut;
+  return (
+    <HudGroup title="🏠 BASE">
+      <div className="flex items-center gap-1 text-[6px]">
+        <span className="w-7 text-muted-foreground">POWER</span>
+        <span className={net >= 0 ? "text-ok" : "text-destructive"}>+{s.energyIn.toFixed(0)} / -{s.energyOut.toFixed(0)}</span>
+      </div>
+      <Bar label="BAT" v={s.battery} max={batteryCap(s)} tone="bg-gold" warn={10} value={`${s.battery.toFixed(0)}/${batteryCap(s)}`} />
+      <div className="mt-0.5 border-t-2 border-moon-0 pt-1 text-[6px] tracking-wider text-gold">🚀 ROCKET</div>
+      <Bar label="LH2" v={s.lh2} max={LH2_CAP} tone="bg-suit-light" warn={0} />
+      <Bar label="LOX" v={s.lox} max={LOX_CAP} tone="bg-suit" warn={0} />
+      <div className="flex items-center gap-1 text-[6px]">
+        <span className="w-7 text-muted-foreground">MIX</span>
+        <span className={Math.abs(ratio - 6) < 0.5 ? "text-ok" : "text-alert"}>{ratio.toFixed(1)}:1</span>
+        <span className="text-muted-foreground">goal 6:1</span>
+      </div>
+    </HudGroup>
+  );
+}
+
+/** Desktop/landscape: HUD floats over the game, grouped in corners so the middle stays clear. */
 export function HUD() {
   return (
     <>
-      <HUDTop className="absolute inset-x-0 top-0" />
+      <div className="pointer-events-none absolute left-2 top-2 flex flex-col items-start gap-1.5">
+        <AstronautPanel />
+        <NavCard />
+      </div>
+      <HUDTop className="absolute left-1/2 top-2 -translate-x-1/2" />
+      <div className="pointer-events-none absolute right-2 top-2 flex flex-col items-end gap-1.5">
+        <BaseRocketPanel />
+        <AlertsPanel />
+      </div>
       <Countdown />
       <HUDBottom className="absolute inset-x-0 bottom-0" />
     </>
   );
 }
 
+/** Top-center: day/night clock and the build-mode hint. */
 export function HUDTop({ className = "", touch = false }: { className?: string; touch?: boolean }) {
   const s = useGame((g) => g.snap);
-  const ratio = s.lh2 > 0.01 ? s.lox / s.lh2 : 0;
-  const net = s.energyIn - s.energyOut;
   return (
-      <div className={`pointer-events-none space-y-1 bg-background/80 p-2 ${className}`}>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <Vitals />
-          <DayClock className="ml-auto" />
-        </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span className="text-[7px]"><span className="text-muted-foreground">POWER</span> <span className={net >= 0 ? "text-ok" : "text-destructive"}>+{s.energyIn.toFixed(0)} / -{s.energyOut.toFixed(0)}</span> <span className="text-muted-foreground">BAT</span> {s.battery.toFixed(0)}/{batteryCap(s)}</span>
-          <Bar label="LH2" v={s.lh2} max={LH2_CAP} tone="bg-suit-light" warn={0} />
-          <Bar label="LOX" v={s.lox} max={LOX_CAP} tone="bg-suit" warn={0} />
-          <span className="text-[7px]"><span className="text-muted-foreground">MIX O2:H2</span> <span className={Math.abs(ratio - 6) < 0.5 ? "text-ok" : "text-alert"}>{ratio.toFixed(1)}:1</span> <span className="text-muted-foreground">(target 6:1)</span></span>
-        </div>
-        {s.alert && <div className="animate-blink text-center text-[9px] text-alert">⚠ {s.alert}</div>}
-        <EventBanner />
-        <EffectsBar />
-        {s.abduction > 0 && (
-          <div className="flex items-center justify-center gap-2 text-[8px] text-alien">
-            <span className="animate-blink">ABDUCTION</span>
-            <div className="h-2 w-32 bg-moon-0"><div className="h-full bg-alien" style={{ width: `${s.abduction}%` }} /></div>
-            <span className="text-[6px] text-muted-foreground">run to the light or hit it ({touch ? "ACTION button" : "SPACE"})</span>
-          </div>
-        )}
-        {s.aliens.some((a) => a.tipo !== "nodriza") && s.abduction === 0 && <div className="text-center text-[7px] text-alien">👾 {s.aliens.filter((a) => a.tipo !== "nodriza").length} alien(s) at the base</div>}
-        {s.buildMode && <div className="text-center text-[8px] leading-4 text-ok">BUILD MODE: {ITEMS[s.buildMode]?.nombre} — {touch ? "ACTION places it in front of you, or tap the map · ⟳ switch · ✕ exit" : "click to place · Q switch · C exit"}</div>}
+      <div className={`pointer-events-none flex max-w-[40%] flex-col items-center gap-1 ${className}`}>
+        <DayClock />
+        {s.buildMode && <div className="bg-background/85 px-2 py-0.5 text-center text-[7px] leading-4 text-ok">BUILD MODE: {ITEMS[s.buildMode]?.nombre} — {touch ? "ACTION places it in front of you, or tap the map · ⟳ switch · ✕ exit" : "click to place · Q switch · C exit"}</div>}
       </div>
   );
 }
@@ -92,7 +125,7 @@ export function HUDBottom({ className = "", touch = false }: { className?: strin
           )}
           <Hotbar />
         </div>
-        {!touch && <div className="text-[6px] text-muted-foreground">WASD move · SPACE pick up/hit · E interact (hold to seal/repair) · TAB inventory · C build · B base · L log · M missions · ESC pause · 1-5 or click: pick item</div>}
+        {!touch && <div className="text-[6px] text-muted-foreground">WASD move · SHIFT run · SPACE pick up/hit · E interact (hold to seal/repair) · TAB inventory · C build · B base · L log · M missions · ESC pause · 1-5 or click: pick item</div>}
       </div>
   );
 }
@@ -156,6 +189,7 @@ function Inventory() {
   const [tab, setTab] = useState<"inv" | "craft">("inv");
   const [hover, setHover] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
+  const gearDrag = useGearTouchDrag();
   const inv = s.inv as unknown as Record<string, number>;
   const stacks: { key: string; n: number }[] = [];
   for (const key of INV_ORDER) {
@@ -173,17 +207,26 @@ function Inventory() {
       </div>
       {tab === "inv" ? (
         <div className="flex flex-col items-center gap-4">
-          <div className="grid grid-cols-4 gap-1">
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+          <CharacterDoll dragging={gearDrag.dragging} flash={gearDrag.result} />
+          <div className="grid grid-cols-4 gap-1"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { const k = e.dataTransfer.getData("text/unequip"); if (k && s.equip.includes(k)) { toggleEquip(sim, k); sfx.click(); publish(); } }}>
             {cells.map((c, i) => (
               <div key={i} draggable={!!c}
+                onPointerDown={c ? gearDrag.start(c.key) : undefined}
+                style={c && GEAR.includes(c.key) ? { touchAction: "none" } : undefined}
                 onDragStart={(e) => c && e.dataTransfer.setData("text/item", c.key)}
                 onMouseEnter={() => setHover(c?.key ?? null)} onMouseLeave={() => setHover(null)}
                 onClick={() => { if (!c) return; setHover(c.key); setPending(pending === c.key ? null : c.key); sfx.click(); }}
                 className={`relative flex h-16 w-16 flex-col items-center justify-center border-2 bg-moon-0 ${c ? `cursor-grab hover:border-gold ${pending === c.key ? "border-ok" : "border-moon-2"}` : "border-border"}`}>
                 {c && <><PixelIcon item={c.key} size={28} /><span className="mt-0.5 max-w-full truncate px-0.5 text-[5px] text-muted-foreground">{ITEMS[c.key]?.nombre}</span><span className="absolute bottom-0.5 right-1 text-[8px] text-gold">{c.n}</span></>}
+                {c && s.equip.includes(c.key) && <span className="absolute left-0.5 top-0.5 bg-ok px-0.5 text-[5px] text-background">ON</span>}
               </div>
             ))}
           </div>
+          </div>
+          {gearDrag.ghost}
           <div className="min-h-10 max-w-sm text-center text-[8px] leading-4">
             {hover ? <><span className="text-gold">{ITEMS[hover]?.nombre}:</span> {ITEMS[hover]?.desc}</> : <span className="text-muted-foreground">Tap an item, then a hotbar slot (or drag it).</span>}
             {pending && <div className="text-ok">Now tap a hotbar slot to put it there.</div>}
