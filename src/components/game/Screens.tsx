@@ -5,6 +5,7 @@ import { useGame, hasSave } from "@/game/store";
 import type { Mode, Difficulty } from "@/game/sim";
 import { sfx } from "@/game/audio";
 import { GAME_TITLE } from "@/game/title";
+import { MISIONES, sideAvailable } from "@/game/quests";
 
 export function PixelButton({ children, onClick, tone = "primary", disabled }: { children: React.ReactNode; onClick?: () => void; tone?: "primary" | "ghost" | "alert"; disabled?: boolean }) {
   const t = tone === "primary" ? "bg-primary text-primary-foreground" : tone === "alert" ? "bg-alert text-background" : "bg-secondary text-secondary-foreground";
@@ -157,7 +158,9 @@ export function Final() {
       <h2 className="text-2xl text-ok drop-shadow-[3px_3px_0_var(--color-moon-0)]">¡REGRESO A CASA!</h2>
       {r && (
         <div className="max-w-xl space-y-2 text-[9px] leading-5">
-          <p>Despegaste el día {r.dia} en la ventana {r.ventana}.</p>
+          {MISIONES.final.map((l) => <p key={l} className="text-suit-light">{l}</p>)}
+          <p className="pt-2">Despegaste el día {r.dia} en la ventana {r.ventana}.</p>
+          <p>Misiones secundarias: {s.quest.sideDone.length}/{sideAvailable(s).length} · Cápsulas abiertas: {s.stats.capsulas} · Reparaciones: {s.stats.reparaciones}</p>
           <p>Combustible de sobra: LH2 {r.lh2Sobra.toFixed(1)} kg · LOX {r.loxSobra.toFixed(1)} kg</p>
           <p className="text-gold">Logros: {s.logros.join(" · ") || "—"}</p>
           <p className="text-[7px] text-muted-foreground">Las ventanas y el combustible requerido son provisionales hasta calcularlos con GMAT.</p>

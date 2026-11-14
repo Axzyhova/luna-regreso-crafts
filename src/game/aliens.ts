@@ -146,6 +146,7 @@ export function hitAlien(s: Sim, px: number, py: number): Alien | null {
   }
   if (best.hp <= 0) {
     s.aliens = s.aliens.filter((a) => a !== best);
+    if (best.tipo !== "nodriza") s.stats.aliens++;
     addLog(s, best.tipo === "nodriza" ? "¡Derribaste la Nodriza!" : `Ahuyentaste a un ${T[best.tipo].nombre.toLowerCase()}.`);
   }
   return best;

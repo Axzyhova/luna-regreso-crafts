@@ -11,5 +11,8 @@
   {"id":"aislamiento","nombre":"Aislamiento","lugar":"horno","ingredientes":{"regolito":3,"chatarra":1},"resultado":{"aislamiento":1},"disponible":true},
   {"id":"planta_electrolisis","nombre":"Planta de electrólisis (módulo)","lugar":"taller","ingredientes":{"metal":6,"chatarra":4},"resultado":{"planta_electrolisis":1},"disponible":true},
   {"id":"criotanque","nombre":"Criotanque (módulo)","lugar":"taller","ingredientes":{"metal":5,"aislamiento":2},"resultado":{"criotanque":1},"disponible":true},
-  {"id":"pieza_motor","nombre":"Pieza de motor","lugar":"taller","ingredientes":{"metal":6,"chatarra":3},"resultado":{"pieza_motor":1},"disponible":true}
+  {"id":"pieza_motor","nombre":"Pieza de motor","lugar":"taller","ingredientes":{"metal":6,"chatarra":3},"resultado":{"pieza_motor":1},"disponible":true},
+  {"id":"traje_termico","nombre":"Traje térmico (equipo)","lugar":"taller","ingredientes":{"aislamiento":2,"metal":1},"resultado":{"traje_termico":1},"disponible":true},
+  {"id":"capa_reflectante","nombre":"Capa reflectante (equipo)","lugar":"taller","ingredientes":{"metal":2,"chatarra":2},"resultado":{"capa_reflectante":1},"disponible":true},
+  {"id":"escudo_radiacion","nombre":"Escudo de regolito (equipo)","lugar":"taller","ingredientes":{"regolito":6,"metal":2},"resultado":{"escudo_radiacion":1},"disponible":true}
 ]

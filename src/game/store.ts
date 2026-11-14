@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { createSim, LH2_CAP, LOX_CAP, type Sim, type Mode, type Difficulty } from "./sim";
 
 export type Screen = "intro" | "rechazo" | "modo" | "cinematica" | "juego" | "fuentes" | "final";
-export type Overlay = null | "inv" | "base" | "log" | "pausa" | "cohete" | "cubesat";
+export type Overlay = null | "inv" | "base" | "log" | "pausa" | "cohete" | "cubesat" | "misiones";
 
 /** Mutable simulation owned by the Phaser scene; UI reads `snap`, a copy published ~8x/s. */
 export let sim: Sim = createSim("realista", "normal");
@@ -33,7 +33,8 @@ export const useGame = create<State>((set, get) => ({
       const base = createSim("realista", "normal");
       const saved = JSON.parse(raw);
       // Merge nested records so saves from older versions get new items/subsystems.
-      sim = { ...base, ...saved, inv: { ...base.inv, ...saved.inv }, rocket: { ...base.rocket, ...saved.rocket }, leaks: [], aliens: [], abduction: 0, countdown: null };
+      sim = { ...base, ...saved, inv: { ...base.inv, ...saved.inv }, rocket: { ...base.rocket, ...saved.rocket }, leaks: [], aliens: [], abduction: 0, countdown: null,
+        stats: { ...base.stats, ...saved.stats }, quest: { ...base.quest, ...saved.quest }, event: null, impacts: [], dialog: [] };
       sim.lh2 = Math.min(sim.lh2, LH2_CAP); sim.lox = Math.min(sim.lox, LOX_CAP);
       get().publish();
       return true;

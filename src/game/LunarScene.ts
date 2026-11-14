@@ -6,6 +6,11 @@ import { sfx } from "./audio";
 import { stepAliens, hitAlien, type World } from "./aliens";
 import { stepCountdown } from "./mission";
 import { touch } from "./touch";
+import { stepEffects, effectMods } from "./effects";
+import { stepEvents, toast } from "./events";
+import { initCapsules, nearestCapsule, openCapsule } from "./loot";
+import { stepQuests } from "./quests";
+import { ITEMS } from "./items";
 
 const W = 640, H = 360;
 const HAB = { x: 110, y: 170 } /* matches habitat in modulos.json */, ROCKET = { x: 540, y: 150 };
@@ -25,6 +30,9 @@ export class LunarScene extends Phaser.Scene {
   nodes: RNode[] = [];
   leakSprites = new Map<number, Phaser.GameObjects.Image>();
   alienSprites = new Map<number, Phaser.GameObjects.Image>();
+  capSprites = new Map<number, Phaser.GameObjects.Image>();
+  zone!: Phaser.GameObjects.Graphics;
+  tint!: Phaser.GameObjects.Rectangle;
   beam!: Phaser.GameObjects.Graphics;
   ring!: Phaser.GameObjects.Graphics;
   night!: Phaser.GameObjects.Rectangle;
@@ -46,6 +54,7 @@ export class LunarScene extends Phaser.Scene {
     px(this, "al_rastreador", [".v..v.", "vvvvvv", "vwvvwv", "vvvvvv", "v.vv.v"], { v: T.alien, w: T.red });
     px(this, "al_saboteador", ["v..v", ".vv.", "vwwv", ".vv.", "v..v"], { v: T.alien, w: T.alert });
     px(this, "al_nodriza", ["........vvvvvvvv........", ".....vvvwwvvvvwwvvv.....", "..vvvvvvvvvvvvvvvvvvvv..", "vvvgvvgvvgvvgvvgvvgvvgvv", "..vvvvvvvvvvvvvvvvvvvv..", ".....g.....gg.....g....."], { v: T.alien, w: T.ice, g: T.ok });
+    px(this, "capsule", ["..w..", ".wrw.", ".wgw.", ".wgw.", ".www.", "rw.wr", "r...r"], { w: PAL.white, r: PAL.red, g: PAL.gold });
     px(this, "leak", [".a.a.", "a.r.a", ".rwr.", "a.r.a", ".a.a."], { a: T.alert, r: T.red, w: T.white });
     this.makeModuleTextures();
     const lg = this.add.graphics();
@@ -85,6 +94,8 @@ export class LunarScene extends Phaser.Scene {
     this.player = this.add.image(HAB.x, HAB.y + 30, "astro").setDepth(10);
     this.ring = this.add.graphics().setDepth(30);
     this.beam = this.add.graphics().setDepth(22);
+    this.zone = this.add.graphics().setDepth(24);
+    this.tint = this.add.rectangle(0, 0, W, H, PAL.red, 0).setOrigin(0).setScrollFactor(0).setDepth(26);
     this.night = this.add.rectangle(0, 0, W, H, PAL.black, 0).setOrigin(0).setScrollFactor(0).setDepth(20);
     this.prompt = this.add.text(0, 0, "", { fontFamily: '"Press Start 2P"', fontSize: "5px", color: "#f2d24f", backgroundColor: "#0b0b14" }).setDepth(40).setPadding(2);
 
@@ -104,6 +115,7 @@ export class LunarScene extends Phaser.Scene {
     this.events.once("shutdown", () => { touch.act = { use: () => {}, interact: () => {}, build: () => {}, cycle: () => {} }; });
     (["ONE", "TWO", "THREE", "FOUR", "FIVE"] as const).forEach((n, i) => this.input.keyboard!.on(`keydown-${n}`, () => { sim.hotbar = i + 1; sfx.click(); }));
     for (const l of sim.leaks) this.addLeakSprite(l.id, l.x, l.y);
+    initCapsules(sim, { w: W, h: H, hab: HAB, rnd: () => Math.random() });
     if (!sim.log.length) addLog(sim, "Aterrizaje de emergencia en el polo sur lunar. Sin combustible.");
     this.leakT = 25;
   }
@@ -229,8 +241,10 @@ export class LunarScene extends Phaser.Scene {
     }
     const n = this.nearestNode();
     if (!n) return;
-    this.useCd = (sim.inv.taladro ?? 0) > 0 ? 0.25 : (sim.inv.pala_mejorada ?? 0) > 0 ? 0.35 : 0.5;
+    this.useCd = ((sim.inv.taladro ?? 0) > 0 ? 0.25 : (sim.inv.pala_mejorada ?? 0) > 0 ? 0.35 : 0.5) * effectMods(sim).gather;
     if (!addItem(sim, n.type, 1)) { this.say("INVENTARIO LLENO"); sfx.bad(); return; }
+    if (n.type === "hielo") sim.stats.hielo++;
+    sim.fatigue = Math.min(100, sim.fatigue + 0.6);
     n.amount -= 1; sfx.pick();
     this.tweens.add({ targets: n.spr, y: n.spr.y - 2, yoyo: true, duration: 60 });
     if (n.amount <= 0) { n.spr.destroy(); this.nodes = this.nodes.filter((x) => x !== n); this.time.delayedCall(40000, () => this.spawnNode(n.type)); }
@@ -239,6 +253,13 @@ export class LunarScene extends Phaser.Scene {
   interact() {
     if (useGame.getState().overlay) return;
     if (this.nearestLeak()) return; // hold handled in update
+    const cap = nearestCapsule(sim, this.player.x, this.player.y);
+    if (cap) {
+      const found = openCapsule(sim, cap.id, () => Math.random());
+      toast(sim, `📦 ${found.map((f) => `+${f.n} ${ITEMS[f.item]?.nombre ?? f.item}`).join(" · ") || "Inventario lleno"}`);
+      sfx.ok();
+      return;
+    }
     if (this.nearHab() && sim.inv.hielo > 0) {
       const w = sim.inv.hielo * BAL.hielo_a_agua_kg; sim.inv.agua += w; sim.inv.hielo = 0;
       addLog(sim, `Derretiste hielo: +${w} kg de agua para electrólisis.`); sfx.ok();
@@ -252,7 +273,7 @@ export class LunarScene extends Phaser.Scene {
     const overlay = useGame.getState().overlay;
     if (overlay) return;
     const k = this.keys;
-    const sp = 60;
+    const sp = 60 * effectMods(sim).speed;
     let vx = 0, vy = 0;
     if (k.A.isDown || k.LEFT.isDown) vx -= 1; if (k.D.isDown || k.RIGHT.isDown) vx += 1;
     if (k.W.isDown || k.UP.isDown) vy -= 1; if (k.S.isDown || k.DOWN.isDown) vy += 1;
@@ -266,6 +287,7 @@ export class LunarScene extends Phaser.Scene {
     const inShadow = ((this.player.x - SHADOW.x) / SHADOW.rx) ** 2 + ((this.player.y - SHADOW.y) / SHADOW.ry) ** 2 < 1;
     step(sim, dt, { inHabitat: this.nearHab(), inShadow });
     this.updateAliens(dt);
+    this.updateWorldEvents(dt, inShadow);
     const cd = stepCountdown(sim, dt);
     if (cd === "launched") { sfx.ok(); saveGame(); useGame.getState().publish(); useGame.getState().go("final"); return; }
     if (cd === "aborted") { sfx.bad(); this.say("DESPEGUE ABORTADO: REVISA EL COHETE (E)"); }
@@ -285,19 +307,20 @@ export class LunarScene extends Phaser.Scene {
       if (sim.inv.kits < 1) this.say("SIN KITS: CRAFTEA UNO (TAB)");
       else {
         this.repairT += dt;
-        this.ring.lineStyle(2, PAL.ok).beginPath().arc(broken.x, broken.y, 10, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (this.repairT / 2.5)).strokePath();
-        if (this.repairT >= 2.5) { this.repairT = 0; sim.inv.kits -= 1; broken.durabilidad = 100; addLog(sim, `Reparaste: ${TIPOS[broken.tipo].nombre}. -1 kit.`); sfx.ok(); }
+        const need = 2.5 * effectMods(sim).repair;
+        this.ring.lineStyle(2, PAL.ok).beginPath().arc(broken.x, broken.y, 10, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (this.repairT / need)).strokePath();
+        if (this.repairT >= need) { this.repairT = 0; sim.inv.kits -= 1; broken.durabilidad = 100; sim.stats.reparaciones++; addLog(sim, `Reparaste: ${TIPOS[broken.tipo].nombre}. -1 kit.`); sfx.ok(); }
       }
     } else this.repairT = 0;
     if (leak && (k.E.isDown || touch.e)) {
       if (sim.inv.kits < 1) { this.say("SIN KITS: CRAFTEA UNO (TAB)"); }
       else {
-        leak.progress += dt / (1.5 + leak.size * 0.8);
+        leak.progress += dt / ((1.5 + leak.size * 0.8) * effectMods(sim).repair);
         this.ring.lineStyle(2, PAL.ok).beginPath().arc(leak.x, leak.y, 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * leak.progress).strokePath();
         if (leak.progress >= 1) {
           sim.inv.kits -= 1; sim.leaks = sim.leaks.filter((l) => l !== leak);
           this.leakSprites.get(leak.id)?.destroy(); this.leakSprites.delete(leak.id);
-          sim.actFlags.leakFixed = true; addLog(sim, "Fuga sellada. -1 kit."); sfx.ok();
+          sim.actFlags.leakFixed = true; sim.stats.reparaciones++; addLog(sim, "Fuga sellada. -1 kit."); sfx.ok();
         }
       }
     } else if (leak) leak.progress = Math.max(0, leak.progress - dt * 0.5);
@@ -306,6 +329,7 @@ export class LunarScene extends Phaser.Scene {
     // prompts
     const n = this.nearestNode();
     if (leak) this.say(`MANTÉN E: SELLAR FUGA (${sim.inv.kits} KITS)`);
+    else if (nearestCapsule(sim, this.player.x, this.player.y)) this.say("E: ABRIR CÁPSULA DE SUMINISTRO");
     else if (n) this.say(`ESPACIO: RECOGER ${n.type.toUpperCase()}`);
     else if (broken && broken.durabilidad < 60 && !(this.nearHab() && sim.inv.hielo > 0)) this.say(`MANTÉN E: REPARAR ${TIPOS[broken.tipo].nombre.toUpperCase()} (1 KIT)`);
     else if (this.nearHab() && sim.inv.hielo > 0) this.say("E: DERRETIR HIELO");
@@ -333,12 +357,64 @@ export class LunarScene extends Phaser.Scene {
     if (sim.health <= 0) { onDeath(sim); sfx.bad(); this.player.setPosition(HAB.x, HAB.y + 30); }
 
     this.pubT += dt; this.saveT += dt;
-    if (this.pubT > 0.15) { this.pubT = 0; useGame.getState().publish(); }
+    if (this.pubT > 0.15) { this.pubT = 0; this.publishRadar(); useGame.getState().publish(); }
     if (this.saveT > 20) { this.saveT = 0; saveGame(); }
   }
 
+  world(): World {
+    return { player: { x: this.player.x, y: this.player.y }, inHabitat: this.nearHab(), hab: HAB, rocket: ROCKET, w: W, h: H, rnd: () => Math.random() };
+  }
+
+  /** Natural events, negative states, story progress, loot capsules and screen tint. */
+  updateWorldEvents(dt: number, inShadow: boolean) {
+    const w = this.world();
+    for (const p of stepEvents(sim, dt, w)) {
+      if (Phaser.Math.Distance.Between(p.x, p.y, this.player.x, this.player.y) < 90) this.cameras.main.shake(150, 0.01);
+      sfx.alert();
+    }
+    stepEffects(sim, dt, w, inShadow);
+    stepQuests(sim);
+    // capsules
+    const alive = new Set(sim.capsules.map((c) => c.id));
+    for (const [id, spr] of this.capSprites) if (!alive.has(id)) { spr.destroy(); this.capSprites.delete(id); }
+    for (const c of sim.capsules) if (!this.capSprites.has(c.id)) this.capSprites.set(c.id, this.add.image(c.x, c.y, "capsule").setDepth(5));
+    for (const spr of this.capSprites.values()) spr.setAlpha(0.75 + Math.sin(this.time.now / 250) * 0.25);
+    // meteor zone and impacts
+    this.zone.clear();
+    const ev = sim.event;
+    if (ev?.id === "meteoritos") {
+      const r = 70;
+      const blink = Math.sin(this.time.now / (ev.phase === "aviso" ? 180 : 90)) > 0;
+      this.zone.lineStyle(1, ev.phase === "aviso" ? PAL.alert : PAL.red, blink ? 1 : 0.4).strokeCircle(ev.x, ev.y, r);
+      this.zone.fillStyle(PAL.red, ev.phase === "activo" ? 0.12 : 0.05).fillCircle(ev.x, ev.y, r);
+    }
+    for (const i of sim.impacts) {
+      this.zone.fillStyle(PAL.gold, Math.min(1, i.t)).fillCircle(i.x, i.y, 4 + (1.2 - i.t) * 10);
+      this.zone.fillStyle(PAL.moon0, 0.8).fillCircle(i.x, i.y, 3);
+    }
+    // screen tint for the worst state
+    const e = sim.effects;
+    const color = e.includes("radiacion") ? PAL.ok : e.includes("frio") ? PAL.suitL : e.includes("calor") ? PAL.alert : e.includes("miedo") ? PAL.alien : null;
+    if (color !== null) this.tint.setFillStyle(color, 0.08 + Math.abs(Math.sin(this.time.now / 600)) * 0.08);
+    else this.tint.setFillStyle(PAL.red, 0);
+  }
+
+  /** Positions around the player for the compass/radar widget. */
+  publishRadar() {
+    const px = this.player.x, py = this.player.y;
+    const r: { k: string; dx: number; dy: number }[] = [];
+    for (const a of sim.aliens) r.push({ k: a.tipo === "nodriza" ? "jefe" : "alien", dx: a.x - px, dy: a.y - py });
+    for (const c of sim.capsules) r.push({ k: "capsula", dx: c.x - px, dy: c.y - py });
+    for (const l of sim.leaks) r.push({ k: "fuga", dx: l.x - px, dy: l.y - py });
+    const ice = this.nodes.filter((n) => n.type === "hielo").map((n) => ({ k: "hielo", dx: n.spr.x - px, dy: n.spr.y - py })).sort((a, b) => Math.hypot(a.dx, a.dy) - Math.hypot(b.dx, b.dy)).slice(0, 3);
+    r.push(...ice);
+    if (sim.event?.id === "meteoritos") r.push({ k: "meteoritos", dx: sim.event.x - px, dy: sim.event.y - py });
+    r.push({ k: "base", dx: HAB.x - px, dy: HAB.y - py }, { k: "cohete", dx: ROCKET.x - px, dy: ROCKET.y - py });
+    sim.radar = r.map((x) => ({ k: x.k, dx: Math.round(x.dx), dy: Math.round(x.dy) }));
+  }
+
   updateAliens(dt: number) {
-    const world: World = { player: { x: this.player.x, y: this.player.y }, inHabitat: this.nearHab(), hab: HAB, rocket: ROCKET, w: W, h: H, rnd: () => Math.random() };
+    const world = this.world();
     for (const e of stepAliens(sim, dt, world)) {
       if (e.type === "leak") this.spawnLeak(e.target);
       if (e.type === "abducted") { onDeath(sim); sfx.bad(); this.player.setPosition(HAB.x, HAB.y + 30); }

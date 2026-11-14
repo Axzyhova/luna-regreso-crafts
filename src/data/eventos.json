@@ -1,0 +1,11 @@
+{
+  "nota": "Eventos naturales con aviso previo. La Luna no tiene clima: estos son los fenómenos reales equivalentes (datos fuera de la lista oficial del reto, simplificados para el juego).",
+  "primer_evento_s": 150,
+  "cada_s": [110, 170],
+  "eventos": {
+    "llamarada_solar": { "nombre": "Llamarada solar", "icono": "☀️", "aviso_s": 25, "dura_s": 25, "solo_dia": true, "texto_aviso": "Partículas de una llamarada solar llegan en {t} s. Refúgiate en el hábitat o equipa el Escudo de regolito.", "texto_activo": "¡LLAMARADA SOLAR! Afuera recibes radiación.", "realismo": "Las tormentas de partículas solares son un riesgo real de radiación fuera de la Tierra." },
+    "eclipse": { "nombre": "Eclipse terrestre", "icono": "🌑", "aviso_s": 20, "dura_s": 50, "solo_dia": true, "texto_aviso": "La Tierra va a tapar al Sol en {t} s: frío extremo y sin energía solar.", "texto_activo": "ECLIPSE: los paneles no generan y la temperatura cae.", "realismo": "Desde la Luna, un eclipse lunar se ve como la Tierra tapando al Sol: la superficie se enfría en minutos." },
+    "meteoritos": { "nombre": "Lluvia de micrometeoritos", "icono": "☄️", "aviso_s": 20, "dura_s": 15, "solo_dia": false, "radio_zona": 70, "impactos": 6, "radio_impacto": 14, "dano_jugador": 25, "dano_modulo": 30, "texto_aviso": "Lluvia de micrometeoritos en {t} s en la zona marcada. ¡Aléjate!", "texto_activo": "¡IMPACTOS! Sal de la zona marcada.", "realismo": "Sin atmósfera, los micrometeoritos llegan al suelo lunar a gran velocidad." },
+    "pico_termico": { "nombre": "Pico térmico", "icono": "🔥", "aviso_s": 20, "dura_s": 45, "solo_dia": true, "texto_aviso": "Mediodía lunar en {t} s: el suelo al Sol se calienta muchísimo.", "texto_activo": "PICO TÉRMICO: fuera de la sombra te sobrecalientas.", "realismo": "Al Sol la superficie lunar supera los 100 °C; en sombra baja de −150 °C." }
+  }
+}

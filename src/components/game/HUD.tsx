@@ -5,6 +5,8 @@ import { useGame, sim, saveGame } from "@/game/store";
 import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft, PLACEABLE, SUBSISTEMAS, UMBRAL_VERDE, repairBlock, repairSubsystem, subCap } from "@/game/sim";
 import { launchBlockers, startLaunch, countdownLength, currentWindow, nextWindow, windowSecondsLeft, windowsUntil, VENTANAS_PROVISIONALES } from "@/game/mission";
 import { CubeSatDesigner } from "./CubeSatDesigner";
+import { EventBanner, EffectsBar, QuestTracker, QuestLog } from "./StoryUI";
+import { GEAR, CONSUMIBLES, toggleEquip, consumeItem } from "@/game/effects";
 import { ITEMS } from "@/game/items";
 import { PixelIcon } from "./PixelIcon";
 import { sfx } from "@/game/audio";
@@ -50,6 +52,8 @@ export function HUDTop({ className = "", touch = false }: { className?: string; 
           <span className="text-[7px]"><span className="text-muted-foreground">MEZCLA O2:H2</span> <span className={Math.abs(ratio - 6) < 0.5 ? "text-ok" : "text-alert"}>{ratio.toFixed(1)}:1</span> <span className="text-muted-foreground">(obj 6:1)</span></span>
         </div>
         {s.alert && <div className="animate-blink text-center text-[9px] text-alert">⚠ {s.alert}</div>}
+        <EventBanner />
+        <EffectsBar />
         {s.abduction > 0 && (
           <div className="flex items-center justify-center gap-2 text-[8px] text-alien">
             <span className="animate-blink">ABDUCCIÓN</span>
@@ -76,10 +80,9 @@ export function Countdown() {
 
 export function HUDBottom({ className = "", touch = false }: { className?: string; touch?: boolean }) {
   const s = useGame((g) => g.snap);
-  const acto = modos.actos[s.act - 1] ?? modos.actos[3]!;
   return (
       <div className={`pointer-events-none flex flex-col items-center gap-1 bg-background/80 p-2 ${className}`}>
-        <div className="text-center text-[8px] leading-4 text-gold">ACTO {acto.n} · {acto.titulo.toUpperCase()}: <span className="text-foreground">{acto.meta}</span></div>
+        <QuestTracker />
         {s.hint && <div className="text-[7px] text-ok">{s.hint}</div>}
         <Hotbar />
         {!touch && <div className="text-[6px] text-muted-foreground">WASD mover · ESPACIO recoger/golpear · E interactuar (mantén para sellar/reparar) · TAB inventario · C construir · B base · L bitácora · ESC pausa · 1-5 o clic: elegir objeto</div>}
@@ -102,6 +105,8 @@ function Hotbar({ editable = false, pending = null, onAssign }: { editable?: boo
       return;
     }
     sim.hotbar = i + 1;
+    if (key && GEAR.includes(key)) { toggleEquip(sim, key); sfx.click(); publish(); return; }
+    if (key && CONSUMIBLES.includes(key)) { if (consumeItem(sim, key)) sfx.ok(); else sfx.bad(); publish(); return; }
     if (key && PLACEABLE[key] && (inv[key] ?? 0) >= 1) sim.buildMode = sim.buildMode === key ? null : key;
     else if (sim.buildMode) sim.buildMode = null;
     sfx.click(); publish();
@@ -136,7 +141,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-const INV_ORDER = ["hielo", "agua", "regolito", "chatarra", "metal", "kits", "baterias", "paneles", "taladro", "taller", "horno", "torres_luz", "pala_mejorada", "aislamiento", "planta_electrolisis", "criotanque", "pieza_motor"];
+const INV_ORDER = ["hielo", "agua", "regolito", "chatarra", "metal", "kits", "baterias", "paneles", "taladro", "taller", "horno", "torres_luz", "pala_mejorada", "aislamiento", "planta_electrolisis", "criotanque", "pieza_motor", "traje_termico", "capa_reflectante", "escudo_radiacion", "botiquin", "estimulante"];
 
 function Inventory() {
   const s = useGame((g) => g.snap);
@@ -175,6 +180,8 @@ function Inventory() {
           <div className="min-h-10 max-w-sm text-center text-[8px] leading-4">
             {hover ? <><span className="text-gold">{ITEMS[hover]?.nombre}:</span> {ITEMS[hover]?.desc}</> : <span className="text-muted-foreground">Toca un objeto y luego un espacio de la barra rápida (o arrástralo).</span>}
             {pending && <div className="text-ok">Ahora toca un espacio de la barra rápida para ponerlo ahí.</div>}
+            {pending && GEAR.includes(pending) && <button onClick={() => { toggleEquip(sim, pending); sfx.click(); publish(); }} className="pointer-events-auto mt-2 bg-ok px-3 py-2 text-[8px] text-background">{s.equip.includes(pending) ? "QUITARME" : "EQUIPAR"}</button>}
+            {pending && CONSUMIBLES.includes(pending) && <button onClick={() => { if (consumeItem(sim, pending)) sfx.ok(); publish(); }} className="pointer-events-auto mt-2 bg-ok px-3 py-2 text-[8px] text-background">USAR</button>}
           </div>
           <Hotbar editable pending={pending} onAssign={() => setPending(null)} />
         </div>
@@ -348,7 +355,7 @@ export function Overlays() {
   const overlay = useGame((g) => g.overlay);
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      const map: Record<string, "inv" | "base" | "log" | "pausa"> = { Tab: "inv", b: "base", B: "base", l: "log", L: "log", Escape: "pausa" };
+      const map: Record<string, "inv" | "base" | "log" | "pausa" | "misiones"> = { Tab: "inv", b: "base", B: "base", l: "log", L: "log", m: "misiones", M: "misiones", Escape: "pausa" };
       const o = map[e.key];
       if (!o) return;
       if (e.key === "Escape" && sim.buildMode && !useGame.getState().overlay) { e.preventDefault(); sim.buildMode = null; useGame.getState().publish(); return; }
@@ -366,5 +373,6 @@ export function Overlays() {
   if (overlay === "pausa") return <Pause />;
   if (overlay === "cohete") return <Rocket />;
   if (overlay === "cubesat") return <CubeSatDesigner />;
+  if (overlay === "misiones") return <QuestLog />;
   return null;
 }

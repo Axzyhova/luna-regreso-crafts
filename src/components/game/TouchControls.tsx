@@ -77,12 +77,13 @@ export function TouchControls({ floating = false }: { floating?: boolean }) {
   const setOverlay = useGame((g) => g.setOverlay);
   const overlay = useGame((g) => g.overlay);
   const publish = useGame((g) => g.publish);
-  const open = (o: "inv" | "base" | "log" | "pausa") => { sfx.click(); setOverlay(overlay === o ? null : o); };
+  const open = (o: "inv" | "base" | "log" | "pausa" | "misiones") => { sfx.click(); setOverlay(overlay === o ? null : o); };
   const small = "h-10 px-1 border-moon-2 bg-secondary text-secondary-foreground";
   const menu = (
-    <div className="pointer-events-auto grid grid-cols-5 gap-1">
+    <div className="pointer-events-auto grid grid-cols-6 gap-1">
       <Btn label="🎒" sub="INV" onPress={() => open("inv")} className={small} />
       <Btn label="🏠" sub="BASE" onPress={() => open("base")} className={small} />
+      <Btn label="📜" sub="MISIÓN" onPress={() => open("misiones")} className={small} />
       <Btn label="📓" sub="LOG" onPress={() => open("log")} className={small} />
       <Btn label="⏸" sub="PAUSA" onPress={() => open("pausa")} className={small} />
       <Btn label="⛶" sub="PANT." onPress={() => void toggleFullscreen()} className={small} />

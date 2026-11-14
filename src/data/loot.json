@@ -1,0 +1,18 @@
+{
+  "nota": "Cápsulas de suministro: pequeños cohetes de carga que cayeron con la nave o que llegan con los meteoritos. Se abren con E.",
+  "capsulas_iniciales": 4,
+  "radio_apertura": 16,
+  "tirada_por_capsula": 2,
+  "tabla": [
+    { "item": "metal", "min": 2, "max": 4, "peso": 30 },
+    { "item": "chatarra", "min": 2, "max": 5, "peso": 25 },
+    { "item": "kits", "min": 1, "max": 2, "peso": 20 },
+    { "item": "botiquin", "min": 1, "max": 1, "peso": 12 },
+    { "item": "estimulante", "min": 1, "max": 1, "peso": 10 },
+    { "item": "traje_termico", "min": 1, "max": 1, "peso": 6 },
+    { "item": "capa_reflectante", "min": 1, "max": 1, "peso": 6 },
+    { "item": "escudo_radiacion", "min": 1, "max": 1, "peso": 4 },
+    { "item": "pieza_motor", "min": 1, "max": 1, "peso": 5 },
+    { "item": "baterias", "min": 1, "max": 1, "peso": 6 }
+  ]
+}

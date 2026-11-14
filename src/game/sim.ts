@@ -30,7 +30,7 @@ export const CYCLE = DAY_LEN + NIGHT_LEN;
 export const LH2_CAP = balance.lh2_cap_kg;
 export const LOX_CAP = balance.lox_cap_kg;
 
-export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number }
+export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number }
 
 export function createSim(mode: Mode, difficulty: Difficulty) {
   return {
@@ -40,8 +40,24 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     battery: 60, energyIn: 0, energyOut: 0,
     habitatO2: 80,
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
-    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0 } as Inv,
+    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0 } as Inv,
     relay: false,
+    // --- historia, efectos, eventos y botín ---
+    effects: [] as string[],
+    fatigue: 0,
+    dose: 0,
+    equip: [] as string[],
+    capsules: [] as { id: number; x: number; y: number }[],
+    nextCapsuleId: 1,
+    capsulesSpawned: false,
+    event: null as null | { id: string; phase: "aviso" | "activo"; t: number; x: number; y: number; hits: number; maxDose: number },
+    nextEventT: 150,
+    impacts: [] as { x: number; y: number; t: number }[],
+    quest: { main: 0, sideDone: [] as string[], started: false },
+    stats: { hielo: 0, capsulas: 0, aliens: 0, reparaciones: 0, llamaradas: 0 },
+    dialog: [] as { quien: string; texto: string }[],
+    toast: null as null | { text: string; t: number },
+    radar: [] as { k: string; dx: number; dy: number }[],
     aliens: [] as Alien[],
     nextAlienId: 1,
     alienT: 20,
@@ -199,7 +215,8 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   }
 
   // energy
-  const { inp: eIn, out: eOut } = energyBalance(s, day);
+  const ev = s.event?.phase === "activo" ? s.event.id : null;
+  const { inp: eIn, out: eOut } = energyBalance(s, day && ev !== "eclipse");
   const powered = s.battery > 0 || eIn > 0;
   const elecOn = powered && working(s, "electrolisis") && s.inv.agua > 0;
   const liqOn = powered && working(s, "licuefactor") && (s.h2gas > 0 || s.o2gas > 0);
@@ -263,10 +280,13 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   if (!ctx.inHabitat) {
     if (!day) target = s.battery > 0 ? 8 : -20;
     if (ctx.inShadow) target -= 18 * ins;
+    if (ev === "eclipse") target -= 30;
+    if (ev === "pico_termico" && !ctx.inShadow) target = 62;
+    if (s.equip.includes("traje_termico") && target < 15) target = Math.min(15, target + 30);
+    if (s.equip.includes("capa_reflectante") && target > 30) target = Math.max(30, target - 35);
   } else if (s.battery <= 0) target = 0;
   s.temp += (target - s.temp) * Math.min(1, dt * 0.08);
   if (s.suitO2 <= 0) s.health -= 3 * dt;
-  if (s.temp < 5) s.health -= 0.8 * dt;
   if (ctx.inHabitat && s.suitO2 > 50 && s.temp > 10) s.health = Math.min(100, s.health + 0.5 * dt);
   s.health = Math.max(0, s.health);
 
