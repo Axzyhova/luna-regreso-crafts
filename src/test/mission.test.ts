@@ -38,7 +38,7 @@ describe("CubeSat relé", () => {
     s.lh2 = 10; s.lox = 60;
     expect(launchRelay(s)).toBe(true);
     expect(s.relay).toBe(true);
-    expect(s.lh2).toBe(7); expect(s.lox).toBe(42);
+    expect(s.lh2).toBe(9); expect(s.lox).toBe(54);
     expect(s.logros).toContain("Contacto con la Tierra");
     expect(s.act).toBe(4);
   });
@@ -58,9 +58,9 @@ describe("ventanas de regreso", () => {
     const s = createSim("realista", "normal");
     for (const k of Object.keys(s.rocket)) s.rocket[k] = UMBRAL_VERDE;
     s.relay = true; s.day = 5; s.time = 4 * CYCLE + 10;
-    s.lh2 = 80; s.lox = 540;
+    s.lh2 = 15; s.lox = 120;
     expect(launchBlockers(s).some((b) => b.startsWith("Tanques insuficientes para V2"))).toBe(true);
-    s.lh2 = 90;
+    s.lh2 = 20;
     expect(launchBlockers(s)).toEqual([]);
     expect(launch(s)).toBe(true);
     expect(s.result?.ventana).toBe("V2");

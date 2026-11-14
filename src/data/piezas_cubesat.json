@@ -3,7 +3,7 @@
   "nota": "Valores aproximados para el minijuego.",
   "limite_masa_kg": 4.0,
   "cuadricula": { "columnas": 3, "filas": 6, "filas_por_U": 2 },
-  "lanzamiento_relay": { "lh2_kg": 3, "lox_kg": 18, "explicacion": "El cohete pequeño que sube el relé también quema LH2 y LOX: es combustible que ya no tendrás para regresar." },
+  "lanzamiento_relay": { "lh2_kg": 1, "lox_kg": 6, "explicacion": "El cohete pequeño que sube el relé también quema LH2 y LOX: es combustible que ya no tendrás para regresar." },
   "requisitos": [
     { "pieza": "radio", "texto": "Necesita una radio: sin ella no hay enlace con la Tierra." },
     { "pieza": "computadora", "texto": "Necesita una computadora de a bordo que controle la radio." },

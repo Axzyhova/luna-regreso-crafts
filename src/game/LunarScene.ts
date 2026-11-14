@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { PAL } from "./palette";
 import { sim, useGame, saveGame } from "./store";
-import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, TIPOS, PLACEABLE, type LeakTarget, type Module, type ModType } from "./sim";
+import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, TIPOS, PLACEABLE, BAL, type LeakTarget, type Module, type ModType } from "./sim";
 import { sfx } from "./audio";
 
 const W = 640, H = 360;
@@ -209,7 +209,7 @@ export class LunarScene extends Phaser.Scene {
     if (useGame.getState().overlay) return;
     if (this.nearestLeak()) return; // hold handled in update
     if (this.nearHab() && sim.inv.hielo > 0) {
-      const w = sim.inv.hielo * 2; sim.inv.agua += w; sim.inv.hielo = 0;
+      const w = sim.inv.hielo * BAL.hielo_a_agua_kg; sim.inv.agua += w; sim.inv.hielo = 0;
       addLog(sim, `Derretiste hielo: +${w} kg de agua para electrólisis.`); sfx.ok();
     } else if (Phaser.Math.Distance.Between(ROCKET.x, ROCKET.y, this.player.x, this.player.y) < 36) {
       useGame.getState().setOverlay("cohete");

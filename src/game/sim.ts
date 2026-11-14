@@ -2,6 +2,10 @@ import modos from "@/data/modos.json";
 import modulos from "@/data/modulos.json";
 import recetas from "@/data/recetas.json";
 import subsistemas from "@/data/subsistemas_cohete.json";
+import balance from "@/data/balance.json";
+
+/** Tunable game rates (see src/data/balance.json). */
+export const BAL = balance;
 
 export type Mode = "realista" | "fantastico" | "terrorifico";
 export type Difficulty = "facil" | "normal" | "dificil";
@@ -21,8 +25,8 @@ export const PLACEABLE: Record<string, ModType> = Object.fromEntries(
 export const DAY_LEN = 360;
 export const NIGHT_LEN = 240;
 export const CYCLE = DAY_LEN + NIGHT_LEN;
-export const LH2_CAP = 100;
-export const LOX_CAP = 600;
+export const LH2_CAP = balance.lh2_cap_kg;
+export const LOX_CAP = balance.lox_cap_kg;
 
 export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number }
 
@@ -201,20 +205,20 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
 
   // production
   if (elecOn) {
-    const w = Math.min(s.inv.agua, 0.4 * dt);
+    const w = Math.min(s.inv.agua, balance.electrolisis_agua_kg_s * dt);
     s.inv.agua -= w;
     const r = electrolyze(w);
     s.h2gas += r.h2; s.o2gas += r.o2;
   }
   if (liqOn) {
-    const h = Math.min(s.h2gas, 0.1 * dt, LH2_CAP - s.lh2);
+    const h = Math.min(s.h2gas, balance.licuefactor_h2_kg_s * dt, LH2_CAP - s.lh2);
     s.h2gas -= h; s.lh2 += h;
-    const sp = splitO2(Math.min(s.o2gas, 1 * dt), s.lh2, s.lox);
+    const sp = splitO2(Math.min(s.o2gas, balance.licuefactor_o2_kg_s * dt), s.lh2, s.lox);
     const toLox = Math.min(sp.toLox, LOX_CAP - s.lox);
     s.o2gas -= toLox + sp.rest; s.lox += toLox;
     s.habitatO2 = Math.min(100, s.habitatO2 + sp.rest * 0.8);
     if (s.lh2 >= 1) unlock(s, "Primer litro de LH2");
-    if (s.lh2 > 5 && Math.abs(s.lox / s.lh2 - 6) < 0.1) unlock(s, "Mezcla perfecta 6:1");
+    if (s.lh2 > balance.logro_mezcla_min_lh2_kg && Math.abs(s.lox / s.lh2 - 6) < 0.1) unlock(s, "Mezcla perfecta 6:1");
   }
   if (hornoOn) {
     const r = Math.min(s.inv.regolito, 0.05 * dt);
@@ -223,8 +227,8 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
     s.habitatO2 = Math.min(100, s.habitatO2 + r * 2);
   }
   // boil-off
-  const boil = day ? 0.0008 : 0.003;
-  s.lh2 = Math.max(0, s.lh2 - s.lh2 * boil * dt * (working(s, "licuefactor") ? 0.3 : 1));
+  const boil = day ? balance.boiloff_dia_por_s : balance.boiloff_noche_por_s;
+  s.lh2 = Math.max(0, s.lh2 - s.lh2 * boil * dt * (working(s, "licuefactor") ? balance.boiloff_factor_con_licuefactor : 1));
 
   // habitat
   s.habitatO2 = Math.max(0, s.habitatO2 - 0.02 * dt);
@@ -233,10 +237,10 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   for (const l of s.leaks) {
     l.age += dt;
     if (l.age > 30) { l.age = 0; l.size = Math.min(4, l.size + 1); addLog(s, "Una fuga ha crecido."); }
-    const rate = l.size * 0.25 * dt;
-    if (l.target === "habitat") s.habitatO2 = Math.max(0, s.habitatO2 - rate);
-    if (l.target === "lh2") s.lh2 = Math.max(0, s.lh2 - rate * 0.3);
-    if (l.target === "lox") s.lox = Math.max(0, s.lox - rate * 1.5);
+    const rate = l.size * dt;
+    if (l.target === "habitat") s.habitatO2 = Math.max(0, s.habitatO2 - rate * balance.fuga_habitat_o2_s_por_tamano);
+    if (l.target === "lh2") s.lh2 = Math.max(0, s.lh2 - rate * balance.fuga_lh2_kg_s_por_tamano);
+    if (l.target === "lox") s.lox = Math.max(0, s.lox - rate * balance.fuga_lox_kg_s_por_tamano);
   }
 
   // suit / body
@@ -264,7 +268,7 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
 
   // acts
   if (s.act === 1 && s.inv.hielo + s.inv.agua >= 6 && s.inv.chatarra >= 4 && s.actFlags.leakFixed) advanceAct(s);
-  if (s.act === 2 && s.lh2 >= 5) advanceAct(s);
+  if (s.act === 2 && s.lh2 >= balance.meta_acto2_lh2_kg) advanceAct(s);
 }
 
 export function advanceAct(s: Sim) {

@@ -1,0 +1,17 @@
+{
+  "nota": "Ritmos de juego en un solo lugar para ajustar el balance. Las cantidades son de juego (kg simplificados), no valores reales de una misión. La química (1:8 en electrólisis, mezcla ~6:1) se mantiene.",
+  "lh2_cap_kg": 30,
+  "lox_cap_kg": 180,
+  "hielo_a_agua_kg": 5,
+  "electrolisis_agua_kg_s": 0.5,
+  "licuefactor_h2_kg_s": 0.1,
+  "licuefactor_o2_kg_s": 1,
+  "boiloff_dia_por_s": 0.0003,
+  "boiloff_noche_por_s": 0.0012,
+  "boiloff_factor_con_licuefactor": 0.3,
+  "fuga_lh2_kg_s_por_tamano": 0.025,
+  "fuga_lox_kg_s_por_tamano": 0.125,
+  "fuga_habitat_o2_s_por_tamano": 0.25,
+  "meta_acto2_lh2_kg": 3,
+  "logro_mezcla_min_lh2_kg": 2
+}

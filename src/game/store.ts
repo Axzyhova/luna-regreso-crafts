@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { createSim, type Sim, type Mode, type Difficulty } from "./sim";
+import { createSim, LH2_CAP, LOX_CAP, type Sim, type Mode, type Difficulty } from "./sim";
 
 export type Screen = "intro" | "rechazo" | "modo" | "cinematica" | "juego" | "fuentes" | "final";
 export type Overlay = null | "inv" | "base" | "log" | "pausa" | "cohete" | "cubesat";
@@ -34,6 +34,7 @@ export const useGame = create<State>((set, get) => ({
       const saved = JSON.parse(raw);
       // Merge nested records so saves from older versions get new items/subsystems.
       sim = { ...base, ...saved, inv: { ...base.inv, ...saved.inv }, rocket: { ...base.rocket, ...saved.rocket }, leaks: [] };
+      sim.lh2 = Math.min(sim.lh2, LH2_CAP); sim.lox = Math.min(sim.lox, LOX_CAP);
       get().publish();
       return true;
     } catch { return false; }
