@@ -1,0 +1,12 @@
+{
+  "fuente": "Disciplinas que analiza el Mission Design Lab (NASA Goddard): propulsión, energía, térmico, comunicaciones, control de actitud y estructuras.",
+  "umbral_verde": 90,
+  "subsistemas": [
+    {"id":"Propulsión","disciplina":"Propulsión","ingredientes":{"pieza_motor":1},"sube":40,"porque":"Sin motor no hay despegue. Las fugas en los tanques de LH2/LOX deben estar selladas antes de repararlo."},
+    {"id":"Energía","disciplina":"Energía (power)","ingredientes":{"baterias":1},"sube":30,"porque":"Las baterías alimentan la computadora y las válvulas durante el ascenso, cuando no hay paneles."},
+    {"id":"Térmico","disciplina":"Control térmico","ingredientes":{"aislamiento":2},"sube":25,"porque":"El hidrógeno líquido hierve si se calienta: el aislamiento evita perder combustible."},
+    {"id":"Comunicaciones","disciplina":"Comunicaciones","ingredientes":{"metal":2,"chatarra":2},"sube":20,"tope_sin_relay":50,"porque":"Sin enlace con la Tierra no recibes la ventana de regreso. Pasar de 50% requiere el CubeSat relé."},
+    {"id":"Control de actitud","disciplina":"Control de actitud (ACS)","ingredientes":{"metal":3,"kits":1},"sube":30,"porque":"Mantiene el cohete apuntando bien. Sin él, la trayectoria de regreso se desvía."},
+    {"id":"Estructura","disciplina":"Estructuras","ingredientes":{"metal":4},"sube":25,"porque":"El casco dañado no aguanta las cargas del despegue."}
+  ]
+}

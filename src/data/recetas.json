@@ -9,7 +9,7 @@
   {"id":"panel_solar","nombre":"Panel solar (módulo)","lugar":"taller","ingredientes":{"metal":3,"regolito":2},"resultado":{"paneles":1},"disponible":true},
   {"id":"torre_luz","nombre":"Torre de luz (módulo)","lugar":"taller","ingredientes":{"metal":2,"chatarra":2},"resultado":{"torres_luz":1},"disponible":true},
   {"id":"aislamiento","nombre":"Aislamiento","lugar":"horno","ingredientes":{"regolito":3,"chatarra":1},"resultado":{"aislamiento":1},"disponible":true},
-  {"id":"planta_electrolisis","nombre":"Planta de electrólisis","lugar":"taller","ingredientes":{"metal":6,"chatarra":4},"resultado":{"planta_electrolisis":1},"disponible":false},
-  {"id":"criotanque","nombre":"Criotanque","lugar":"taller","ingredientes":{"metal":5,"aislamiento":2},"resultado":{"criotanque":1},"disponible":false},
-  {"id":"pieza_motor","nombre":"Pieza de motor","lugar":"taller","ingredientes":{"metal":6,"chatarra":3},"resultado":{"pieza_motor":1},"disponible":false}
+  {"id":"planta_electrolisis","nombre":"Planta de electrólisis (módulo)","lugar":"taller","ingredientes":{"metal":6,"chatarra":4},"resultado":{"planta_electrolisis":1},"disponible":true},
+  {"id":"criotanque","nombre":"Criotanque (módulo)","lugar":"taller","ingredientes":{"metal":5,"aislamiento":2},"resultado":{"criotanque":1},"disponible":true},
+  {"id":"pieza_motor","nombre":"Pieza de motor","lugar":"taller","ingredientes":{"metal":6,"chatarra":3},"resultado":{"pieza_motor":1},"disponible":true}
 ]

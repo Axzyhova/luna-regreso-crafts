@@ -30,7 +30,10 @@ export const useGame = create<State>((set, get) => ({
     try {
       const raw = localStorage.getItem(KEY);
       if (!raw) return false;
-      sim = { ...createSim("realista", "normal"), ...JSON.parse(raw), leaks: [] };
+      const base = createSim("realista", "normal");
+      const saved = JSON.parse(raw);
+      // Merge nested records so saves from older versions get new items/subsystems.
+      sim = { ...base, ...saved, inv: { ...base.inv, ...saved.inv }, rocket: { ...base.rocket, ...saved.rocket }, leaks: [] };
       get().publish();
       return true;
     } catch { return false; }

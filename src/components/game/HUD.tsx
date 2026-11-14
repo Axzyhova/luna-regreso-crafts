@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import modos from "@/data/modos.json";
 import recetas from "@/data/recetas.json";
 import { useGame, sim, saveGame } from "@/game/store";
-import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft } from "@/game/sim";
+import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft, SUBSISTEMAS, UMBRAL_VERDE, repairBlock, repairSubsystem, subCap, launchBlockers } from "@/game/sim";
 import { ITEMS } from "@/game/items";
 import { PixelIcon } from "./PixelIcon";
 import { sfx } from "@/game/audio";
@@ -85,7 +85,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-const INV_ORDER = ["hielo", "agua", "regolito", "chatarra", "metal", "kits", "baterias", "paneles", "taladro", "taller", "horno", "torres_luz", "pala_mejorada", "aislamiento"];
+const INV_ORDER = ["hielo", "agua", "regolito", "chatarra", "metal", "kits", "baterias", "paneles", "taladro", "taller", "horno", "torres_luz", "pala_mejorada", "aislamiento", "planta_electrolisis", "criotanque", "pieza_motor"];
 
 function Inventory() {
   const s = useGame((g) => g.snap);
@@ -194,16 +194,49 @@ function Base() {
 
 function Rocket() {
   const s = useGame((g) => g.snap);
+  const publish = useGame((g) => g.publish);
+  const [sel, setSel] = useState<string | null>(null);
+  const inv = s.inv as unknown as Record<string, number>;
+  const blockers = launchBlockers(s);
   return (
     <Panel title="CHECKLIST DEL COHETE">
-      <div className="space-y-2">
-        {Object.entries(s.rocket).map(([k, v]) => (
-          <div key={k} className="flex items-center gap-2 text-[8px]"><span className="w-40">{k}</span><div className="h-2 flex-1 bg-moon-0"><div className={`h-full ${v >= 90 ? "bg-ok" : "bg-alert"}`} style={{ width: `${v}%` }} /></div><span>{v}%</span></div>
-        ))}
-        <div className="pt-2 text-[8px]">Tanques: LH2 {s.lh2.toFixed(1)}/{LH2_CAP} kg · LOX {s.lox.toFixed(1)}/{LOX_CAP} kg</div>
+      <p className="mb-3 text-[7px] leading-4 text-muted-foreground">Subsistemas según las disciplinas del Mission Design Lab de NASA Goddard. Verde = {UMBRAL_VERDE}% o más.</p>
+      <div className="space-y-3">
+        {SUBSISTEMAS.map((sub) => {
+          const v = s.rocket[sub.id] ?? 0;
+          const block = repairBlock(s, sub);
+          const cap = subCap(s, sub);
+          return (
+            <div key={sub.id} className="border-b border-border pb-2 text-[8px]">
+              <div className="flex flex-wrap items-center gap-2">
+                <button onClick={() => setSel(sel === sub.id ? null : sub.id)} className="w-36 text-left hover:text-gold" title="Ver por qué importa">{sub.id} <span className="text-muted-foreground">?</span></button>
+                <div className="relative h-2 min-w-24 flex-1 bg-moon-0">
+                  <div className={`h-full ${v >= UMBRAL_VERDE ? "bg-ok" : "bg-alert"}`} style={{ width: `${v}%` }} />
+                  {cap < 100 && <div className="absolute inset-y-0 border-r-2 border-dashed border-suit-light" style={{ left: `${cap}%` }} title="Tope sin CubeSat relé" />}
+                </div>
+                <span className="w-8">{v}%</span>
+                <button disabled={!!block} onClick={() => { if (repairSubsystem(sim, sub)) { sfx.ok(); publish(); } else sfx.bad(); }} className="bg-primary px-2 py-1 text-primary-foreground disabled:opacity-30">+{sub.sube}%</button>
+              </div>
+              <div className="mt-1 flex flex-wrap gap-2 pl-1 text-[7px]">
+                <span className="text-muted-foreground">Pide:</span>
+                {Object.entries(sub.ingredientes).map(([k, n]) => (
+                  <span key={k} className={(inv[k] ?? 0) >= (n ?? 0) ? "text-muted-foreground" : "text-destructive"}>{n} {ITEMS[k]?.nombre ?? k} ({Math.floor(inv[k] ?? 0)})</span>
+                ))}
+                {block && block !== "Faltan materiales" && <span className="text-alert">· {block}</span>}
+              </div>
+              {sel === sub.id && <p className="mt-1 pl-1 text-[7px] leading-4 text-suit-light">{sub.disciplina}: {sub.porque}</p>}
+            </div>
+          );
+        })}
+        <div className="pt-1 text-[8px]">Tanques: LH2 {s.lh2.toFixed(1)}/{LH2_CAP} kg · LOX {s.lox.toFixed(1)}/{LOX_CAP} kg</div>
       </div>
-      <PixelButton disabled>Despegar</PixelButton>
-      <p className="mt-2 text-[7px] text-alert">No puedes despegar: faltan subsistemas en verde, tanques llenos y una ventana de regreso (CubeSat relé — próxima versión).</p>
+      <div className="mt-3"><PixelButton disabled={blockers.length > 0}>Despegar</PixelButton></div>
+      {blockers.length > 0 && (
+        <ul className="mt-2 space-y-1 text-[7px] text-alert">
+          <li>No puedes despegar todavía:</li>
+          {blockers.map((b) => <li key={b}>· {b}</li>)}
+        </ul>
+      )}
     </Panel>
   );
 }

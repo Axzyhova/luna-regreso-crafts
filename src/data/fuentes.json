@@ -1,7 +1,14 @@
 [
- {"titulo":"NASA Space Apps Challenge 2026 – Space Mission Design Game","tipo":"NASA-LISTA","nota":"Reto que inspira el juego."},
- {"titulo":"NASA – Hielo de agua en el polo sur lunar (regiones en sombra permanente)","tipo":"NASA-LISTA","nota":"Base de la recolección de hielo."},
- {"titulo":"Electrólisis del agua: 2H2O → 2H2 + O2 (relación de masa 1:8)","tipo":"EXTERNO","nota":"Química general."},
- {"titulo":"Relación de mezcla LOX/LH2 ≈ 6:1 en motores criogénicos","tipo":"EXTERNO","nota":"Valor típico de motores hidrógeno-oxígeno."},
- {"titulo":"Aliens, cohete y ventanas de regreso","tipo":"FICCIÓN","nota":"Inventado para el juego."}
+ {"titulo":"NASA Space Apps Challenge 2026 – Space Mission Design Game","tipo":"RETO","url":"https://www.spaceappschallenge.org/2026/challenges/space-mission-design-game/","nota":"Reto que inspira el juego."},
+ {"titulo":"Mission Design Lab (NASA Goddard)","tipo":"NASA-LISTA","url":"https://etd.gsfc.nasa.gov/capabilities/integrated-design-center/mission-design-lab/","nota":"Los 6 subsistemas del cohete (propulsión, energía, térmico, comunicaciones, control de actitud, estructura) siguen las disciplinas que analiza el MDL."},
+ {"titulo":"CubeSat 101: Basic Concepts and Processes for First-Time CubeSat Developers (NASA CSLI)","tipo":"NASA-LISTA","url":"https://www3.nasa.gov/sites/default/files/atoms/files/nasa_csli_cubesat_101_508.pdf","nota":"Base del diseñador del CubeSat relé: unidades (U), masa y subsistemas."},
+ {"titulo":"General Mission Analysis Tool – GMAT (GSC-19468-1)","tipo":"NASA-LISTA","url":"https://software.nasa.gov/software/GSC-19468-1","nota":"Herramienta para calcular las ventanas de regreso y el combustible. Los valores actuales del juego son PROVISIONALES hasta generarlos con GMAT."},
+ {"titulo":"Design and Develop Science Missions (NASA)","tipo":"NASA-LISTA","url":"https://www.nasa.gov/wp-content/uploads/2025/04/250323-design-and-develop-science-mission.pdf","nota":"Los 4 segmentos de misión (lanzamiento, espacio, tierra, usuario): roles del modo cooperativo."},
+ {"titulo":"Concept Maturity Levels (JPL)","tipo":"NASA-LISTA","url":"https://dataverse.jpl.nasa.gov/dataset.xhtml?persistentId=hdl:2014/44299","nota":"Los 4 actos del juego siguen los niveles CML 1 a 4."},
+ {"titulo":"NASA Mission Viz","tipo":"NASA-LISTA","url":"https://nasa.github.io/mission-viz/","nota":"Referencia visual para la trayectoria de regreso."},
+ {"titulo":"Hielo de agua en cráteres en sombra del polo sur lunar","tipo":"EXTERNO","url":"","nota":"Dato real, pero no está en la lista oficial del reto. Pendiente: citar la fuente exacta."},
+ {"titulo":"Electrólisis del agua: 2H2O → 2H2 + O2 (relación de masa 1:8)","tipo":"EXTERNO","url":"","nota":"Química general."},
+ {"titulo":"LH2/LOX como propelentes y relación de mezcla ≈ 6:1","tipo":"EXTERNO","url":"","nota":"Valor típico de motores hidrógeno-oxígeno. Pendiente: verificar y citar."},
+ {"titulo":"Extracción de oxígeno del regolito y evaporación (boil-off) del LH2","tipo":"EXTERNO","url":"","nota":"Investigación real; no está en la lista oficial. Pendiente: citar la fuente exacta."},
+ {"titulo":"Aliens, recetas de crafteo, chatarra y tiempos comprimidos","tipo":"FICCIÓN","url":"","nota":"Inventado para el juego."}
 ]

@@ -64,3 +64,44 @@ describe("crafteo y módulos", () => {
     expect(energyBalance(s, false).out).toBe(before - 3);
   });
 });
+
+import { SUBSISTEMAS, repairSubsystem, repairBlock, launchBlockers } from "@/game/sim";
+const SUB = (id: string) => SUBSISTEMAS.find((x) => x.id === id)!;
+
+describe("reparación del cohete", () => {
+  it("las recetas de planta, criotanque y pieza de motor están disponibles", () => {
+    for (const id of ["planta_electrolisis", "criotanque", "pieza_motor"]) expect(R(id).disponible).toBe(true);
+  });
+  it("reparar Estructura consume 4 metal y sube 25%", () => {
+    const s = createSim("realista", "normal");
+    s.inv.metal = 4;
+    const before = s.rocket["Estructura"]!;
+    expect(repairSubsystem(s, SUB("Estructura"))).toBe(true);
+    expect(s.inv.metal).toBe(0);
+    expect(s.rocket["Estructura"]).toBe(before + 25);
+  });
+  it("Propulsión no se repara con fugas en los tanques", () => {
+    const s = createSim("realista", "normal");
+    s.inv.pieza_motor = 1;
+    s.leaks.push({ id: 1, target: "lh2", x: 0, y: 0, size: 1, progress: 0, age: 0 });
+    expect(repairBlock(s, SUB("Propulsión"))).toBe("Sella primero las fugas de los tanques");
+    s.leaks = [];
+    expect(repairSubsystem(s, SUB("Propulsión"))).toBe(true);
+  });
+  it("Comunicaciones se topa en 50% sin CubeSat relé", () => {
+    const s = createSim("realista", "normal");
+    s.inv.metal = 20; s.inv.chatarra = 20;
+    while (repairSubsystem(s, SUB("Comunicaciones")));
+    expect(s.rocket["Comunicaciones"]).toBe(50);
+    expect(repairBlock(s, SUB("Comunicaciones"))).toBe("Requiere el CubeSat relé");
+    s.relay = true;
+    expect(repairSubsystem(s, SUB("Comunicaciones"))).toBe(true);
+  });
+  it("el despegue lista todo lo que falta", () => {
+    const s = createSim("realista", "normal");
+    const b = launchBlockers(s);
+    expect(b.some((x) => x.startsWith("Subsistemas"))).toBe(true);
+    expect(b.some((x) => x.startsWith("Tanques"))).toBe(true);
+    expect(b.some((x) => x.includes("CubeSat"))).toBe(true);
+  });
+});

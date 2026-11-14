@@ -1,6 +1,7 @@
 import modos from "@/data/modos.json";
 import modulos from "@/data/modulos.json";
 import recetas from "@/data/recetas.json";
+import subsistemas from "@/data/subsistemas_cohete.json";
 
 export type Mode = "realista" | "fantastico" | "terrorifico";
 export type Difficulty = "facil" | "normal" | "dificil";
@@ -23,7 +24,7 @@ export const CYCLE = DAY_LEN + NIGHT_LEN;
 export const LH2_CAP = 100;
 export const LOX_CAP = 600;
 
-export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number }
+export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number }
 
 export function createSim(mode: Mode, difficulty: Difficulty) {
   return {
@@ -33,7 +34,8 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     battery: 60, energyIn: 0, energyOut: 0,
     habitatO2: 80,
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
-    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0 } as Inv,
+    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0 } as Inv,
+    relay: false,
     hotbarItems: ["kits", "chatarra", "metal", null, null] as (string | null)[],
     near: { taller: false, horno: false },
     buildMode: null as string | null,
@@ -112,6 +114,40 @@ export function craft(s: Sim, r: Receta) {
   for (const [k, v] of Object.entries(r.resultado)) inv[k] = (inv[k] ?? 0) + (v ?? 0);
   s.log.unshift({ t: stamp(s), text: `Día ${s.day}: fabricaste ${r.nombre.replace(/ \(módulo\)/, "").toLowerCase()}` });
   return true;
+}
+
+// ---- Cohete: subsistemas (disciplinas del Mission Design Lab) ----
+export type Subsistema = (typeof subsistemas.subsistemas)[number] & { tope_sin_relay?: number };
+export const SUBSISTEMAS = subsistemas.subsistemas as Subsistema[];
+export const UMBRAL_VERDE = subsistemas.umbral_verde;
+const tankLeaks = (s: Sim) => s.leaks.filter((l) => l.target !== "habitat").length;
+export const subCap = (s: Sim, sub: Subsistema) => (sub.tope_sin_relay && !s.relay ? sub.tope_sin_relay : 100);
+/** Why a subsystem can't be repaired right now, or null if it can. */
+export function repairBlock(s: Sim, sub: Subsistema): string | null {
+  const v = s.rocket[sub.id] ?? 0;
+  if (v >= 100) return "Al 100%";
+  if (v >= subCap(s, sub)) return "Requiere el CubeSat relé";
+  if (sub.id === "Propulsión" && tankLeaks(s) > 0) return "Sella primero las fugas de los tanques";
+  if (!canCraft(s.inv, sub.ingredientes)) return "Faltan materiales";
+  return null;
+}
+export function repairSubsystem(s: Sim, sub: Subsistema) {
+  if (repairBlock(s, sub)) return false;
+  const inv = s.inv as unknown as Record<string, number>;
+  for (const [k, v] of Object.entries(sub.ingredientes)) inv[k] = (inv[k] ?? 0) - (v ?? 0);
+  s.rocket[sub.id] = Math.min(subCap(s, sub), (s.rocket[sub.id] ?? 0) + sub.sube);
+  addLog(s, `Cohete: reparaste ${sub.id} (${s.rocket[sub.id]}%).`);
+  return true;
+}
+/** Everything still missing before launch, in plain language. */
+export function launchBlockers(s: Sim): string[] {
+  const out: string[] = [];
+  const rojos = SUBSISTEMAS.filter((x) => (s.rocket[x.id] ?? 0) < UMBRAL_VERDE).map((x) => x.id);
+  if (rojos.length) out.push(`Subsistemas por debajo de ${UMBRAL_VERDE}%: ${rojos.join(", ")}`);
+  if (tankLeaks(s)) out.push("Hay fugas en los tanques");
+  if (s.lh2 < LH2_CAP * 0.99 || s.lox < LOX_CAP * 0.99) out.push(`Tanques incompletos: LH2 ${s.lh2.toFixed(0)}/${LH2_CAP} · LOX ${s.lox.toFixed(0)}/${LOX_CAP} kg`);
+  if (!s.relay) out.push("Sin ventana de regreso: lanza el CubeSat relé para recibirla");
+  return out;
 }
 
 export function addLog(s: Sim, text: string) {

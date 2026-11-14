@@ -129,11 +129,13 @@ export function Fuentes() {
   return (
     <div className="flex h-full flex-col items-center gap-6 overflow-auto p-8">
       <h2 className="text-sm text-gold">FUENTES Y CRÉDITOS</h2>
+      <p className="max-w-2xl text-[7px] leading-4 text-muted-foreground"><span className="text-ok">NASA-LISTA</span>: recurso oficial del reto · <span className="text-gold">EXTERNO</span>: dato real fuera de la lista · <span className="text-alert">FICCIÓN</span>: inventado para el juego</p>
       <ul className="max-w-2xl space-y-4">
         {fuentes.map((f) => (
           <li key={f.titulo} className="border-l-4 border-suit pl-3 text-[9px] leading-5">
-            <span className="text-ok">[{f.tipo}]</span> {f.titulo}
+            <span className={f.tipo === "NASA-LISTA" ? "text-ok" : f.tipo === "EXTERNO" ? "text-gold" : f.tipo === "FICCIÓN" ? "text-alert" : "text-suit-light"}>[{f.tipo}]</span> {f.titulo}
             <div className="text-muted-foreground">{f.nota}</div>
+            {f.url && <a href={f.url} target="_blank" rel="noopener noreferrer" className="break-all text-[7px] text-suit-light underline">{f.url}</a>}
           </li>
         ))}
       </ul>
