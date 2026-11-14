@@ -1,6 +1,7 @@
 import modos from "@/data/modos.json";
 import modulos from "@/data/modulos.json";
 import recetas from "@/data/recetas.json";
+import tutorial from "@/data/tutorial.json";
 import { createTools, upgradeTool, type ToolId } from "./tools";
 
 export type Mode = "realista" | "fantastico" | "terrorifico";
@@ -40,6 +41,10 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     buildMode: null as string | null,
     tools: createTools(),
     inside: false,
+    prompt: "" as string,
+    compass: null as null | { angle: number; dist: number; label: string; problema: boolean },
+    tipsSeen: [] as string[],
+    tip: null as null | { id: string; titulo: string; texto: string },
     restCd: 0,
     nextUid: 100,
     hotbar: 1,
@@ -153,7 +158,7 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   const prevDay = isDay(s);
   s.time += dt;
   const day = isDay(s);
-  if (prevDay && !day) { addLog(s, "Cae la noche. Solo baterías. El LH2 hierve más rápido."); s.leakFreeNight = true; }
+  if (prevDay && !day) { addLog(s, "Cae la noche. Solo baterías. El LH2 hierve más rápido."); s.leakFreeNight = true; showTip(s, "noche"); }
   if (!prevDay && day) {
     s.day += 1;
     addLog(s, `Amanece el día ${s.day}.`);
@@ -238,6 +243,13 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   if (ctx.inHabitat && s.suitO2 > 50 && s.temp > 10) s.health = Math.min(100, s.health + 0.5 * dt);
   s.health = Math.max(0, s.health);
 
+  // contextual tips
+  if (s.suitO2 < 40 && !ctx.inHabitat) showTip(s, "o2_bajo");
+  if (s.temp < 8) showTip(s, "frio");
+  if (s.battery < 30 && !day) showTip(s, "bateria_baja");
+  if (s.modules.some((m) => m.durabilidad < 25)) showTip(s, "mantenimiento");
+  if (s.leaks.length && s.inv.kits < 1) showTip(s, "sin_kits");
+
   // alerts
   s.alert = s.leaks.length ? `¡FUGA! ${s.leaks.map((l) => (l.target === "habitat" ? "HÁBITAT" : l.target.toUpperCase())).join(" · ")}` :
     s.suitO2 < 20 ? "O2 DEL TRAJE BAJO" : s.temp < 5 ? "HIPOTERMIA" : s.battery < 5 ? "BATERÍAS AGOTADAS" : "";
@@ -245,6 +257,33 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   // acts
   if (s.act === 1 && s.inv.hielo + s.inv.agua >= 6 && s.inv.chatarra >= 4 && s.actFlags.leakFixed) advanceAct(s);
   if (s.act === 2 && s.lh2 >= 5) advanceAct(s);
+}
+
+export type TipId = keyof typeof tutorial.consejos;
+/** Shows a one-time contextual tip. */
+export function showTip(s: Sim, id: TipId) {
+  if (s.tipsSeen.includes(id)) return false;
+  s.tipsSeen.push(id);
+  s.tip = { id, ...tutorial.consejos[id] };
+  return true;
+}
+
+/** Checklist for the current act, with progress. */
+export function missionSteps(s: Sim): { text: string; done: boolean }[] {
+  if (s.act === 1) {
+    const ice = Math.floor(s.inv.hielo + s.inv.agua / 2);
+    return [
+      { text: `Recoge hielo en el cráter (${Math.min(ice, 6)}/6)`, done: ice >= 6 },
+      { text: `Recoge chatarra (${Math.min(Math.floor(s.inv.chatarra), 4)}/4)`, done: s.inv.chatarra >= 4 },
+      { text: s.actFlags.leakFixed ? "Sella una fuga" : s.leaks.length ? "Sella la fuga (mantén E)" : "Sella una fuga (espera a que aparezca)", done: s.actFlags.leakFixed },
+    ];
+  }
+  if (s.act === 2) return [
+    { text: "Derrite hielo en el fusor del hábitat", done: s.inv.agua > 0 || s.lh2 > 0 },
+    { text: "Mantén encendidas electrólisis y licuefactor", done: working(s, "electrolisis") && working(s, "licuefactor") },
+    { text: `Produce 5 kg de LH2 (${s.lh2.toFixed(1)}/5)`, done: s.lh2 >= 5 },
+  ];
+  return [{ text: "Próxima versión: CubeSat relé y despegue", done: false }];
 }
 
 export function advanceAct(s: Sim) {

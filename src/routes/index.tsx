@@ -4,6 +4,7 @@ import { useGame } from "@/game/store";
 import { Intro, Rechazo, ModeSelect, Cinematic, Fuentes } from "@/components/game/Screens";
 import { GameCanvas } from "@/components/game/GameCanvas";
 import { HUD, Overlays } from "@/components/game/HUD";
+import { TouchControls } from "@/components/game/TouchControls";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -22,7 +23,7 @@ export const Route = createFileRoute("/")({
 function Index() {
   const screen = useGame((s) => s.screen);
   return (
-    <main className="h-screen w-screen overflow-hidden bg-background font-pixel text-foreground">
+    <main className="h-[100dvh] w-screen select-none overflow-hidden bg-background font-pixel text-foreground">
       {screen === "intro" && <Intro />}
       {screen === "rechazo" && <Rechazo />}
       {screen === "modo" && <ModeSelect />}
@@ -32,6 +33,7 @@ function Index() {
         <div className="relative h-full w-full">
           <ClientOnly fallback={null}><GameCanvas /></ClientOnly>
           <HUD />
+          <TouchControls />
           <Overlays />
         </div>
       )}

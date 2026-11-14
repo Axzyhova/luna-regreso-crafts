@@ -1,0 +1,26 @@
+{
+ "guia": [
+  {"titulo":"Controles","texto":"Muévete con WASD o flechas (en móvil, el joystick). ESPACIO o el botón USAR recoge materiales. E (o botón E) interactúa; mantenlo para sellar fugas y reparar. TAB inventario, B base, L bitácora, C construir, H esta guía."},
+  {"titulo":"Brújula","texto":"La brújula (arriba a la derecha) apunta a lo más urgente. Naranja = problema (fuga, poco oxígeno, módulo roto). Azul = tu siguiente misión. También verás una flecha sobre el objetivo en el mapa."},
+  {"titulo":"Oxígeno y frío","texto":"Tu traje pierde O2 fuera. Entra al hábitat (E en la puerta azul) para recargarlo. El cráter en sombra y la noche son muy fríos: no te quedes mucho."},
+  {"titulo":"Fugas","texto":"Una fuga parpadea en rojo/naranja sobre el hábitat o los tanques del cohete. Acércate y MANTÉN E hasta llenar el anillo verde. Cuesta 1 kit. Si la ignoras, crece cada 30 s."},
+  {"titulo":"Kits de reparación","texto":"Fabrícalos en TAB > Crafteo con 2 chatarra + 1 metal. Si no tienes metal, funde 2 chatarra en 1 metal, o funde ilmenita en el horno."},
+  {"titulo":"Energía","texto":"Los paneles solo producen de día. De noche gastas batería. En el panel de base (B) apaga lo que no uses. Si 'Esta noche duran' es menor que 4 min, apaga módulos o construye baterías."},
+  {"titulo":"Combustible","texto":"Recoge hielo en el cráter, derrítelo en el fusor del hábitat. La planta de electrólisis separa el agua en hidrógeno y oxígeno y el licuefactor llena los tanques LH2 y LOX (mezcla ideal 6:1)."},
+  {"titulo":"Herramientas","texto":"Pala: hielo y regolito. Cortador: chatarra. Pico: ilmenita y silicio (fabrícalo a mano). Suben de nivel al usarlas: golpean más rápido y a veces dan material extra."},
+  {"titulo":"Mantenimiento","texto":"Los módulos se desgastan. Con menos de 25% aparece '!' naranja. Acércate y mantén E (1 kit) para dejarlo al 100%."}
+ ],
+ "consejos": {
+  "inicio":{"titulo":"¡Bienvenido, astronauta!","texto":"Sigue la brújula de arriba a la derecha: te lleva a tu siguiente objetivo. Pulsa H (o ?) para ver la guía completa."},
+  "primera_fuga":{"titulo":"¡Una fuga!","texto":"La brújula se vuelve naranja y apunta a la fuga. Ve hasta ella y MANTÉN E hasta llenar el anillo. Cuesta 1 kit."},
+  "sin_kits":{"titulo":"Sin kits","texto":"Abre el inventario (TAB) > Crafteo y fabrica un kit: 2 chatarra + 1 metal."},
+  "o2_bajo":{"titulo":"Oxígeno bajo","texto":"Vuelve al hábitat ya. La brújula apunta a la puerta. Dentro se recarga solo."},
+  "frio":{"titulo":"Hace mucho frío","texto":"Sal del cráter en sombra o entra al hábitat. El aislamiento (horno) reduce el frío."},
+  "noche":{"titulo":"Llegó la noche","texto":"Los paneles dejan de producir. Abre el panel de base (B) y apaga lo que no necesites para que la batería aguante."},
+  "bateria_baja":{"titulo":"Batería baja","texto":"Apaga módulos en el panel de base (B). Sin energía, el hábitat se enfría."},
+  "mantenimiento":{"titulo":"Módulo dañado","texto":"Un módulo tiene '!' naranja. Acércate y mantén E para repararlo con 1 kit."},
+  "inventario_lleno":{"titulo":"Inventario lleno","texto":"Usa materiales fabricando cosas, o derrite el hielo en el hábitat."},
+  "nivel_herramienta":{"titulo":"¡Herramienta mejorada!","texto":"Cuanto más la usas, más rápido recolectas. Revisa sus niveles en el inventario."},
+  "necesita_pico":{"titulo":"Necesitas un pico","texto":"La ilmenita y el silicio son rocas duras. Fabrica el pico en TAB > Crafteo (2 metal + 1 chatarra)."}
+ }
+}

@@ -4,6 +4,7 @@ import { sim, useGame } from "./store";
 import { addLog } from "./sim";
 import { sfx } from "./audio";
 import type { LunarScene } from "./LunarScene";
+import { touch } from "./touch";
 
 const F = '"Press Start 2P"';
 interface Station { id: string; x: number; y: number; label: string }
@@ -21,7 +22,7 @@ const STATIONS: Station[] = [
 export class HabitatScene extends Phaser.Scene {
   player!: Phaser.GameObjects.Image;
   keys!: Record<"W" | "A" | "S" | "D" | "UP" | "DOWN" | "LEFT" | "RIGHT" | "E", Phaser.Input.Keyboard.Key>;
-  prompt!: Phaser.GameObjects.Text;
+  walkT = 0;
   dark!: Phaser.GameObjects.Rectangle;
   info!: Phaser.GameObjects.Text;
   leakTxt!: Phaser.GameObjects.Text;
@@ -61,14 +62,18 @@ export class HabitatScene extends Phaser.Scene {
 
     const lbl = { fontFamily: F, fontSize: "5px", color: "#f2f2f2", resolution: 4 };
     for (const s of STATIONS) if (s.id !== "ventana") this.add.text(s.x, s.y + (s.id === "puerta" ? -9 : 13), s.label, lbl).setOrigin(0.5, 0);
-    this.add.text(14, 12, "HÁBITAT", { fontFamily: F, fontSize: "6px", color: "#f2d24f" });
+    this.add.text(14, 12, "HÁBITAT", { fontFamily: F, fontSize: "6px", color: "#f2d24f", resolution: 4 });
     this.info = this.add.text(14, 22, "", { fontFamily: F, fontSize: "5px", color: "#c9c9cf", resolution: 4 });
     this.o2bar = this.add.graphics();
-    this.leakTxt = this.add.text(160, 100, "", { fontFamily: F, fontSize: "5px", color: "#f08a24", backgroundColor: "#0b0b14" }).setOrigin(0.5).setPadding(2).setDepth(30);
+    this.leakTxt = this.add.text(160, 100, "", { fontFamily: F, fontSize: "5px", color: "#f08a24", backgroundColor: "#0b0b14", resolution: 4 }).setOrigin(0.5).setPadding(2).setDepth(30);
 
     this.player = this.add.image(160, 136, "astro").setDepth(10);
     this.dark = this.add.rectangle(0, 0, 320, 180, T.black, 0).setOrigin(0).setDepth(20);
-    this.prompt = this.add.text(0, 0, "", { fontFamily: F, fontSize: "5px", color: "#f2d24f", backgroundColor: "#0b0b14" }).setDepth(40).setPadding(2);
+    g.generateTexture("habitat_room", 320, 180); g.destroy();
+    this.add.image(0, 0, "habitat_room").setOrigin(0).setDepth(-1);
+    this.cameras.main.setZoom(4).centerOn(160, 90);
+    const off = touch.on("e-down", () => this.interact());
+    this.events.once("shutdown", off);
     this.keys = this.input.keyboard!.addKeys("W,A,S,D,UP,DOWN,LEFT,RIGHT,E") as HabitatScene["keys"];
     this.input.keyboard!.on("keydown-E", () => this.interact());
     addLog(sim, "Entraste al hábitat. Te quitas el casco.");
@@ -87,7 +92,7 @@ export class HabitatScene extends Phaser.Scene {
     if (st.id === "puerta") {
       (this.scene.get("lunar") as LunarScene).exitHabitat();
       addLog(sim, "Sales a la superficie.");
-      sfx.click(); this.scene.stop(); return;
+      sim.prompt = ""; sfx.click(); this.scene.stop(); return;
     }
     if (st.id === "fusor") {
       if (sim.inv.hielo <= 0) { this.flash("NO TIENES HIELO"); sfx.bad(); return; }
@@ -126,16 +131,20 @@ export class HabitatScene extends Phaser.Scene {
     let vx = 0, vy = 0;
     if (k.A.isDown || k.LEFT.isDown) vx -= 1; if (k.D.isDown || k.RIGHT.isDown) vx += 1;
     if (k.W.isDown || k.UP.isDown) vy -= 1; if (k.S.isDown || k.DOWN.isDown) vy += 1;
-    const len = Math.hypot(vx, vy) || 1;
+    vx += touch.vx; vy += touch.vy;
+    const len = Math.max(1, Math.hypot(vx, vy));
+    const moving = Math.hypot(vx, vy) > 0.1;
+    this.walkT = moving ? this.walkT + ms / 1000 : 0;
+    this.player.setTexture(!moving ? "astro" : Math.floor(this.walkT * 8) % 2 ? "astro1" : "astro2");
     this.player.x = Phaser.Math.Clamp(this.player.x + (vx / len) * 55 * dt, 16, 304);
     this.player.y = Phaser.Math.Clamp(this.player.y + (vy / len) * 55 * dt, 50, 148);
-    if (vx) this.player.setFlipX(vx < 0);
+    if (Math.abs(vx) > 0.1) this.player.setFlipX(vx < 0);
 
     const st = this.nearest();
     const txt = this.time.now < this.flashUntil ? this.flashMsg : st ? {
       puerta: "E: SALIR A LA SUPERFICIE", fusor: `E: DERRETIR HIELO (${Math.floor(sim.inv.hielo)})`, mesa: "E: INVENTARIO Y CRAFTEO",
       terminal: "E: PANEL DE BASE", litera: "E: DESCANSAR", o2: "RECARGANDO O2 DEL TRAJE", ventana: "E: MIRAR LA TIERRA",
     }[st.id]! : "";
-    this.prompt.setText(txt).setVisible(!!txt).setPosition(Phaser.Math.Clamp(this.player.x - this.prompt.width / 2, 2, 318 - this.prompt.width), this.player.y - 18);
+    sim.prompt = txt;
   }
 }

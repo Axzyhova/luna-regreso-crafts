@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { createSim, type Sim, type Mode, type Difficulty } from "./sim";
 
 export type Screen = "intro" | "rechazo" | "modo" | "cinematica" | "juego" | "fuentes";
-export type Overlay = null | "inv" | "base" | "log" | "pausa" | "cohete";
+export type Overlay = null | "inv" | "base" | "log" | "pausa" | "cohete" | "guia";
 
 /** Mutable simulation owned by the Phaser scene; UI reads `snap`, a copy published ~8x/s. */
 export let sim: Sim = createSim("realista", "normal");

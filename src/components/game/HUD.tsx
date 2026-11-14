@@ -5,6 +5,8 @@ import { useGame, sim, saveGame } from "@/game/store";
 import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft } from "@/game/sim";
 import { ITEMS } from "@/game/items";
 import { PixelIcon } from "./PixelIcon";
+import tutorial from "@/data/tutorial.json";
+import { missionSteps } from "@/game/sim";
 import { TOOLS, MAX_LVL, xpNeeded, toolCooldown, bonusChance, type ToolId } from "@/game/tools";
 import { sfx } from "@/game/audio";
 import { PixelButton } from "./Screens";
@@ -32,6 +34,7 @@ export function HUD() {
           <Bar label="SALUD" v={s.health} />
           <span className={`text-[8px] ${s.temp < 5 ? "text-suit-light" : "text-foreground"}`}>{s.temp.toFixed(0)}°C</span>
           <span className={`ml-auto text-[8px] ${isDay(s) ? "text-gold" : "text-suit-light"}`}>{clock(s)}</span>
+          <button className="pointer-events-auto border-2 border-moon-2 px-1 text-[8px] text-gold" onClick={() => useGame.getState().setOverlay("guia")} aria-label="Guía">?</button>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <span className="text-[7px]"><span className="text-muted-foreground">ENERGÍA</span> <span className={net >= 0 ? "text-ok" : "text-destructive"}>+{s.energyIn.toFixed(0)} / -{s.energyOut.toFixed(0)}</span> <span className="text-muted-foreground">BAT</span> {s.battery.toFixed(0)}/{batteryCap(s)}</span>
@@ -42,13 +45,78 @@ export function HUD() {
         {s.alert && <div className="animate-blink text-center text-[9px] text-alert">⚠ {s.alert}</div>}
         {s.buildMode && <div className="text-center text-[8px] text-ok">MODO CONSTRUCCIÓN: {ITEMS[s.buildMode]?.nombre} — clic para colocar · Q cambiar · C salir</div>}
       </div>
+      <Compass />
+      <Mission />
+      <TipCard />
+      {s.prompt && <div className="pointer-events-none absolute inset-x-0 bottom-28 flex justify-center px-2"><div className="border-2 border-gold bg-background/90 px-3 py-2 text-center text-[9px] text-gold">{s.prompt}</div></div>}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-1 bg-background/80 p-2">
         <div className="text-[8px] text-gold">ACTO {acto.n} · {acto.titulo.toUpperCase()}: <span className="text-foreground">{acto.meta}</span></div>
         {s.hint && <div className="text-[7px] text-ok">{s.hint}</div>}
         <div className="flex items-end gap-4"><Tools /><Hotbar /></div>
-        <div className="text-[6px] text-muted-foreground">WASD mover · ESPACIO recoger · E interactuar (mantén para sellar/reparar) · TAB inventario · C construir · B base · L bitácora · ESC pausa</div>
+        <div className="hidden text-[6px] text-muted-foreground [@media(pointer:fine)]:block">WASD mover · ESPACIO recoger · E interactuar (mantén para sellar/reparar) · TAB inventario · C construir · B base · L bitácora · H guía · ESC pausa</div>
       </div>
     </>
+  );
+}
+
+function Compass() {
+  const c = useGame((g) => g.snap.compass);
+  return (
+    <div className="pointer-events-none absolute right-2 top-16 flex flex-col items-center gap-1">
+      <div className={`relative h-14 w-14 rounded-full border-2 bg-background/80 ${c?.problema ? "animate-pulse border-alert" : "border-suit-light"}`}>
+        <span className="absolute left-1/2 top-0.5 -translate-x-1/2 text-[6px] text-muted-foreground">N</span>
+        {c && (
+          <div className="absolute inset-0 flex items-center justify-center" style={{ transform: `rotate(${c.angle}deg)` }}>
+            <div className={`h-0 w-0 -translate-y-2 border-x-[5px] border-b-[14px] border-x-transparent ${c.problema ? "border-b-alert" : "border-b-gold"}`} />
+          </div>
+        )}
+      </div>
+      {c && <div className={`max-w-28 text-center text-[6px] leading-3 ${c.problema ? "text-alert" : "text-gold"}`}>{c.label}<br /><span className="text-muted-foreground">{c.dist} m</span></div>}
+    </div>
+  );
+}
+
+function Mission() {
+  const s = useGame((g) => g.snap);
+  const [open, setOpen] = useState(true);
+  const steps = missionSteps(s);
+  return (
+    <div className="pointer-events-auto absolute left-2 top-16 max-w-[45%] border-2 border-moon-2 bg-background/80 p-2 sm:max-w-64">
+      <button onClick={() => setOpen(!open)} className="text-[7px] text-gold">MISIÓN ACTO {s.act} {open ? "▾" : "▸"}</button>
+      {open && <ul className="mt-1 space-y-1">{steps.map((st) => (
+        <li key={st.text} className={`text-[6px] leading-3 ${st.done ? "text-ok line-through" : "text-foreground"}`}>{st.done ? "✓" : "▢"} {st.text}</li>
+      ))}</ul>}
+    </div>
+  );
+}
+
+function TipCard() {
+  const tip = useGame((g) => g.snap.tip);
+  if (!tip) return null;
+  return (
+    <div className="pointer-events-auto absolute left-1/2 top-24 z-[5] w-[min(92vw,24rem)] -translate-x-1/2 border-4 border-ok bg-card p-3 shadow-lg">
+      <div className="text-[9px] text-ok">CONSEJO · {tip.titulo}</div>
+      <p className="mt-2 text-[8px] leading-4">{tip.texto}</p>
+      <div className="mt-3 flex gap-2">
+        <button onClick={() => { sim.tip = null; useGame.getState().publish(); sfx.click(); }} className="bg-primary px-3 py-1 text-[8px] text-primary-foreground">ENTENDIDO</button>
+        <button onClick={() => { sim.tip = null; useGame.getState().setOverlay("guia"); }} className="bg-secondary px-3 py-1 text-[8px]">VER GUÍA</button>
+      </div>
+    </div>
+  );
+}
+
+function Guide() {
+  return (
+    <Panel title="GUÍA DEL ASTRONAUTA">
+      <div className="space-y-3">
+        {tutorial.guia.map((g) => (
+          <div key={g.titulo} className="border-l-4 border-suit pl-3">
+            <div className="text-[9px] text-gold">{g.titulo}</div>
+            <p className="mt-1 text-[8px] leading-4">{g.texto}</p>
+          </div>
+        ))}
+      </div>
+    </Panel>
   );
 }
 
@@ -73,7 +141,7 @@ function Tools({ big = false }: { big?: boolean }) {
   );
 }
 
-function Hotbar({ editable = false }: { editable?: boolean }) {
+function Hotbar({ editable = false, pending, onAssigned }: { editable?: boolean; pending?: string | null; onAssigned?: () => void }) {
   const s = useGame((g) => g.snap);
   const publish = useGame((g) => g.publish);
   const inv = s.inv as unknown as Record<string, number>;
@@ -83,6 +151,7 @@ function Hotbar({ editable = false }: { editable?: boolean }) {
         <div key={i}
           onDragOver={(e) => editable && e.preventDefault()}
           onDrop={(e) => { const k = e.dataTransfer.getData("text/item"); if (!k) return; sim.hotbarItems = sim.hotbarItems.map((x) => (x === k ? null : x)); sim.hotbarItems[i] = k; sfx.click(); publish(); }}
+          onClick={() => { if (!editable || !pending) return; sim.hotbarItems = sim.hotbarItems.map((x) => (x === pending ? null : x)); sim.hotbarItems[i] = pending; sfx.click(); publish(); onAssigned?.(); }}
           onContextMenu={(e) => { if (!editable) return; e.preventDefault(); sim.hotbarItems[i] = null; publish(); }}
           title={editable ? "Suelta aquí un objeto · clic derecho para vaciar" : undefined}
           className={`relative flex h-10 w-10 items-center justify-center border-2 bg-moon-0 ${s.hotbar === i + 1 ? "border-gold" : "border-moon-2"}`}>
@@ -114,6 +183,7 @@ function Inventory() {
   const publish = useGame((g) => g.publish);
   const [tab, setTab] = useState<"inv" | "craft">("inv");
   const [hover, setHover] = useState<string | null>(null);
+  const [pending, setPending] = useState<string | null>(null);
   const inv = s.inv as unknown as Record<string, number>;
   const stacks: { key: string; n: number }[] = [];
   for (const key of INV_ORDER) {
@@ -136,16 +206,17 @@ function Inventory() {
               <div key={i} draggable={!!c}
                 onDragStart={(e) => c && e.dataTransfer.setData("text/item", c.key)}
                 onMouseEnter={() => setHover(c?.key ?? null)} onMouseLeave={() => setHover(null)}
-                className={`relative flex h-16 w-16 flex-col items-center justify-center border-2 bg-moon-0 ${c ? "cursor-grab border-moon-2 hover:border-gold" : "border-border"}`}>
+                onClick={() => { if (c) { setPending(c.key); setHover(c.key); } }}
+                className={`relative flex h-16 w-16 flex-col items-center justify-center border-2 bg-moon-0 ${c ? (pending === c.key ? "cursor-grab border-ok" : "cursor-grab border-moon-2 hover:border-gold") : "border-border"}`}>
                 {c && <><PixelIcon item={c.key} size={28} /><span className="mt-0.5 max-w-full truncate px-0.5 text-[5px] text-muted-foreground">{ITEMS[c.key]?.nombre}</span><span className="absolute bottom-0.5 right-1 text-[8px] text-gold">{c.n}</span></>}
               </div>
             ))}
           </div>
           <div className="min-h-10 max-w-sm text-center text-[8px] leading-4">
-            {hover ? <><span className="text-gold">{ITEMS[hover]?.nombre}:</span> {ITEMS[hover]?.desc}</> : <span className="text-muted-foreground">Pasa el cursor sobre un objeto. Arrástralo a la barra rápida.</span>}
+            {hover ? <><span className="text-gold">{ITEMS[hover]?.nombre}:</span> {ITEMS[hover]?.desc}</> : <span className="text-muted-foreground">Pasa el cursor (o toca) un objeto. Arrástralo, o tócalo y luego toca un espacio de la barra rápida.</span>}
           </div>
           <div className="w-full"><div className="mb-2 text-[8px] text-gold">HERRAMIENTAS (mejoran al usarlas)</div><Tools big /></div>
-          <Hotbar editable />
+          <Hotbar editable pending={pending} onAssigned={() => setPending(null)} />
         </div>
       ) : (
         <div className="space-y-2">
@@ -258,7 +329,7 @@ export function Overlays() {
   const overlay = useGame((g) => g.overlay);
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      const map: Record<string, "inv" | "base" | "log" | "pausa"> = { Tab: "inv", b: "base", B: "base", l: "log", L: "log", Escape: "pausa" };
+      const map: Record<string, "inv" | "base" | "log" | "pausa" | "guia"> = { Tab: "inv", b: "base", B: "base", l: "log", L: "log", h: "guia", H: "guia", Escape: "pausa" };
       const o = map[e.key];
       if (!o) return;
       if (e.key === "Escape" && sim.buildMode && !useGame.getState().overlay) { e.preventDefault(); sim.buildMode = null; useGame.getState().publish(); return; }
@@ -275,5 +346,6 @@ export function Overlays() {
   if (overlay === "log") return <Log />;
   if (overlay === "pausa") return <Pause />;
   if (overlay === "cohete") return <Rocket />;
+  if (overlay === "guia") return <Guide />;
   return null;
 }

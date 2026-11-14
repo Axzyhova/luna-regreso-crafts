@@ -12,7 +12,7 @@ export function GameCanvas() {
       await document.fonts?.load('8px "Press Start 2P"').catch(() => {});
       if (dead || !ref.current) return;
       game = new Phaser.Game({
-        type: Phaser.AUTO, parent: ref.current, width: 320, height: 180, pixelArt: true, backgroundColor: "#141428",
+        type: Phaser.AUTO, parent: ref.current, width: 1280, height: 720, pixelArt: true, backgroundColor: "#141428",
         scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
         scene: [LunarScene, HabitatScene],
       });
