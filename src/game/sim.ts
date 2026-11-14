@@ -45,6 +45,9 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     // --- historia, efectos, eventos y botín ---
     effects: [] as string[],
     fatigue: 0,
+    tut: { step: 0, skipped: false, moved: 0, invOpened: false, kitCrafted: false },
+    leaksToday: 0,
+    awayT: 0,
     coldT: 0,
     heatT: 0,
     dose: 0,
@@ -144,6 +147,7 @@ export function craft(s: Sim, r: Receta) {
   const inv = s.inv as unknown as Record<string, number>;
   for (const [k, v] of Object.entries(r.ingredientes)) inv[k] = (inv[k] ?? 0) - (v ?? 0);
   for (const [k, v] of Object.entries(r.resultado)) inv[k] = (inv[k] ?? 0) + (v ?? 0);
+  if (r.resultado && "kits" in r.resultado) s.tut.kitCrafted = true;
   s.log.unshift({ t: stamp(s), text: `Day ${s.day}: you crafted ${r.nombre.replace(/ \((module|gear)\)/, "").toLowerCase()}` });
   return true;
 }
@@ -171,6 +175,14 @@ export function repairSubsystem(s: Sim, sub: Subsistema) {
   addLog(s, `Rocket: you repaired ${sub.id} (${s.rocket[sub.id]}%).`);
   return true;
 }
+/** Natural leaks: at most this many per lunar day/night cycle (saboteurs can add more). */
+export const LEAKS_PER_DAY = 2;
+export const leakAllowed = (s: Sim) => s.leaks.length < 4 && s.leaksToday < LEAKS_PER_DAY;
+/** Seconds until the next natural leak check: roughly half a cycle, faster on harder settings. */
+export function nextLeakDelay(s: Sim, r: number) {
+  return ((CYCLE / LEAKS_PER_DAY) * (0.6 + r * 0.4)) / (diffCfg(s).eventos * s.eventScale);
+}
+
 export function addLog(s: Sim, text: string) {
   s.log.unshift({ t: stamp(s), text });
   if (s.log.length > 60) s.log.pop();
@@ -206,6 +218,7 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   if (prevDay && !day) { addLog(s, "Night falls. Batteries only. LH2 boils off faster."); s.leakFreeNight = true; }
   if (!prevDay && day) {
     s.day += 1;
+    s.leaksToday = 0;
     addLog(s, `Day ${s.day} dawns.`);
     if (s.leakFreeNight) unlock(s, "Leak-free night");
   }

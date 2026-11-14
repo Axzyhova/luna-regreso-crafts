@@ -5,7 +5,7 @@ import { useGame, sim, saveGame } from "@/game/store";
 import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft, PLACEABLE, SUBSISTEMAS, UMBRAL_VERDE, repairBlock, repairSubsystem, subCap } from "@/game/sim";
 import { launchBlockers, startLaunch, countdownLength, currentWindow, nextWindow, windowSecondsLeft, windowsUntil, VENTANAS_PROVISIONALES } from "@/game/mission";
 import { CubeSatDesigner } from "./CubeSatDesigner";
-import { Vitals } from "./Vitals";
+import { Vitals, DayClock } from "./Vitals";
 import { EventBanner, EffectsBar, QuestTracker, QuestLog } from "./StoryUI";
 import { GEAR, CONSUMIBLES, toggleEquip, consumeItem } from "@/game/effects";
 import { ITEMS } from "@/game/items";
@@ -42,7 +42,7 @@ export function HUDTop({ className = "", touch = false }: { className?: string; 
       <div className={`pointer-events-none space-y-1 bg-background/80 p-2 ${className}`}>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <Vitals />
-          <span className={`ml-auto text-[8px] ${isDay(s) ? "text-gold" : "text-suit-light"}`}>{clock(s)}</span>
+          <DayClock className="ml-auto" />
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <span className="text-[7px]"><span className="text-muted-foreground">POWER</span> <span className={net >= 0 ? "text-ok" : "text-destructive"}>+{s.energyIn.toFixed(0)} / -{s.energyOut.toFixed(0)}</span> <span className="text-muted-foreground">BAT</span> {s.battery.toFixed(0)}/{batteryCap(s)}</span>

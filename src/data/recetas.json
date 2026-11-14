@@ -1,7 +1,7 @@
 [
  {
   "id": "kit",
-  "nombre": "Repair kit",
+  "nombre": "Sealant kit",
   "lugar": "mano",
   "ingredientes": {
    "chatarra": 2,

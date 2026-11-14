@@ -6,7 +6,8 @@ import { GameCanvas } from "./GameCanvas";
 import { Countdown, Overlays, Hotbar } from "./HUD";
 import { NavCard, DialogBox, EventBanner, EffectsBar, QuestTracker } from "./StoryUI";
 import { DPad, ActionPad, MenuBar, MC_BTN } from "./TouchControls";
-import { Vitals } from "./Vitals";
+import { Vitals, DayClock } from "./Vitals";
+import { TutorialCard } from "./StoryUI";
 
 function MiniBar({ label, v, max, color }: { label: string; v: number; max: number; color: string }) {
   const pct = Math.max(0, Math.min(100, (v / max) * 100));
@@ -36,6 +37,7 @@ export function MobileGame() {
       {/* top-center: menu buttons, alerts below */}
       <div className="pointer-events-none absolute inset-x-0 top-2 flex flex-col items-center gap-1 px-40">
         <div className="pointer-events-auto"><MenuBar /></div>
+        <TutorialCard />
         {s.alert && <div className="animate-blink text-center text-[8px] text-alert">⚠ {s.alert}</div>}
         <EventBanner />
         <EffectsBar />
@@ -43,7 +45,8 @@ export function MobileGame() {
       </div>
 
       {/* top-right: power, fuel, clock */}
-      <div className="pointer-events-none absolute right-[max(env(safe-area-inset-right),8px)] top-2 flex flex-col items-end gap-1 bg-black/25 p-1">
+      <div className="pointer-events-none absolute right-[max(env(safe-area-inset-right),8px)] top-2 flex flex-col items-end gap-1">
+        <DayClock />
         <span className={`text-[6px] ${net >= 0 ? "text-ok" : "text-destructive"}`}>⚡ +{s.energyIn.toFixed(0)}/-{s.energyOut.toFixed(0)}</span>
         <MiniBar label="LH2" v={s.lh2} max={LH2_CAP} color="var(--color-suit-light)" />
         <MiniBar label="LOX" v={s.lox} max={LOX_CAP} color="var(--color-suit)" />

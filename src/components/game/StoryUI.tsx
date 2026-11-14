@@ -7,6 +7,8 @@ import { PRINCIPALES, currentMain, sideAvailable, MISIONES } from "@/game/quests
 import { ITEMS } from "@/game/items";
 import { PixelIcon } from "./PixelIcon";
 import { navigation } from "@/game/nav";
+import { TUTORIAL, tutorialStep } from "@/game/tutorial";
+import { useTouchDevice } from "@/hooks/use-device";
 
 function Arrow({ deg, size, warn }: { deg: number; size: number; warn?: boolean }) {
   return (
@@ -131,6 +133,27 @@ export function QuestLog() {
           })}
         </ul>
         <p className="mt-4 text-[7px] leading-4 text-muted-foreground">Characters: {Object.entries(MISIONES.personajes).map(([k, v]) => `${k} (${v})`).join(" · ")}</p>
+      </div>
+    </div>
+  );
+}
+
+/** Step-by-step tutorial card (skippable). Each step completes on its own. */
+export function TutorialCard({ className = "" }: { className?: string }) {
+  const s = useGame((g) => g.snap);
+  const publish = useGame((g) => g.publish);
+  const touch = useTouchDevice();
+  const st = tutorialStep(s);
+  if (!st) return null;
+  return (
+    <div className={`pointer-events-auto w-[min(92vw,340px)] rounded-[12px] border-2 border-gold/70 bg-card/95 p-2.5 shadow-lg ${className}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[9px] font-semibold text-gold">🎓 TUTORIAL {s.tut.step + 1}/{TUTORIAL.length} · {st.title}</span>
+        <button type="button" onClick={() => { sim.tut.skipped = true; sfx.click(); publish(); }} className="shrink-0 rounded bg-secondary px-2 py-1 text-[8px]">Skip</button>
+      </div>
+      <p className="mt-1 text-[9px] leading-4 text-foreground">{touch ? st.touch : st.text}</p>
+      <div className="mt-1.5 flex gap-1">
+        {TUTORIAL.map((t, i) => <span key={t.id} className={`h-1 flex-1 rounded ${i < s.tut.step ? "bg-ok" : i === s.tut.step ? "bg-gold" : "bg-moon-2"}`} />)}
       </div>
     </div>
   );

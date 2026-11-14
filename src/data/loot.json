@@ -1,7 +1,7 @@
 {
  "nota": "Supply capsules: small cargo rockets that fell with the ship or arrive with meteor showers. Open them with E.",
  "capsulas_iniciales": 4,
- "radio_apertura": 16,
+ "radio_apertura": 20,
  "tirada_por_capsula": 2,
  "tabla": [
   {

@@ -47,7 +47,7 @@
    "vida": 1,
    "velocidad": 26,
    "peso": 2,
-   "consejo": "SABOTEUR: runs to bite tanks and the habitat. If it gets there, it causes a leak."
+   "consejo": "SABOTEUR: runs to the tanks and habitat. If it gets there it causes a leak and, if the base has no lit light towers nearby, it steals supplies."
   },
   "nodriza": {
    "nombre": "Mothership",

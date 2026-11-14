@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { createSim } from "@/game/sim";
 import type { World } from "@/game/aliens";
 import { stepEffects, toggleEquip, UMBRALES } from "@/game/effects";
-import { Vitals, tempToAngle } from "@/components/game/Vitals";
+import { Vitals, DayClock, tempToAngle } from "@/components/game/Vitals";
 import { useGame, sim } from "@/game/store";
 
 const world: World = { player: { x: 400, y: 300 }, inHabitat: false, hab: { x: 110, y: 170 }, rocket: { x: 540, y: 150 }, w: 640, h: 360, rnd: () => 0.5 };
@@ -40,9 +40,10 @@ describe("vitals panel", () => {
   it("shows health, thermometer and day/night", () => {
     useGame.getState().newGame("realista", "normal");
     sim.health = 72; useGame.getState().publish();
-    render(<Vitals />);
+    render(<><Vitals /><DayClock /></>);
     expect(screen.getByText("72 / 100")).toBeTruthy();
     expect(screen.getByLabelText(/Suit temperature/)).toBeTruthy();
     expect(screen.getByLabelText("Day")).toBeTruthy();
+    expect(screen.getByText(/☀ Day 1/)).toBeTruthy();
   });
 });

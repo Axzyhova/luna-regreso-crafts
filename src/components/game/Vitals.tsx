@@ -56,23 +56,20 @@ export function Thermometer() {
   );
 }
 
-/** Day/night dial: the ring fills through the lunar day (gold) and night (blue). */
-export function DayDial() {
+/** Minimal day/night clock: icon, phase, time left and a thin progress line. */
+export function DayClock({ className = "" }: { className?: string }) {
   const s = useGame((g) => g.snap);
   const t = s.time % CYCLE;
   const day = isDay(s);
-  const frac = t / CYCLE, dayFrac = DAY_LEN / CYCLE;
-  const R = 15, C = 2 * Math.PI * R;
+  const p = day ? t / DAY_LEN : (t - DAY_LEN) / (CYCLE - DAY_LEN);
+  const left = clock(s).replace(/^(DAY|NIGHT) (\d+ )?/, "");
   return (
-    <div className="flex flex-col items-center" title={clock(s)}>
-      <svg width="38" height="38" viewBox="0 0 40 40" aria-label={day ? "Day" : "Night"}>
-        <circle cx="20" cy="20" r={R} fill="rgba(0,0,0,0.55)" />
-        <circle cx="20" cy="20" r={R} fill="none" stroke="rgba(242,210,79,0.25)" strokeWidth="3" strokeDasharray={`${C * dayFrac} ${C}`} transform="rotate(-90 20 20)" />
-        <circle cx="20" cy="20" r={R} fill="none" stroke="rgba(127,168,255,0.25)" strokeWidth="3" strokeDasharray={`${C * (1 - dayFrac)} ${C}`} strokeDashoffset={-C * dayFrac} transform="rotate(-90 20 20)" />
-        <circle cx="20" cy="20" r={R} fill="none" stroke={day ? "#f2d24f" : "#7fa8ff"} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${C * frac} ${C}`} transform="rotate(-90 20 20)" />
-        <text x="20" y="25" textAnchor="middle" fontSize="14">{day ? "☀️" : "🌙"}</text>
-      </svg>
-      <span className={`-mt-0.5 font-sans text-[8px] font-bold leading-none ${day ? "text-gold" : "text-suit-light"}`}>{clock(s).replace(/^(DAY|NIGHT) \d+ /, "")}</span>
+    <div className={`pointer-events-none flex min-w-[96px] flex-col gap-1 rounded-full bg-black/45 px-3 py-1 font-sans ring-1 ring-white/10 ${className}`} aria-label={day ? "Day" : "Night"}>
+      <div className="flex items-center justify-between gap-2 text-[10px] font-semibold leading-none">
+        <span className={day ? "text-gold" : "text-suit-light"}>{day ? "☀ Day" : "☾ Night"} {s.day}</span>
+        <span className="tabular-nums text-white/80">{left}</span>
+      </div>
+      <div className="h-[2px] w-full rounded bg-white/15"><div className={`h-full rounded ${day ? "bg-gold" : "bg-suit-light"}`} style={{ width: `${Math.min(100, p * 100)}%` }} /></div>
     </div>
   );
 }
@@ -88,7 +85,6 @@ export function Vitals({ className = "" }: { className?: string }) {
         <VBar icon="⚡" v={100 - s.fatigue} color="#f08a24" />
       </div>
       <Thermometer />
-      <DayDial />
     </div>
   );
 }

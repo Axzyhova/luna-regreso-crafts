@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { PAL } from "./palette";
 import { sim, useGame, saveGame } from "./store";
-import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, TIPOS, PLACEABLE, BAL, type LeakTarget, type Module, type ModType } from "./sim";
+import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, TIPOS, PLACEABLE, BAL, leakAllowed, nextLeakDelay, type LeakTarget, type Module, type ModType } from "./sim";
 import { sfx } from "./audio";
 import { stepAliens, hitAlien, type World } from "./aliens";
 import { stepCountdown } from "./mission";
@@ -10,6 +10,7 @@ import { stepEffects, effectMods } from "./effects";
 import { stepEvents, toast } from "./events";
 import { initCapsules, nearestCapsule, openCapsule } from "./loot";
 import { stepQuests } from "./quests";
+import { stepTutorial, tutorialWantsLeak, TUTORIAL } from "./tutorial";
 import { ITEMS } from "./items";
 
 const W = 640, H = 360;
@@ -54,7 +55,8 @@ export class LunarScene extends Phaser.Scene {
     px(this, "al_rastreador", [".v..v.", "vvvvvv", "vwvvwv", "vvvvvv", "v.vv.v"], { v: T.alien, w: T.red });
     px(this, "al_saboteador", ["v..v", ".vv.", "vwwv", ".vv.", "v..v"], { v: T.alien, w: T.alert });
     px(this, "al_nodriza", ["........vvvvvvvv........", ".....vvvwwvvvvwwvvv.....", "..vvvvvvvvvvvvvvvvvvvv..", "vvvgvvgvvgvvgvvgvvgvvgvv", "..vvvvvvvvvvvvvvvvvvvv..", ".....g.....gg.....g....."], { v: T.alien, w: T.ice, g: T.ok });
-    px(this, "capsule", ["..w..", ".wrw.", ".wgw.", ".wgw.", ".www.", "rw.wr", "r...r"], { w: PAL.white, r: PAL.red, g: PAL.gold });
+    // Supply capsule: a small cargo rocket, clearly bigger than scrap (11x15 vs 4x4).
+    px(this, "capsule", ["....www....", "...wwwww...", "...wrrrw...", "..wwwwwww..", "..wgggggw..", "..wgyyygw..", "..wgggggw..", "..wwwwwww..", "..wbbbbbw..", "..wwwwwww..", ".rww...wwr.", "rr.w...w.rr", "r..o...o..r", "...o...o..."], { w: PAL.white, r: PAL.red, g: PAL.gold, y: PAL.alert, b: PAL.suit, o: PAL.moon3 });
     px(this, "leak", [".a.a.", "a.r.a", ".rwr.", "a.r.a", ".a.a."], { a: T.alert, r: T.red, w: T.white });
     this.makeModuleTextures();
     const lg = this.add.graphics();
@@ -117,7 +119,7 @@ export class LunarScene extends Phaser.Scene {
     for (const l of sim.leaks) this.addLeakSprite(l.id, l.x, l.y);
     initCapsules(sim, { w: W, h: H, hab: HAB, rnd: () => Math.random() });
     if (!sim.log.length) addLog(sim, "Emergency landing at the lunar south pole. No fuel.");
-    this.leakT = 25;
+    this.leakT = 90;
   }
 
   spawnNode(type: NodeType) {
@@ -279,8 +281,10 @@ export class LunarScene extends Phaser.Scene {
     if (k.W.isDown || k.UP.isDown) vy -= 1; if (k.S.isDown || k.DOWN.isDown) vy += 1;
     let len = Math.hypot(vx, vy) || 1;
     if (!vx && !vy && (touch.vx || touch.vy)) { vx = touch.vx; vy = touch.vy; len = 1; } // analog joystick
+    const ox = this.player.x, oy = this.player.y;
     this.player.x = Phaser.Math.Clamp(this.player.x + (vx / len) * sp * dt, 4, W - 4);
     this.player.y = Phaser.Math.Clamp(this.player.y + (vy / len) * sp * dt, 4, H - 4);
+    sim.tut.moved += Math.hypot(this.player.x - ox, this.player.y - oy);
     if (vx) { this.facing = Math.sign(vx); this.player.setFlipX(vx < 0); }
     this.useCd = Math.max(0, this.useCd - dt);
 
@@ -295,8 +299,14 @@ export class LunarScene extends Phaser.Scene {
     // leaks
     this.leakT -= dt;
     if (this.leakT <= 0) {
-      this.leakT = (55 / (diffCfg(sim).eventos * sim.eventScale)) * Phaser.Math.FloatBetween(0.7, 1.3) * (isDay(sim) ? 1.2 : 0.8);
-      if (sim.leaks.length < 4) this.spawnLeak();
+      this.leakT = nextLeakDelay(sim, Math.random());
+      if (leakAllowed(sim)) { sim.leaksToday++; this.spawnLeak(); }
+    }
+    // Tutorial: make sure there is a leak to practice sealing.
+    if (tutorialWantsLeak(sim) && !sim.leaks.length) this.spawnLeak("habitat");
+    if (stepTutorial(sim)) {
+      sfx.ok();
+      toast(sim, sim.tut.step >= TUTORIAL.length ? "🎓 Tutorial complete! Follow the GPS card and your missions." : `✔ ${TUTORIAL[sim.tut.step - 1]!.title}`, 4);
     }
     this.ring.clear();
     sim.near.taller = !!this.nearModule((m) => m.tipo === "taller" && m.durabilidad > 0, 26);
@@ -378,9 +388,11 @@ export class LunarScene extends Phaser.Scene {
     const alive = new Set(sim.capsules.map((c) => c.id));
     for (const [id, spr] of this.capSprites) if (!alive.has(id)) { spr.destroy(); this.capSprites.delete(id); }
     for (const c of sim.capsules) if (!this.capSprites.has(c.id)) this.capSprites.set(c.id, this.add.image(c.x, c.y, "capsule").setDepth(5));
-    for (const spr of this.capSprites.values()) spr.setAlpha(0.75 + Math.sin(this.time.now / 250) * 0.25);
+    // Capsules: steady sprite plus a pulsing gold ring so they never look like scrap.
+    const pulse = (Math.sin(this.time.now / 300) + 1) / 2;
     // meteor zone and impacts
     this.zone.clear();
+    for (const c of sim.capsules) this.zone.lineStyle(1, PAL.gold, 0.35 + pulse * 0.5).strokeCircle(c.x, c.y + 1, 10 + pulse * 3);
     const ev = sim.event;
     if (ev?.id === "meteoritos") {
       const r = 70;
@@ -418,6 +430,7 @@ export class LunarScene extends Phaser.Scene {
     for (const e of stepAliens(sim, dt, world)) {
       if (e.type === "leak") this.spawnLeak(e.target);
       if (e.type === "abducted") { onDeath(sim); sfx.bad(); this.player.setPosition(HAB.x, HAB.y + 30); }
+      if (e.type === "steal") { toast(sim, e.text, 6); sfx.alert(); }
     }
     const alive = new Set(sim.aliens.map((a) => a.id));
     for (const [id, spr] of this.alienSprites) if (!alive.has(id)) { spr.destroy(); this.alienSprites.delete(id); }

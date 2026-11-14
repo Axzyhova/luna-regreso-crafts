@@ -3,7 +3,36 @@ import { addLog, isDay, isOn, diffCfg, modeCfg, SUBSISTEMAS, TIPOS, type Alien, 
 
 /** World positions the alien AI needs; the Phaser scene owns them. */
 export interface World { player: { x: number; y: number }; inHabitat: boolean; hab: { x: number; y: number }; rocket: { x: number; y: number }; w: number; h: number; rnd: () => number }
-export type AlienEvent = { type: "leak"; target: LeakTarget } | { type: "abducted" };
+export type AlienEvent = { type: "leak"; target: LeakTarget } | { type: "abducted" } | { type: "steal"; text: string };
+
+/** Light towers that are lit near the habitat or the rocket act as the base's shield. */
+export const SHIELD_RADIUS = 70;
+export const ABANDON_RADIUS = 220;
+export const ABANDON_S = 90;
+export function baseProtected(s: Sim, w: World) {
+  return s.modules.some((m) => m.tipo === "torre_luz" && isOn(m) && s.battery > 0 &&
+    (dist(m.x, m.y, w.hab.x, w.hab.y) < SHIELD_RADIUS || dist(m.x, m.y, w.rocket.x, w.rocket.y) < SHIELD_RADIUS));
+}
+
+const STEALABLE = ["metal", "chatarra", "kits", "hielo", "agua", "regolito", "baterias", "aislamiento", "pieza_motor", "botiquin", "estimulante"];
+const NAMES: Record<string, string> = { metal: "Metal", chatarra: "Scrap", kits: "Sealant kit", hielo: "Ice", agua: "Water", regolito: "Regolith", baterias: "Battery", aislamiento: "Insulation", pieza_motor: "Engine part", botiquin: "Medkit", estimulante: "Stimulant" };
+
+/** Aliens carry off stored supplies (and fuel, if they reach a tank). Returns what was lost. */
+export function stealFromBase(s: Sim, rnd: () => number, target?: LeakTarget): string {
+  const lost: string[] = [];
+  if (target === "lh2" && s.lh2 > 0) { const n = Math.min(s.lh2, 2); s.lh2 -= n; lost.push(`${n.toFixed(1)} kg LH2`); }
+  if (target === "lox" && s.lox > 0) { const n = Math.min(s.lox, 12); s.lox -= n; lost.push(`${n.toFixed(0)} kg LOX`); }
+  const inv = s.inv as unknown as Record<string, number>;
+  for (let k = 0; k < 2; k++) {
+    const have = STEALABLE.filter((i) => Math.floor(inv[i] ?? 0) > 0);
+    if (!have.length) break;
+    const item = have[Math.floor(rnd() * have.length)]!;
+    const n = Math.min(Math.floor(inv[item]!), 1 + Math.floor(rnd() * 3));
+    inv[item] = inv[item]! - n;
+    lost.push(`${n} ${NAMES[item] ?? item}`);
+  }
+  return lost.join(", ");
+}
 
 export const ALIENS = cfg;
 const T = cfg.tipos;
@@ -117,6 +146,10 @@ export function stepAliens(s: Sim, dt: number, w: World): AlienEvent[] {
       const p = sabotagePoint(a.target, w);
       if (moveTo(s, w, a, p.x, p.y, v, dt) < 6) {
         ev.push({ type: "leak", target: a.target });
+        if (!baseProtected(s, w)) {
+          const lost = stealFromBase(s, w.rnd, a.target);
+          if (lost) { addLog(s, `👾 A saboteur stole ${lost} from the unprotected base.`); ev.push({ type: "steal", text: `👾 Stolen: ${lost}. Light towers near the base protect it.` }); }
+        }
         s.aliens = s.aliens.filter((x) => x !== a);
       }
     } else if (a.tipo === "nodriza" && s.countdown !== null) {
@@ -126,6 +159,15 @@ export function stepAliens(s: Sim, dt: number, w: World): AlienEvent[] {
     }
   }
   if (!abducting) s.abduction = Math.max(0, s.abduction - 25 * dt);
+
+  // Leaving the base alone at night for too long invites a raid, unless it is protected.
+  const away = dist(w.player.x, w.player.y, w.hab.x, w.hab.y) > ABANDON_RADIUS;
+  s.awayT = night && away && !baseProtected(s, w) ? s.awayT + dt : Math.max(0, s.awayT - 2 * dt);
+  if (s.awayT >= ABANDON_S) {
+    s.awayT = 0;
+    const lost = stealFromBase(s, w.rnd, w.rnd() < 0.5 ? "lh2" : "lox");
+    if (lost) { addLog(s, `👾 While you were away, aliens raided the base: ${lost}.`); ev.push({ type: "steal", text: `👾 Base raided while you were away: ${lost}.` }); }
+  }
   return ev;
 }
 

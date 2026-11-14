@@ -32,7 +32,7 @@ describe("crafteo y módulos", () => {
     s.inv.chatarra = 2; s.inv.metal = 1; s.inv.kits = 0;
     expect(craft(s, R("kit"))).toBe(true);
     expect(s.inv).toMatchObject({ chatarra: 0, metal: 0, kits: 1 });
-    expect(s.log[0]!.text).toBe(`Day ${s.day}: you crafted repair kit`);
+    expect(s.log[0]!.text).toBe(`Day ${s.day}: you crafted sealant kit`);
   });
   it("recetas de taller requieren estar cerca del Taller", () => {
     const s = createSim("realista", "normal");

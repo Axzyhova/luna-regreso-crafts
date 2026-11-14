@@ -24,7 +24,7 @@ export const useGame = create<State>((set, get) => ({
   overlay: null,
   snap: structuredClone(sim),
   go: (screen) => set({ screen }),
-  setOverlay: (overlay) => set({ overlay }),
+  setOverlay: (overlay) => { if (overlay === "inv") sim.tut.invOpened = true; set({ overlay }); },
   newGame: (m, d) => { sim = createSim(m, d); get().publish(); },
   loadGame: () => {
     try {
@@ -34,7 +34,7 @@ export const useGame = create<State>((set, get) => ({
       const saved = JSON.parse(raw);
       // Merge nested records so saves from older versions get new items/subsystems.
       sim = { ...base, ...saved, inv: { ...base.inv, ...saved.inv }, rocket: { ...base.rocket, ...saved.rocket }, leaks: [], aliens: [], abduction: 0, countdown: null,
-        stats: { ...base.stats, ...saved.stats }, quest: { ...base.quest, ...saved.quest }, event: null, impacts: [], dialog: [] };
+        stats: { ...base.stats, ...saved.stats }, quest: { ...base.quest, ...saved.quest }, tut: { ...base.tut, ...saved.tut }, event: null, impacts: [], dialog: [] };
       sim.lh2 = Math.min(sim.lh2, LH2_CAP); sim.lox = Math.min(sim.lox, LOX_CAP);
       get().publish();
       return true;

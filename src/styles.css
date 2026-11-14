@@ -70,7 +70,8 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --font-pixel: "Press Start 2P", monospace;
+  --font-pixel: "Pixelify Sans", "Press Start 2P", monospace;
+  --font-title: "Press Start 2P", monospace;
   --color-space: var(--space);
   --color-moon-0: var(--moon-0);
   --color-moon-1: var(--moon-1);
@@ -189,3 +190,18 @@
 
 /* Short screens (phones in landscape): compact layouts use the `short:` prefix. */
 @custom-variant short (@media (max-height: 520px));
+
+/*
+ * Readable game text: body copy uses Pixelify Sans (retro but legible), scaled up so the
+ * small sizes tuned for the old font stay readable. Titles keep Press Start 2P.
+ * Long words wrap instead of running off the screen.
+ */
+.font-pixel {
+  font-size-adjust: ex-height 0.62;
+  overflow-wrap: anywhere;
+  -webkit-font-smoothing: antialiased;
+}
+.font-pixel h1, .font-pixel h2, .font-pixel h3, .font-title {
+  font-family: var(--font-title);
+  font-size-adjust: none;
+}
