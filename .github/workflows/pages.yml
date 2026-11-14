@@ -1,0 +1,53 @@
+# Publica una versión estática (SPA, sin servidor) en GitHub Pages para pruebas rápidas.
+# No toca la configuración de Lovable (vite.config.ts); usa vite.pages.config.ts.
+name: GitHub Pages
+
+on:
+  push:
+    branches: [ccr-ff201ec2-32ek5l]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Instalar dependencias
+        run: bun install --frozen-lockfile
+      - name: Compilar versión estática
+        env:
+          PAGES_BASE: /${{ github.event.repository.name }}/
+        run: npx vite build -c vite.pages.config.ts
+      - name: Preparar sitio (fallback SPA y .nojekyll)
+        run: |
+          cd .output/public
+          cp _shell.html index.html
+          cp _shell.html 404.html
+          rm -f _headers _shell.html
+          touch .nojekyll
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .output/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
