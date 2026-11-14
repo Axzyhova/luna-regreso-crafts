@@ -1,10 +1,21 @@
 import modos from "@/data/modos.json";
+import modulos from "@/data/modulos.json";
+import recetas from "@/data/recetas.json";
 
 export type Mode = "realista" | "fantastico" | "terrorifico";
 export type Difficulty = "facil" | "normal" | "dificil";
 export type LeakTarget = "habitat" | "lh2" | "lox";
 export interface Leak { id: number; target: LeakTarget; x: number; y: number; size: number; progress: number; age: number }
-export interface Module { id: string; nombre: string; durabilidad: number; consumo: number; activo: boolean }
+export type ModType = keyof typeof modulos.tipos;
+export interface TipoInfo { nombre: string; energia: number; desgaste: number; w: number; h: number; item: string | null; solo_dia?: boolean; capacidad?: number; produce_hielo?: number; en_crater?: boolean }
+export const TIPOS = modulos.tipos as Record<ModType, TipoInfo>;
+export interface Module { uid: number; tipo: ModType; x: number; y: number; durabilidad: number; activo: boolean }
+export const STACK = 50;
+export const SLOTS = 20;
+/** Inventory item -> module type it places. */
+export const PLACEABLE: Record<string, ModType> = Object.fromEntries(
+  Object.entries(TIPOS).filter(([, t]) => t.item).map(([k, t]) => [t.item!, k as ModType]),
+);
 
 export const DAY_LEN = 360;
 export const NIGHT_LEN = 240;
@@ -12,7 +23,7 @@ export const CYCLE = DAY_LEN + NIGHT_LEN;
 export const LH2_CAP = 100;
 export const LOX_CAP = 600;
 
-export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; pala_mejorada: number; taladro: number; aislamiento: number; baterias: number; paneles: number }
+export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number }
 
 export function createSim(mode: Mode, difficulty: Difficulty) {
   return {
@@ -22,26 +33,24 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     battery: 60, energyIn: 0, energyOut: 0,
     habitatO2: 80,
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
-    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, pala_mejorada: 0, taladro: 0, aislamiento: 0, baterias: 0, paneles: 0 } as Inv,
+    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0 } as Inv,
+    hotbarItems: ["kits", "chatarra", "metal", null, null] as (string | null)[],
+    near: { taller: false, horno: false },
+    buildMode: null as string | null,
+    nextUid: 100,
     hotbar: 1,
     act: 1,
     actFlags: { leakFixed: false },
     deathsInAct: 0, eventScale: 1, hint: "" as string,
     leaks: [] as Leak[],
     nextLeakId: 1,
-    modules: [
-      { id: "habitat", nombre: "Hábitat", durabilidad: 90, consumo: 2, activo: true },
-      { id: "paneles", nombre: "Paneles solares", durabilidad: 85, consumo: 0, activo: true },
-      { id: "baterias", nombre: "Baterías", durabilidad: 90, consumo: 0, activo: true },
-      { id: "electrolisis", nombre: "Planta de electrólisis", durabilidad: 70, consumo: 4, activo: true },
-      { id: "licuefactor", nombre: "Licuefactor / criotanques", durabilidad: 70, consumo: 3, activo: true },
-      { id: "horno", nombre: "Horno de regolito", durabilidad: 60, consumo: 3, activo: true },
-    ] as Module[],
+    modules: modulos.iniciales.map((m, i) => ({ uid: i + 1, tipo: m.tipo as ModType, x: m.x, y: m.y, durabilidad: m.durabilidad, activo: true })) as Module[],
     rocket: { Propulsión: 20, Energía: 45, Térmico: 60, Comunicaciones: 10, "Control de actitud": 35, Estructura: 55 } as Record<string, number>,
     log: [] as { t: string; text: string }[],
     logros: [] as string[],
     alert: "" as string,
     leakFreeNight: true,
+    drillAcc: 0,
   };
 }
 export type Sim = ReturnType<typeof createSim>;
@@ -54,8 +63,56 @@ export const clock = (s: Sim) => {
 export const stamp = (s: Sim) => `D${s.day} ${isDay(s) ? "☀" : "☾"} ${String(Math.floor((s.time % CYCLE) / 60)).padStart(2, "0")}m`;
 export const diffCfg = (s: Sim) => modos.dificultades[s.difficulty];
 export const modeCfg = (s: Sim) => modos.modos[s.mode];
-export const mod = (s: Sim, id: string) => s.modules.find((m) => m.id === id)!;
-export const working = (s: Sim, id: string) => mod(s, id).durabilidad > 0 && mod(s, id).activo;
+export const isOn = (m: Module) => m.activo && m.durabilidad > 0;
+export const working = (s: Sim, tipo: ModType) => s.modules.some((m) => m.tipo === tipo && isOn(m));
+/** Energy per second a module adds (+) or uses (-) right now. */
+export function moduleEnergy(m: Module, day: boolean) {
+  if (!isOn(m)) return 0;
+  const t = TIPOS[m.tipo];
+  if (t.solo_dia && !day) return 0;
+  return t.energia * (t.energia > 0 && m.durabilidad < 30 ? 0.5 : 1);
+}
+export function energyBalance(s: Sim, day: boolean) {
+  let inp = 0, out = 0;
+  for (const m of s.modules) { const e = moduleEnergy(m, day); if (e > 0) inp += e; else out -= e; }
+  return { inp, out };
+}
+export const BATTERY_RATE = 0.12;
+export function batteryCap(s: Sim) {
+  return 20 + s.modules.filter((m) => m.tipo === "bateria" && isOn(m)).length * (TIPOS.bateria.capacidad ?? 100);
+}
+/** Seconds the batteries last at night with the modules currently ON (Infinity if no drain). */
+export function nightBatterySeconds(s: Sim) {
+  const { inp, out } = energyBalance(s, false);
+  const net = out - inp;
+  return net <= 0 ? Infinity : s.battery / (net * BATTERY_RATE);
+}
+export function usedSlots(inv: Inv) {
+  return Object.values(inv).reduce((n, v) => n + Math.ceil(Math.floor(v) / STACK), 0);
+}
+/** Adds items if the 4x5 inventory (stacks of 50) has room. */
+export function addItem(s: Sim, key: keyof Inv, n = 1) {
+  const next = { ...s.inv, [key]: s.inv[key] + n };
+  if (usedSlots(next) > SLOTS) return false;
+  s.inv[key] += n;
+  return true;
+}
+export type Receta = (typeof recetas)[number];
+export function recipeBlock(s: Sim, r: Receta): string | null {
+  if (!r.disponible) return "Próximamente";
+  if (r.lugar === "taller" && !s.near.taller) return "Acércate al Taller";
+  if (r.lugar === "horno" && !s.near.horno) return "Acércate al Horno";
+  if (!canCraft(s.inv, r.ingredientes)) return "Faltan materiales";
+  return null;
+}
+export function craft(s: Sim, r: Receta) {
+  if (recipeBlock(s, r)) return false;
+  const inv = s.inv as unknown as Record<string, number>;
+  for (const [k, v] of Object.entries(r.ingredientes)) inv[k] = (inv[k] ?? 0) - (v ?? 0);
+  for (const [k, v] of Object.entries(r.resultado)) inv[k] = (inv[k] ?? 0) + (v ?? 0);
+  s.log.unshift({ t: stamp(s), text: `Día ${s.day}: fabricaste ${r.nombre.replace(/ \(módulo\)/, "").toLowerCase()}` });
+  return true;
+}
 
 export function addLog(s: Sim, text: string) {
   s.log.unshift({ t: stamp(s), text });
@@ -96,20 +153,24 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
     if (s.leakFreeNight) unlock(s, "Cero fugas en una noche");
   }
   // durability
-  for (const m of s.modules) m.durabilidad = Math.max(0, m.durabilidad - dt * 0.03 * d.consumo);
+  for (const m of s.modules) if (m.activo) {
+    const was = m.durabilidad;
+    m.durabilidad = Math.max(0, m.durabilidad - dt * TIPOS[m.tipo].desgaste * d.consumo);
+    if (was >= 25 && m.durabilidad < 25) addLog(s, `${TIPOS[m.tipo].nombre} requiere mantenimiento.`);
+  }
 
   // energy
-  const eIn = day && working(s, "paneles") ? 14 * (mod(s, "paneles").durabilidad > 30 ? 1 : 0.5) + (s.inv.paneles ?? 0) * 4 : 0;
-  let eOut = working(s, "habitat") ? 2 : 0;
-  const elecOn = working(s, "electrolisis") && s.inv.agua > 0 && s.battery > 5;
-  const liqOn = working(s, "licuefactor") && (s.h2gas > 0 || s.o2gas > 0) && s.battery > 5;
-  const hornoOn = working(s, "horno") && s.inv.regolito > 0 && s.battery > 10;
-  if (elecOn) eOut += 4;
-  if (liqOn) eOut += 3;
-  if (hornoOn) eOut += 3;
+  const { inp: eIn, out: eOut } = energyBalance(s, day);
+  const powered = s.battery > 0 || eIn > 0;
+  const elecOn = powered && working(s, "electrolisis") && s.inv.agua > 0;
+  const liqOn = powered && working(s, "licuefactor") && (s.h2gas > 0 || s.o2gas > 0);
+  const hornoOn = powered && working(s, "horno") && s.inv.regolito > 0;
   s.energyIn = eIn; s.energyOut = eOut;
-  const cap = working(s, "baterias") ? 100 + (s.inv.baterias ?? 0) * 25 : 20;
-  s.battery = Math.min(cap, Math.max(0, s.battery + (eIn - eOut) * dt * 0.12));
+  s.battery = Math.min(batteryCap(s), Math.max(0, s.battery + (eIn - eOut) * dt * BATTERY_RATE));
+  if (powered) for (const m of s.modules) if (m.tipo === "taladro" && isOn(m)) {
+    s.drillAcc = (s.drillAcc ?? 0) + (TIPOS.taladro.produce_hielo ?? 0) * dt;
+    if (s.drillAcc >= 1) { s.drillAcc -= 1; addItem(s, "hielo", 1); }
+  }
 
   // production
   if (elecOn) {
@@ -158,7 +219,7 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   } else {
     s.suitO2 = Math.max(0, s.suitO2 - 0.28 * dt * d.consumo);
   }
-  const ins = (s.inv.aislamiento ?? 0) > 0 ? 0.5 : 1;
+  const ins = s.inv.aislamiento > 0 ? 0.5 : 1;
   let target = 21;
   if (!ctx.inHabitat) {
     if (!day) target = s.battery > 0 ? 8 : -20;

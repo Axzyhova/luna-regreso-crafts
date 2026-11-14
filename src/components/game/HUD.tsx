@@ -1,8 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import modos from "@/data/modos.json";
 import recetas from "@/data/recetas.json";
 import { useGame, sim, saveGame } from "@/game/store";
-import { clock, LH2_CAP, LOX_CAP, canCraft, isDay, addLog } from "@/game/sim";
+import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft } from "@/game/sim";
+import { ITEMS } from "@/game/items";
+import { PixelIcon } from "./PixelIcon";
 import { sfx } from "@/game/audio";
 import { PixelButton } from "./Screens";
 
@@ -16,12 +18,11 @@ function Bar({ label, v, max = 100, tone = "bg-ok", warn = 25 }: { label: string
     </div>
   );
 }
-const HOTBAR = ["Pala", "Taladro", "Kit", "Linterna", "Escáner"];
-
 export function HUD() {
   const s = useGame((g) => g.snap);
   const ratio = s.lh2 > 0.01 ? s.lox / s.lh2 : 0;
   const acto = modos.actos[s.act - 1] ?? modos.actos[3]!;
+  const net = s.energyIn - s.energyOut;
   return (
     <>
       <div className="pointer-events-none absolute inset-x-0 top-0 space-y-1 bg-background/80 p-2">
@@ -32,24 +33,43 @@ export function HUD() {
           <span className={`ml-auto text-[8px] ${isDay(s) ? "text-gold" : "text-suit-light"}`}>{clock(s)}</span>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span className="text-[7px]"><span className="text-muted-foreground">ENERGÍA</span> <span className="text-ok">+{s.energyIn.toFixed(0)}</span>/<span className="text-alert">-{s.energyOut.toFixed(0)}</span> BAT {s.battery.toFixed(0)}</span>
+          <span className="text-[7px]"><span className="text-muted-foreground">ENERGÍA</span> <span className={net >= 0 ? "text-ok" : "text-destructive"}>+{s.energyIn.toFixed(0)} / -{s.energyOut.toFixed(0)}</span> <span className="text-muted-foreground">BAT</span> {s.battery.toFixed(0)}/{batteryCap(s)}</span>
           <Bar label="LH2" v={s.lh2} max={LH2_CAP} tone="bg-suit-light" warn={0} />
           <Bar label="LOX" v={s.lox} max={LOX_CAP} tone="bg-suit" warn={0} />
           <span className="text-[7px]"><span className="text-muted-foreground">MEZCLA O2:H2</span> <span className={Math.abs(ratio - 6) < 0.5 ? "text-ok" : "text-alert"}>{ratio.toFixed(1)}:1</span> <span className="text-muted-foreground">(obj 6:1)</span></span>
         </div>
         {s.alert && <div className="animate-blink text-center text-[9px] text-alert">⚠ {s.alert}</div>}
+        {s.buildMode && <div className="text-center text-[8px] text-ok">MODO CONSTRUCCIÓN: {ITEMS[s.buildMode]?.nombre} — clic para colocar · Q cambiar · C salir</div>}
       </div>
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-1 bg-background/80 p-2">
         <div className="text-[8px] text-gold">ACTO {acto.n} · {acto.titulo.toUpperCase()}: <span className="text-foreground">{acto.meta}</span></div>
         {s.hint && <div className="text-[7px] text-ok">{s.hint}</div>}
-        <div className="flex gap-1">
-          {HOTBAR.map((h, i) => (
-            <div key={h} className={`border-2 px-2 py-1 text-[7px] ${s.hotbar === i + 1 ? "border-gold text-gold" : "border-moon-2 text-muted-foreground"}`}>{i + 1} {h}</div>
-          ))}
-        </div>
-        <div className="text-[6px] text-muted-foreground">WASD mover · ESPACIO recoger · E interactuar (mantén para sellar) · TAB inventario · B base · L bitácora · ESC pausa</div>
+        <Hotbar />
+        <div className="text-[6px] text-muted-foreground">WASD mover · ESPACIO recoger · E interactuar (mantén para sellar/reparar) · TAB inventario · C construir · B base · L bitácora · ESC pausa</div>
       </div>
     </>
+  );
+}
+
+function Hotbar({ editable = false }: { editable?: boolean }) {
+  const s = useGame((g) => g.snap);
+  const publish = useGame((g) => g.publish);
+  const inv = s.inv as unknown as Record<string, number>;
+  return (
+    <div className={`flex gap-1 ${editable ? "pointer-events-auto" : ""}`}>
+      {s.hotbarItems.map((key, i) => (
+        <div key={i}
+          onDragOver={(e) => editable && e.preventDefault()}
+          onDrop={(e) => { const k = e.dataTransfer.getData("text/item"); if (!k) return; sim.hotbarItems = sim.hotbarItems.map((x) => (x === k ? null : x)); sim.hotbarItems[i] = k; sfx.click(); publish(); }}
+          onContextMenu={(e) => { if (!editable) return; e.preventDefault(); sim.hotbarItems[i] = null; publish(); }}
+          title={editable ? "Suelta aquí un objeto · clic derecho para vaciar" : undefined}
+          className={`relative flex h-10 w-10 items-center justify-center border-2 bg-moon-0 ${s.hotbar === i + 1 ? "border-gold" : "border-moon-2"}`}>
+          <span className="absolute left-0.5 top-0 text-[6px] text-muted-foreground">{i + 1}</span>
+          {key && <PixelIcon item={key} size={22} />}
+          {key && <span className="absolute bottom-0 right-0.5 text-[6px]">{Math.floor(inv[key] ?? 0)}</span>}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -65,52 +85,109 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
+const INV_ORDER = ["hielo", "agua", "regolito", "chatarra", "metal", "kits", "baterias", "paneles", "taladro", "taller", "horno", "torres_luz", "pala_mejorada", "aislamiento"];
+
 function Inventory() {
   const s = useGame((g) => g.snap);
   const publish = useGame((g) => g.publish);
+  const [tab, setTab] = useState<"inv" | "craft">("inv");
+  const [hover, setHover] = useState<string | null>(null);
+  const inv = s.inv as unknown as Record<string, number>;
+  const stacks: { key: string; n: number }[] = [];
+  for (const key of INV_ORDER) {
+    let n = Math.floor(inv[key] ?? 0);
+    while (n > 0) { stacks.push({ key, n: Math.min(STACK, n) }); n -= STACK; }
+  }
+  const cells = Array.from({ length: SLOTS }, (_, i) => stacks[i] ?? null);
   return (
-    <Panel title="INVENTARIO Y CRAFTEO">
-      <div className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
-        {Object.entries(s.inv).map(([k, v]) => <div key={k} className="bg-secondary p-2 text-[8px]">{k.replace("_", " ")}: <span className="text-gold">{Number(v).toFixed(v % 1 ? 1 : 0)}</span></div>)}
+    <Panel title="INVENTARIO">
+      <div className="mb-4 flex gap-2">
+        {(["inv", "craft"] as const).map((t) => (
+          <button key={t} onClick={() => { setTab(t); sfx.click(); }} className={`px-3 py-2 text-[9px] ${tab === t ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{t === "inv" ? "Objetos" : "Crafteo"}</button>
+        ))}
+        <span className="ml-auto self-center text-[7px] text-muted-foreground">{usedSlots(s.inv)}/{SLOTS} espacios · máx {STACK} por pila</span>
       </div>
-      <div className="space-y-2">
-        {recetas.map((r) => {
-          const ok = r.disponible && canCraft(s.inv, r.ingredientes);
-          return (
-            <div key={r.id} className="flex items-center justify-between gap-2 border-b border-border pb-2 text-[8px]">
-              <div><div>{r.nombre}</div><div className="text-muted-foreground">{Object.entries(r.ingredientes).map(([k, v]) => `${v} ${k}`).join(" + ")}{!r.disponible && " · próximamente"}</div></div>
-              <button disabled={!ok} onClick={() => {
-                const inv = sim.inv as unknown as Record<string, number>;
-                for (const [k, v] of Object.entries(r.ingredientes)) inv[k] = (inv[k] ?? 0) - (v ?? 0);
-                for (const [k, v] of Object.entries(r.resultado)) inv[k] = (inv[k] ?? 0) + (v ?? 0);
-                addLog(sim, `Crafteaste: ${r.nombre}.`); sfx.ok(); publish();
-              }} className="bg-primary px-2 py-1 text-primary-foreground disabled:opacity-30">CREAR</button>
-            </div>
-          );
-        })}
-      </div>
+      {tab === "inv" ? (
+        <div className="flex flex-col items-center gap-4">
+          <div className="grid grid-cols-4 gap-1">
+            {cells.map((c, i) => (
+              <div key={i} draggable={!!c}
+                onDragStart={(e) => c && e.dataTransfer.setData("text/item", c.key)}
+                onMouseEnter={() => setHover(c?.key ?? null)} onMouseLeave={() => setHover(null)}
+                className={`relative flex h-16 w-16 flex-col items-center justify-center border-2 bg-moon-0 ${c ? "cursor-grab border-moon-2 hover:border-gold" : "border-border"}`}>
+                {c && <><PixelIcon item={c.key} size={28} /><span className="mt-0.5 max-w-full truncate px-0.5 text-[5px] text-muted-foreground">{ITEMS[c.key]?.nombre}</span><span className="absolute bottom-0.5 right-1 text-[8px] text-gold">{c.n}</span></>}
+              </div>
+            ))}
+          </div>
+          <div className="min-h-10 max-w-sm text-center text-[8px] leading-4">
+            {hover ? <><span className="text-gold">{ITEMS[hover]?.nombre}:</span> {ITEMS[hover]?.desc}</> : <span className="text-muted-foreground">Pasa el cursor sobre un objeto. Arrástralo a la barra rápida.</span>}
+          </div>
+          <Hotbar editable />
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="text-[7px] text-muted-foreground">Cerca de: {s.near.taller ? <span className="text-ok">Taller</span> : "—"} {s.near.horno ? <span className="text-ok">· Horno</span> : ""}</div>
+          {recetas.map((r) => {
+            const block = recipeBlock(s, r);
+            return (
+              <div key={r.id} className="flex items-center justify-between gap-2 border-b border-border pb-2 text-[8px]">
+                <div className="flex items-center gap-2">
+                  <PixelIcon item={Object.keys(r.resultado)[0]!} size={20} />
+                  <div>
+                    <div>{r.nombre} <span className="text-[6px] text-suit-light">[{r.lugar === "mano" ? "A MANO" : r.lugar.toUpperCase()}]</span></div>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {Object.entries(r.ingredientes).map(([k, v]) => (
+                        <span key={k} className={(inv[k] ?? 0) >= (v ?? 0) ? "text-muted-foreground" : "text-destructive"}>{v} {ITEMS[k]?.nombre ?? k} ({Math.floor(inv[k] ?? 0)})</span>
+                      ))}
+                    </div>
+                    {block && block !== "Faltan materiales" && <div className="mt-1 text-[6px] text-alert">{block}</div>}
+                  </div>
+                </div>
+                <button disabled={!!block} onClick={() => { if (craft(sim, r)) { sfx.ok(); publish(); } }} className="bg-primary px-2 py-1 text-primary-foreground disabled:opacity-30">CRAFTEAR</button>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </Panel>
   );
+}
+
+function fmtTime(sec: number) {
+  if (!isFinite(sec)) return "sin consumo";
+  return `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, "0")} min`;
 }
 
 function Base() {
   const s = useGame((g) => g.snap);
   const publish = useGame((g) => g.publish);
+  const day = isDay(s);
+  const net = s.energyIn - s.energyOut;
+  const nightSec = nightBatterySeconds(s);
   return (
     <Panel title="PANEL DE BASE">
-      <div className="mb-3 text-[8px] text-muted-foreground">O2 del hábitat: <span className="text-foreground">{s.habitatO2.toFixed(0)}%</span> · Agua: {s.inv.agua.toFixed(1)} kg · H2 gas {s.h2gas.toFixed(2)} kg · O2 gas {s.o2gas.toFixed(2)} kg</div>
-      <div className="space-y-2">
-        {s.modules.map((m, i) => (
-          <div key={m.id} className="flex items-center gap-2 text-[8px]">
-            <span className="w-40">{m.nombre}</span>
-            <div className="h-2 flex-1 bg-moon-0"><div className={`h-full ${m.durabilidad < 25 ? "bg-alert" : "bg-ok"}`} style={{ width: `${m.durabilidad}%` }} /></div>
-            <span className="w-8">{m.durabilidad.toFixed(0)}%</span>
-            <button onClick={() => { sim.modules[i]!.activo = !sim.modules[i]!.activo; publish(); sfx.click(); }} className={`w-10 px-1 py-1 ${m.activo ? "bg-ok text-background" : "bg-secondary"}`}>{m.activo ? "ON" : "OFF"}</button>
-            <button disabled={s.inv.kits < 1 || m.durabilidad >= 100} onClick={() => { sim.inv.kits -= 1; sim.modules[i]!.durabilidad = Math.min(100, m.durabilidad + 30); addLog(sim, `Mantenimiento: ${m.nombre}.`); publish(); sfx.ok(); }} className="bg-primary px-2 py-1 text-primary-foreground disabled:opacity-30">+30% (1 KIT)</button>
-          </div>
-        ))}
+      <div className="mb-3 space-y-1 text-[9px]">
+        <div className={net >= 0 ? "text-ok" : "text-destructive"}>Energía +{s.energyIn.toFixed(0)} / -{s.energyOut.toFixed(0)}</div>
+        <div className="text-[8px]">Baterías {s.battery.toFixed(0)}/{batteryCap(s)} · Esta noche duran: <span className={nightSec < NIGHT_LEN ? "text-alert" : "text-ok"}>{fmtTime(nightSec)}</span> <span className="text-muted-foreground">(la noche dura {NIGHT_LEN / 60} min)</span></div>
+        <div className="text-[7px] text-muted-foreground">O2 hábitat {s.habitatO2.toFixed(0)}% · Agua {s.inv.agua.toFixed(1)} kg · H2 gas {s.h2gas.toFixed(2)} kg · O2 gas {s.o2gas.toFixed(2)} kg</div>
       </div>
-      <p className="mt-4 text-[7px] leading-4 text-muted-foreground">Electrólisis: agua + energía → H2 y O2 (masa 1:8). El licuefactor llena LH2 y LOX manteniendo ~6:1; el O2 sobrante va al hábitat.</p>
+      <div className="space-y-2">
+        {s.modules.map((m) => {
+          const t = TIPOS[m.tipo];
+          const e = moduleEnergy(m, day);
+          return (
+            <div key={m.uid} className="flex flex-wrap items-center gap-2 text-[8px]">
+              <span className="w-36">{t.nombre}</span>
+              <div className="h-2 w-24 bg-moon-0"><div className={`h-full ${m.durabilidad < 25 ? "bg-alert" : "bg-ok"}`} style={{ width: `${m.durabilidad}%` }} /></div>
+              <span className="w-8">{m.durabilidad.toFixed(0)}%</span>
+              <span className={`w-14 ${e > 0 ? "text-ok" : e < 0 ? "text-destructive" : "text-muted-foreground"}`}>{e > 0 ? "+" : ""}{e.toFixed(1)}/s</span>
+              <button onClick={() => { const mm = sim.modules.find((x) => x.uid === m.uid); if (mm) mm.activo = !mm.activo; publish(); sfx.click(); }} className={`w-10 px-1 py-1 ${m.activo ? "bg-ok text-background" : "bg-secondary"}`}>{m.activo ? "ON" : "OFF"}</button>
+              {m.durabilidad < 25 && <span className="animate-blink text-[7px] text-alert">Requiere mantenimiento</span>}
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-4 text-[7px] leading-4 text-muted-foreground">Para reparar: acércate al módulo y mantén E (cuesta 1 kit). Apaga módulos de noche para ahorrar batería. Construye con C.</p>
     </Panel>
   );
 }
@@ -161,6 +238,7 @@ export function Overlays() {
       const map: Record<string, "inv" | "base" | "log" | "pausa"> = { Tab: "inv", b: "base", B: "base", l: "log", L: "log", Escape: "pausa" };
       const o = map[e.key];
       if (!o) return;
+      if (e.key === "Escape" && sim.buildMode && !useGame.getState().overlay) { e.preventDefault(); sim.buildMode = null; useGame.getState().publish(); return; }
       e.preventDefault();
       const cur = useGame.getState().overlay;
       useGame.getState().setOverlay(cur ? null : o);
