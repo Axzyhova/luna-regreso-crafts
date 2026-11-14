@@ -29,8 +29,13 @@ describe("navegación tipo GPS", () => {
 describe("cinemática animada", () => {
   it("dibuja cada una de las 4 escenas en varios momentos sin fallar", () => {
     const calls: string[] = [];
-    const g = new Proxy({}, { get: (_t, k) => (k === "fillStyle" || k === "font" || k === "globalAlpha" ? "" : (..._a: unknown[]) => { calls.push(String(k)); }), set: () => true }) as unknown as CanvasRenderingContext2D;
-    for (const sc of ["launch", "fail", "fall", "land"] as const) for (const t of [0, 1.5, 3, 5.9]) drawScene(g, sc, t);
+    const gradient = { addColorStop: () => {} };
+    const g = new Proxy({}, {
+      get: (_t, k) => (["fillStyle", "strokeStyle", "font", "globalAlpha", "globalCompositeOperation", "lineWidth"].includes(String(k)) ? "" : (..._a: unknown[]) => { calls.push(String(k)); return gradient; }),
+      set: () => true,
+    }) as unknown as CanvasRenderingContext2D;
+    for (const sc of ["launch", "fail", "fall", "land"] as const) for (const t of [0, 1, 2.5, 4, 6.9]) drawScene(g, sc, t);
     expect(calls.filter((c) => c === "fillRect").length).toBeGreaterThan(100);
+    expect(calls.filter((c) => c === "arc").length).toBeGreaterThan(500); // fire, smoke and dust particles
   });
 });

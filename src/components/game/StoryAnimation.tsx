@@ -1,110 +1,239 @@
 import { useEffect, useRef } from "react";
 
 /**
- * Animated pixel-art versions of the four intro scenes (same scenes as before:
- * launch, tank failure, emergency descent, landing). Drawn on a tiny canvas and
- * scaled up crisply, so it looks like a looping 8-bit GIF but stays sharp and light.
+ * Cinematic intro scenes (same four scenes: launch, tank failure, emergency descent,
+ * landing), drawn on a small canvas with fire, smoke and glow particles so they feel
+ * like a looping launch GIF. Everything is computed from the time `t`, so a frame is
+ * a pure function of (scene, t) and stays smooth at any frame rate.
  */
 export type SceneId = "launch" | "fail" | "fall" | "land";
 
-const W = 160, H = 80;
-const C = {
-  space: "#141428", star: "#f2f2f2", earth: "#3b6fd6", earthL: "#7fa8ff", moon0: "#2a2a36", moon1: "#45454f", moon2: "#6b6b75",
-  hull: "#c9c9cf", nose: "#f2f2f2", window: "#3b6fd6", fin: "#d63b3b", flame: "#f08a24", flameL: "#f2d24f", smoke: "#9a9aa3", alarm: "#d63b3b", fuel: "#a8e4ff",
+const W = 320, H = 160;
+const LOOP = 7; // seconds per scene loop
+
+/** Deterministic pseudo-random in [0, 1) for particle i, channel k. */
+const rnd = (i: number, k = 0) => {
+  const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453;
+  return x - Math.floor(x);
 };
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 
-// Fixed star field (deterministic so it doesn't flicker between renders).
-const STARS = Array.from({ length: 40 }, (_, i) => ({ x: (i * 53) % W, y: (i * 29 + (i % 7) * 11) % H, s: i % 5 === 0 ? 2 : 1, tw: i % 3 }));
-
-function rect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, c: string) {
-  g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w, h);
+function sky(g: CanvasRenderingContext2D, top: string, bottom: string) {
+  const gr = g.createLinearGradient(0, 0, 0, H);
+  gr.addColorStop(0, top); gr.addColorStop(1, bottom);
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
 }
 
-/** Rocket drawn around (cx, cy) = center of the body, optionally tilted. */
-function rocket(g: CanvasRenderingContext2D, cx: number, cy: number, t: number, opts: { flame?: number; tilt?: number; alarm?: boolean } = {}) {
-  g.save();
-  g.translate(Math.round(cx), Math.round(cy));
-  if (opts.tilt) g.rotate(opts.tilt);
-  rect(g, -3, -10, 6, 18, C.hull);                       // body
-  rect(g, -2, -13, 4, 3, C.nose); rect(g, -1, -15, 2, 2, C.nose); // nose
-  rect(g, -1, -6, 2, 2, opts.alarm && Math.floor(t * 6) % 2 ? C.alarm : C.window); // window
-  rect(g, -6, 3, 3, 5, C.fin); rect(g, 3, 3, 3, 5, C.fin); // fins
-  const f = opts.flame ?? 0;
-  if (f > 0) {
-    const flick = 2 + Math.floor((Math.sin(t * 40) + 1) * 1.5);
-    rect(g, -2, 8, 4, Math.round((3 + flick) * f), C.flame);
-    rect(g, -1, 8, 2, Math.round((2 + flick) * f), C.flameL);
+function stars(g: CanvasRenderingContext2D, t: number, vy = 0, n = 70) {
+  for (let i = 0; i < n; i++) {
+    const x = rnd(i, 1) * W;
+    const y = (((rnd(i, 2) * H + vy * t) % H) + H) % H;
+    const tw = 0.5 + 0.5 * Math.sin(t * (1 + rnd(i, 3) * 3) + i);
+    g.globalAlpha = 0.35 + 0.65 * tw * rnd(i, 4);
+    g.fillStyle = "#ffffff";
+    g.fillRect(Math.round(x), Math.round(y), rnd(i, 5) > 0.9 ? 2 : 1, 1);
   }
+  g.globalAlpha = 1;
+}
+
+/** Soft additive light. */
+function glow(g: CanvasRenderingContext2D, x: number, y: number, r: number, color: string, a: number) {
+  if (a <= 0 || r <= 0) return;
+  const gr = g.createRadialGradient(x, y, 0, x, y, r);
+  gr.addColorStop(0, color); gr.addColorStop(1, "rgba(0,0,0,0)");
+  g.save(); g.globalCompositeOperation = "lighter"; g.globalAlpha = a;
+  g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
   g.restore();
 }
 
-function stars(g: CanvasRenderingContext2D, t: number, scroll = 0) {
-  for (const s of STARS) {
-    const y = (s.y + scroll) % H;
-    if ((Math.floor(t * 2) + s.tw) % 3 === 0 && s.s === 1) continue; // twinkle
-    rect(g, s.x, y < 0 ? y + H : y, s.s, s.s, C.star);
+/**
+ * Exhaust plume: particles born at (x, y) flowing along (dx, dy), turning from
+ * white-yellow fire into orange, red and finally grey smoke as they age.
+ */
+function plume(g: CanvasRenderingContext2D, t: number, x: number, y: number, dx: number, dy: number, power: number, n = 60, spread = 0.35, life = 0.9) {
+  if (power <= 0) return;
+  for (let i = 0; i < n; i++) {
+    const age = ((t / life + rnd(i, 7)) % 1); // 0..1
+    const side = (rnd(i, 8) - 0.5) * spread;
+    const dist = age * 42 * power;
+    const px = x + (dx + -dy * side) * dist;
+    const py = y + (dy + dx * side) * dist;
+    const r = (1.2 + age * 6) * (0.6 + power * 0.6);
+    const col = age < 0.15 ? "255,250,220" : age < 0.35 ? "255,196,90" : age < 0.6 ? "240,120,40" : "120,110,110";
+    g.globalAlpha = (1 - age) * (age < 0.6 ? 0.9 : 0.45);
+    g.fillStyle = `rgb(${col})`;
+    g.beginPath(); g.arc(px, py, r, 0, Math.PI * 2); g.fill();
+  }
+  g.globalAlpha = 1;
+}
+
+/** Billowing ground smoke clouds, lit from below by the engine. */
+function groundSmoke(g: CanvasRenderingContext2D, t: number, cx: number, gy: number, amount: number, light: number) {
+  if (amount <= 0) return;
+  for (let i = 0; i < 46; i++) {
+    const dir = rnd(i, 11) < 0.5 ? -1 : 1;
+    const age = ((t * 0.35 + rnd(i, 12)) % 1);
+    const x = cx + dir * (8 + age * (70 + rnd(i, 13) * 80) * amount);
+    const y = gy - 4 - age * (10 + rnd(i, 14) * 22);
+    const r = (6 + age * 18 + rnd(i, 15) * 6) * amount;
+    const lit = clamp01(light * (1 - age) * 1.2);
+    const c = Math.round(lerp(70, 210, lit)), o = Math.round(lerp(70, 120, lit)), b = Math.round(lerp(78, 70, lit));
+    g.globalAlpha = 0.55 * (1 - age * 0.6);
+    g.fillStyle = `rgb(${c},${o},${b})`;
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+  }
+  g.globalAlpha = 1;
+}
+
+/** Generic heavy rocket: core with dark bands, two side boosters, nozzle at (x, y+30). */
+function rocket(g: CanvasRenderingContext2D, x: number, y: number, tilt = 0, alarm = false, t = 0) {
+  g.save(); g.translate(x, y); g.rotate(tilt);
+  // boosters
+  for (const s of [-1, 1]) {
+    g.fillStyle = "#d9d9de"; g.fillRect(s * 6 - 2, -6, 4, 34);
+    g.fillStyle = "#f2f2f2"; g.beginPath(); g.moveTo(s * 6 - 2, -6); g.lineTo(s * 6, -11); g.lineTo(s * 6 + 2, -6); g.fill();
+    g.fillStyle = "#555"; g.fillRect(s * 6 - 2, 26, 4, 2);
+  }
+  // core
+  g.fillStyle = "#ececf0"; g.fillRect(-4, -26, 8, 54);
+  g.fillStyle = "#b8b8c0"; g.fillRect(2, -26, 2, 54);           // shading
+  g.fillStyle = "#2a2a36"; g.fillRect(-4, -4, 8, 2); g.fillRect(-4, 12, 8, 2);
+  g.fillStyle = "#f2f2f2"; g.beginPath(); g.moveTo(-4, -26); g.quadraticCurveTo(0, -40, 4, -26); g.fill();
+  g.fillStyle = alarm && Math.floor(t * 6) % 2 ? "#ff3b3b" : "#3b6fd6"; g.fillRect(-1, -18, 2, 2);
+  g.fillStyle = "#444"; g.fillRect(-3, 28, 6, 3);                // nozzle
+  g.restore();
+}
+
+function launchTower(g: CanvasRenderingContext2D, x: number, gy: number, t: number) {
+  g.strokeStyle = "#3a3a46"; g.lineWidth = 1;
+  g.fillStyle = "#23232c"; g.fillRect(x, gy - 92, 10, 92);
+  g.beginPath();
+  for (let y = gy - 92; y < gy; y += 8) { g.moveTo(x, y); g.lineTo(x + 10, y + 8); g.moveTo(x + 10, y); g.lineTo(x, y + 8); }
+  g.stroke();
+  g.fillStyle = "#23232c"; g.fillRect(x + 10, gy - 70, 10, 2); g.fillRect(x + 10, gy - 40, 10, 2);
+  if (Math.floor(t * 2) % 2) { g.fillStyle = "#ff4040"; g.fillRect(x + 4, gy - 95, 2, 2); }
+  glow(g, x + 5, gy - 94, 6, "rgba(255,60,60,0.8)", Math.floor(t * 2) % 2 ? 0.8 : 0.2);
+}
+
+function earthLimb(g: CanvasRenderingContext2D, yTop: number) {
+  const r = 420;
+  const cx = W / 2, cy = yTop + r;
+  glow(g, cx, yTop + 8, 220, "rgba(110,170,255,0.55)", 0.6);
+  const gr = g.createLinearGradient(0, yTop, 0, H);
+  gr.addColorStop(0, "#5aa0ff"); gr.addColorStop(0.15, "#2257a8"); gr.addColorStop(1, "#0d2350");
+  g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+  g.globalAlpha = 0.35; g.fillStyle = "#e8f2ff";
+  for (let i = 0; i < 9; i++) { g.beginPath(); g.ellipse(30 + i * 36, yTop + 16 + (i % 3) * 7, 16, 3, 0, 0, Math.PI * 2); g.fill(); }
+  g.globalAlpha = 1;
+}
+
+function moonGround(g: CanvasRenderingContext2D, y: number, curve: number) {
+  const gr = g.createLinearGradient(0, y - curve, 0, H);
+  gr.addColorStop(0, "#9a9aa3"); gr.addColorStop(1, "#45454f");
+  g.fillStyle = gr;
+  g.beginPath(); g.moveTo(0, H); g.lineTo(0, y); g.quadraticCurveTo(W / 2, y - curve, W, y); g.lineTo(W, H); g.fill();
+  g.fillStyle = "rgba(30,30,40,0.45)";
+  for (let i = 0; i < 8; i++) {
+    const cx = rnd(i, 21) * W, cy = y + 6 + rnd(i, 22) * (H - y);
+    g.beginPath(); g.ellipse(cx, cy, 6 + rnd(i, 23) * 10, 2 + rnd(i, 24) * 3, 0, 0, Math.PI * 2); g.fill();
   }
 }
 
-/** One frame of a scene. `t` = seconds since the scene started. */
+/** One frame of a scene at time t (seconds since the scene started). */
 export function drawScene(g: CanvasRenderingContext2D, scene: SceneId, t: number) {
-  rect(g, 0, 0, W, H, C.space);
+  g.save();
   if (scene === "launch") {
-    // Countdown on the pad, ignition, then lift-off with the ground falling away.
-    const lift = Math.max(0, t - 1.2);
-    const rise = Math.min(60, lift * lift * 14);
-    stars(g, t, rise * 0.4);
-    const groundY = 64 + rise;
-    if (groundY < H) { rect(g, 0, groundY, W, H - groundY, C.earth); rect(g, 0, groundY, W, 2, C.earthL); }
-    const shake = t > 0.8 && t < 2.2 ? Math.sin(t * 60) : 0;
-    rocket(g, W / 2 + shake, 52 - rise * 0.6, t, { flame: t > 0.8 ? 1 + Math.min(1, lift) : 0 });
-    if (t > 0.8) for (let i = 0; i < 8; i++) { // smoke puffs on the pad
-      const a = (t * 3 + i) % 4;
-      rect(g, W / 2 - 4 + (i - 4) * 4 * a, groundY - 3 - a * 2, 3, 3, C.smoke);
-    }
+    // Night pad → ignition → slow lift-off with a huge lit smoke cloud (like a real launch).
+    const ign = clamp01((t - 0.6) / 0.8);
+    const lift = Math.max(0, t - 1.6);
+    const rise = lift * lift * 7;
+    const shake = ign > 0 && t < 3.2 ? (Math.sin(t * 70) + Math.sin(t * 53)) * 0.8 * ign : 0;
+    g.translate(shake, 0);
+    sky(g, "#05060f", "#151a33");
+    stars(g, t, 0, 60);
+    const gy = 132;
+    glow(g, W / 2, gy, 150, "rgba(255,150,60,0.9)", ign * (0.55 + 0.1 * Math.sin(t * 30)));
+    g.fillStyle = "#0b0b12"; g.fillRect(0, gy, W, H - gy);
+    for (let i = 0; i < 14; i++) { g.fillStyle = "#f2d24f"; g.globalAlpha = 0.6; g.fillRect(rnd(i, 31) * W, gy + 3 + rnd(i, 32) * 4, 1, 1); }
+    g.globalAlpha = 1;
+    launchTower(g, W / 2 - 34, gy, t);
+    const ry = gy - 30 - rise;
+    plume(g, t, W / 2, ry + 31, 0, 1, ign * (1 + Math.min(1.2, lift * 0.5)), 80, 0.3, 0.7);
+    groundSmoke(g, t, W / 2, gy, ign * Math.min(1, 0.4 + lift * 0.35), ign);
+    rocket(g, W / 2, ry, 0, false, t);
+    glow(g, W / 2, ry + 34, 26, "rgba(255,240,200,1)", ign);
   } else if (scene === "fail") {
-    // Cruising in space; an alarm flashes and fuel sprays out of the tank.
-    stars(g, t, t * 6);
-    const wobble = Math.sin(t * 3) * 0.12 + (t > 1 ? Math.sin(t * 25) * 0.03 : 0);
-    const cx = W / 2, cy = 40;
-    rocket(g, cx, cy, t, { flame: t < 1 ? 1 : 0.4, tilt: wobble, alarm: t > 1 });
-    if (t > 1) {
-      for (let i = 0; i < 14; i++) { // fuel droplets leaking from the side tank
-        const a = ((t - 1) * 1.6 + i / 14) % 1;
-        rect(g, cx + 4 + a * 40 + Math.sin(i * 7) * 3, cy - 2 + a * 14 + Math.cos(i * 3) * 4 * a, 1, 1, C.fuel);
+    // Coasting above Earth, then an alarm: fuel vents from the tank and the ship tumbles.
+    sky(g, "#020208", "#070b1c");
+    stars(g, t, 3);
+    earthLimb(g, 112);
+    const bad = clamp01((t - 1.2) / 0.6);
+    const tilt = Math.sin(t * 1.3) * 0.08 + bad * Math.sin(t * 2.4) * 0.22;
+    const x = W / 2 + Math.sin(t * 0.7) * 4, y = 66;
+    plume(g, t, x - Math.sin(tilt) * 31, y + Math.cos(tilt) * 31, Math.sin(-tilt), Math.cos(tilt), 1 - bad * 0.8, 40, 0.25, 0.6);
+    if (bad > 0) { // venting fuel: white-blue spray that freezes into crystals
+      for (let i = 0; i < 70; i++) {
+        const age = ((t * 0.9 + rnd(i, 41)) % 1);
+        const a = 0.25 + (rnd(i, 42) - 0.5) * 0.7;
+        const d = age * 90;
+        g.globalAlpha = (1 - age) * bad;
+        g.fillStyle = age < 0.3 ? "#ffffff" : "#a8e4ff";
+        g.fillRect(x + 6 + Math.cos(a) * d, y - 4 + Math.sin(a) * d, 1 + (age < 0.2 ? 1 : 0), 1);
       }
-      if (Math.floor(t * 4) % 2) { rect(g, 0, 0, W, 2, C.alarm); rect(g, 0, H - 2, W, 2, C.alarm); }
-      g.fillStyle = Math.floor(t * 4) % 2 ? C.alarm : C.flameL;
-      g.font = "8px monospace"; g.fillText("!!", cx + 10, cy - 12);
-    }
-  } else if (scene === "fall") {
-    // Tilted emergency descent: the Moon grows from the bottom, retro-burn flickers.
-    stars(g, t, -t * 10);
-    const moonR = 70 + t * 18;
-    g.fillStyle = C.moon1; g.beginPath(); g.arc(W / 2, H + moonR - 22 - t * 4, moonR, 0, Math.PI * 2); g.fill();
-    g.fillStyle = C.moon0;
-    for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(20 + i * 30, H - 10 - t * 4 + (i % 2) * 5, 3 + (i % 3), 0, Math.PI * 2); g.fill(); }
-    const tilt = 0.45 - Math.min(0.35, t * 0.08);
-    rocket(g, W / 2 + 18 - t * 5, 20 + t * 6, t, { tilt, flame: 0.6 + (Math.sin(t * 9) + 1) * 0.3 });
-  } else {
-    // Touchdown: dust cloud, the rocket settles, then the dust drifts away.
-    stars(g, t);
-    rect(g, 0, 62, W, H - 62, C.moon1); rect(g, 0, 62, W, 2, C.moon2);
-    rect(g, 30, 66, 10, 3, C.moon0); rect(g, 118, 68, 14, 3, C.moon0);
-    const descent = Math.max(0, 1 - t / 1.4);
-    const y = 50 - descent * 30;
-    rocket(g, W / 2, y, t, { flame: descent > 0 ? 1 : 0 });
-    if (t > 1) for (let i = 0; i < 12; i++) {
-      const a = Math.min(1, (t - 1) / 2.5);
-      const dx = (i - 6) * (6 + a * 10);
-      const alpha = 1 - Math.max(0, (t - 3) / 2);
-      if (alpha <= 0) break;
-      g.globalAlpha = alpha;
-      rect(g, W / 2 + dx, 58 - a * 4 - (i % 3), 3, 3, C.smoke);
       g.globalAlpha = 1;
     }
-    if (t > 2.5 && Math.floor(t * 2) % 2) rect(g, W / 2 - 1, y - 6, 2, 2, "#4fc26a"); // "alive" light blinking
+    rocket(g, x, y, tilt, bad > 0, t);
+    if (bad > 0) {
+      const pulse = (Math.sin(t * 9) + 1) / 2;
+      const vg = g.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.65);
+      vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, `rgba(255,30,30,${0.35 * pulse * bad})`);
+      g.fillStyle = vg; g.fillRect(0, 0, W, H);
+      g.fillStyle = pulse > 0.5 ? "#ff4b4b" : "#ffd24f"; g.font = "bold 10px monospace"; g.fillText("! FUEL LEAK", W / 2 + 16, 30);
+    }
+  } else if (scene === "fall") {
+    // Tilted emergency descent: the Moon fills the frame, retro-burn flickers, stars streak.
+    sky(g, "#020208", "#0a0a16");
+    for (let i = 0; i < 40; i++) { // streaking stars = speed
+      const x = rnd(i, 51) * W, y = ((rnd(i, 52) * H - t * 60) % H + H) % H;
+      g.globalAlpha = 0.5; g.fillStyle = "#fff"; g.fillRect(x, y, 1, 4);
+    }
+    g.globalAlpha = 1;
+    const k = clamp01(t / LOOP);
+    moonGround(g, lerp(150, 92, k), lerp(20, 34, k));
+    const tilt = lerp(0.55, 0.12, k) + Math.sin(t * 7) * 0.03;
+    const x = lerp(W / 2 + 60, W / 2 + 6, k), y = lerp(28, 52, k);
+    const flick = 0.7 + 0.3 * Math.sin(t * 25);
+    plume(g, t, x - Math.sin(tilt) * 31, y + Math.cos(tilt) * 31, Math.sin(-tilt), Math.cos(tilt), flick, 60, 0.4, 0.5);
+    rocket(g, x, y, tilt, true, t);
+    glow(g, x - Math.sin(tilt) * 34, y + Math.cos(tilt) * 34, 18, "rgba(255,200,120,1)", flick * 0.8);
+  } else {
+    // Touchdown on the plume: a ring of dust blasts out, settles, and the ship stands still.
+    sky(g, "#020208", "#0d0d1a");
+    stars(g, t, 0, 50);
+    g.fillStyle = "#3b6fd6"; g.beginPath(); g.arc(270, 26, 9, 0, Math.PI * 2); g.fill();      // Earth in the sky
+    g.fillStyle = "#ffffff"; g.globalAlpha = 0.5; g.beginPath(); g.arc(268, 24, 4, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
+    const gy = 128;
+    moonGround(g, gy, 6);
+    const descent = clamp01(1 - t / 2);
+    const y = gy - 31 - descent * 46;
+    const fire = descent > 0 ? 0.6 + 0.3 * Math.sin(t * 30) : 0;
+    plume(g, t, W / 2, y + 31, 0, 1, fire, 50, 0.6, 0.4);
+    const blast = clamp01((t - 0.8) / 3.5);
+    if (blast > 0 && blast < 1) for (let i = 0; i < 90; i++) { // radial dust ring
+      const dir = rnd(i, 61) < 0.5 ? -1 : 1;
+      const sp = 40 + rnd(i, 62) * 120;
+      const d = Math.sqrt(blast) * sp;
+      g.globalAlpha = (1 - blast) * 0.7;
+      g.fillStyle = rnd(i, 63) > 0.5 ? "#b6b6be" : "#8a8a94";
+      const r = 1.5 + rnd(i, 64) * 3 + blast * 4;
+      g.beginPath(); g.arc(W / 2 + dir * d, gy - 2 - rnd(i, 65) * 10 * (1 - blast) - blast * 6, r, 0, Math.PI * 2); g.fill();
+    }
+    g.globalAlpha = 1;
+    rocket(g, W / 2, y, 0, false, t);
+    if (descent === 0 && Math.floor(t * 2) % 2) { glow(g, W / 2, y - 18, 8, "rgba(79,194,106,1)", 0.9); }
   }
+  g.restore();
 }
 
 export function StoryAnimation({ scene }: { scene: SceneId }) {
@@ -113,17 +242,16 @@ export function StoryAnimation({ scene }: { scene: SceneId }) {
     const cv = ref.current;
     const g = cv?.getContext("2d");
     if (!cv || !g) return;
-    g.imageSmoothingEnabled = false;
     const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const start = performance.now();
     let raf = 0;
     const frame = (now: number) => {
-      const t = ((now - start) / 1000) % 6; // each scene loops every 6 s, like a GIF
-      drawScene(g, scene, reduce ? 3 : t);
+      const t = ((now - start) / 1000) % LOOP;
+      drawScene(g, scene, reduce ? 3.5 : t);
       if (!reduce) raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
   }, [scene]);
-  return <canvas ref={ref} width={W} height={H} className="pixelated block aspect-[2/1] w-full border-4 border-moon-2 [image-rendering:pixelated]" aria-label={`Animated scene: ${scene}`} />;
+  return <canvas ref={ref} width={W} height={H} className="block aspect-[2/1] w-full rounded-[6px] border-4 border-moon-2 [image-rendering:pixelated]" aria-label={`Animated scene: ${scene}`} />;
 }
