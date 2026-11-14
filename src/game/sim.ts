@@ -14,6 +14,8 @@ export interface Leak { id: number; target: LeakTarget; x: number; y: number; si
 export type ModType = keyof typeof modulos.tipos;
 export interface TipoInfo { nombre: string; energia: number; desgaste: number; w: number; h: number; item: string | null; solo_dia?: boolean; capacidad?: number; produce_hielo?: number; en_crater?: boolean }
 export const TIPOS = modulos.tipos as Record<ModType, TipoInfo>;
+export type AlienTipo = "abductor" | "rastreador" | "saboteador" | "nodriza";
+export interface Alien { id: number; tipo: AlienTipo; x: number; y: number; hp: number; stun: number; target?: LeakTarget | undefined }
 export interface Module { uid: number; tipo: ModType; x: number; y: number; durabilidad: number; activo: boolean }
 export const STACK = 50;
 export const SLOTS = 20;
@@ -40,6 +42,12 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
     inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0 } as Inv,
     relay: false,
+    aliens: [] as Alien[],
+    nextAlienId: 1,
+    alienT: 20,
+    abduction: 0,
+    alienSeen: [] as string[],
+    countdown: null as number | null,
     cubesat: [] as { uid: number; id: string; x: number; y: number; rot: number }[],
     result: null as null | { ok: boolean; dia: number; ventana: string; lh2Sobra: number; loxSobra: number },
     hotbarItems: ["kits", "chatarra", "metal", null, null] as (string | null)[],

@@ -3,7 +3,7 @@ import modos from "@/data/modos.json";
 import recetas from "@/data/recetas.json";
 import { useGame, sim, saveGame } from "@/game/store";
 import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft, SUBSISTEMAS, UMBRAL_VERDE, repairBlock, repairSubsystem, subCap } from "@/game/sim";
-import { launchBlockers, launch, currentWindow, nextWindow, windowSecondsLeft, windowsUntil, VENTANAS_PROVISIONALES } from "@/game/mission";
+import { launchBlockers, startLaunch, countdownLength, currentWindow, nextWindow, windowSecondsLeft, windowsUntil, VENTANAS_PROVISIONALES } from "@/game/mission";
 import { CubeSatDesigner } from "./CubeSatDesigner";
 import { ITEMS } from "@/game/items";
 import { PixelIcon } from "./PixelIcon";
@@ -41,13 +41,27 @@ export function HUD() {
           <span className="text-[7px]"><span className="text-muted-foreground">MEZCLA O2:H2</span> <span className={Math.abs(ratio - 6) < 0.5 ? "text-ok" : "text-alert"}>{ratio.toFixed(1)}:1</span> <span className="text-muted-foreground">(obj 6:1)</span></span>
         </div>
         {s.alert && <div className="animate-blink text-center text-[9px] text-alert">⚠ {s.alert}</div>}
+        {s.abduction > 0 && (
+          <div className="flex items-center justify-center gap-2 text-[8px] text-alien">
+            <span className="animate-blink">ABDUCCIÓN</span>
+            <div className="h-2 w-32 bg-moon-0"><div className="h-full bg-alien" style={{ width: `${s.abduction}%` }} /></div>
+            <span className="text-[6px] text-muted-foreground">corre a la luz o golpéalo (ESPACIO)</span>
+          </div>
+        )}
+        {s.aliens.some((a) => a.tipo !== "nodriza") && s.abduction === 0 && <div className="text-center text-[7px] text-alien">👾 {s.aliens.filter((a) => a.tipo !== "nodriza").length} alien(s) en la base</div>}
         {s.buildMode && <div className="text-center text-[8px] text-ok">MODO CONSTRUCCIÓN: {ITEMS[s.buildMode]?.nombre} — clic para colocar · Q cambiar · C salir</div>}
       </div>
+      {s.countdown !== null && (
+        <div className="pointer-events-none absolute inset-x-0 top-24 text-center">
+          <div className="text-2xl text-gold drop-shadow-[3px_3px_0_var(--color-moon-0)]">T-{Math.ceil(s.countdown)}</div>
+          {s.aliens.some((a) => a.tipo === "nodriza") && <div className="animate-blink text-[8px] text-alien">¡LA NODRIZA ATACA EL COHETE! Golpéala (ESPACIO junto al cohete) y enciende torres de luz cerca</div>}
+        </div>
+      )}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-1 bg-background/80 p-2">
         <div className="text-[8px] text-gold">ACTO {acto.n} · {acto.titulo.toUpperCase()}: <span className="text-foreground">{acto.meta}</span></div>
         {s.hint && <div className="text-[7px] text-ok">{s.hint}</div>}
         <Hotbar />
-        <div className="text-[6px] text-muted-foreground">WASD mover · ESPACIO recoger · E interactuar (mantén para sellar/reparar) · TAB inventario · C construir · B base · L bitácora · ESC pausa</div>
+        <div className="text-[6px] text-muted-foreground">WASD mover · ESPACIO recoger/golpear · E interactuar (mantén para sellar/reparar) · TAB inventario · C construir · B base · L bitácora · ESC pausa</div>
       </div>
     </>
   );
@@ -234,7 +248,7 @@ function Rocket() {
       </div>
       <Windows />
       <div className="mt-3 flex flex-wrap gap-3">
-        <PixelButton disabled={blockers.length > 0} onClick={() => { if (launch(sim)) { sfx.ok(); saveGame(); publish(); useGame.getState().setOverlay(null); useGame.getState().go("final"); } }}>Despegar</PixelButton>
+        <PixelButton disabled={blockers.length > 0 || s.countdown !== null} onClick={() => { if (startLaunch(sim)) { sfx.alert(); publish(); useGame.getState().setOverlay(null); } }}>{s.countdown !== null ? "Cuenta regresiva…" : `Despegar (T-${countdownLength(s)} s)`}</PixelButton>
         <PixelButton tone="ghost" onClick={() => useGame.getState().setOverlay("cubesat")}>{s.relay ? "Ver CubeSat relé" : "Diseñar CubeSat relé"}</PixelButton>
       </div>
       {blockers.length > 0 && (

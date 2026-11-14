@@ -1,5 +1,6 @@
 import cubesat from "@/data/piezas_cubesat.json";
 import ventanas from "@/data/ventanas_regreso.json";
+import aliensCfg from "@/data/aliens.json";
 import { addLog, advanceAct, canCraft, unlock, CYCLE, SUBSISTEMAS, UMBRAL_VERDE, type Sim } from "./sim";
 
 // ---------------------------------------------------------------------------
@@ -124,4 +125,24 @@ export function launch(s: Sim) {
   addLog(s, `Día ${s.day}: ¡despegue en la ventana ${w.id}!`);
   unlock(s, "Regreso a casa");
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// Cuenta regresiva (en modos con aliens aparece la Nodriza)
+// ---------------------------------------------------------------------------
+export const countdownLength = (s: Sim) => aliensCfg.cuenta_regresiva_s[s.mode];
+export function startLaunch(s: Sim) {
+  if (s.countdown !== null || launchBlockers(s).length) return false;
+  s.countdown = countdownLength(s);
+  addLog(s, `Cuenta regresiva iniciada: ${s.countdown} s. Mantén el cohete a salvo.`);
+  return true;
+}
+/** Advances the countdown: "launched" at zero, "aborted" if anything breaks the launch conditions. */
+export function stepCountdown(s: Sim, dt: number): "launched" | "aborted" | null {
+  if (s.countdown === null) return null;
+  const b = launchBlockers(s);
+  if (b.length) { s.countdown = null; addLog(s, `Despegue abortado: ${b[0]}.`); return "aborted"; }
+  s.countdown -= dt;
+  if (s.countdown <= 0) { s.countdown = null; s.aliens = []; return launch(s) ? "launched" : "aborted"; }
+  return null;
 }

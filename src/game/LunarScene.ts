@@ -3,6 +3,8 @@ import { PAL } from "./palette";
 import { sim, useGame, saveGame } from "./store";
 import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, TIPOS, PLACEABLE, BAL, type LeakTarget, type Module, type ModType } from "./sim";
 import { sfx } from "./audio";
+import { stepAliens, hitAlien, type World } from "./aliens";
+import { stepCountdown } from "./mission";
 
 const W = 640, H = 360;
 const HAB = { x: 110, y: 170 } /* matches habitat in modulos.json */, ROCKET = { x: 540, y: 150 };
@@ -21,6 +23,8 @@ export class LunarScene extends Phaser.Scene {
   keys!: Record<"W" | "A" | "S" | "D" | "UP" | "DOWN" | "LEFT" | "RIGHT" | "E", Phaser.Input.Keyboard.Key>;
   nodes: RNode[] = [];
   leakSprites = new Map<number, Phaser.GameObjects.Image>();
+  alienSprites = new Map<number, Phaser.GameObjects.Image>();
+  beam!: Phaser.GameObjects.Graphics;
   ring!: Phaser.GameObjects.Graphics;
   night!: Phaser.GameObjects.Rectangle;
   preview!: Phaser.GameObjects.Graphics;
@@ -36,6 +40,10 @@ export class LunarScene extends Phaser.Scene {
     px(this, "ice", [".cc.", "cwcc", "cccw", ".cc."], { c: T.ice, w: T.white });
     px(this, "reg", [".mm.", "mlmm", "mmlm", ".mm."], { m: T.moon2, l: T.moon3 });
     px(this, "scrap", ["o.gg", ".gog", "gg.o", "g.g."], { o: T.alert, g: T.moon4 });
+    px(this, "al_abductor", ["..vvvv..", ".vwvvwv.", "vvvvvvvv", ".gg..gg.", "g......g"], { v: T.alien, w: T.white, g: T.ok });
+    px(this, "al_rastreador", [".v..v.", "vvvvvv", "vwvvwv", "vvvvvv", "v.vv.v"], { v: T.alien, w: T.red });
+    px(this, "al_saboteador", ["v..v", ".vv.", "vwwv", ".vv.", "v..v"], { v: T.alien, w: T.alert });
+    px(this, "al_nodriza", ["........vvvvvvvv........", ".....vvvwwvvvvwwvvv.....", "..vvvvvvvvvvvvvvvvvvvv..", "vvvgvvgvvgvvgvvgvvgvvgvv", "..vvvvvvvvvvvvvvvvvvvv..", ".....g.....gg.....g....."], { v: T.alien, w: T.ice, g: T.ok });
     px(this, "leak", [".a.a.", "a.r.a", ".rwr.", "a.r.a", ".a.a."], { a: T.alert, r: T.red, w: T.white });
     this.makeModuleTextures();
     const lg = this.add.graphics();
@@ -74,6 +82,7 @@ export class LunarScene extends Phaser.Scene {
     this.preview = this.add.graphics().setDepth(35);
     this.player = this.add.image(HAB.x, HAB.y + 30, "astro").setDepth(10);
     this.ring = this.add.graphics().setDepth(30);
+    this.beam = this.add.graphics().setDepth(22);
     this.night = this.add.rectangle(0, 0, 320, 180, PAL.black, 0).setOrigin(0).setScrollFactor(0).setDepth(20);
     this.prompt = this.add.text(0, 0, "", { fontFamily: '"Press Start 2P"', fontSize: "5px", color: "#f2d24f", backgroundColor: "#0b0b14" }).setDepth(40).setPadding(2);
 
@@ -104,8 +113,8 @@ export class LunarScene extends Phaser.Scene {
     this.leakSprites.set(id, this.add.image(x, y, "leak").setDepth(12));
   }
 
-  spawnLeak() {
-    const target: LeakTarget = Phaser.Math.RND.pick(["habitat", "habitat", "lh2", "lox"]);
+  spawnLeak(forced?: LeakTarget) {
+    const target: LeakTarget = forced ?? Phaser.Math.RND.pick(["habitat", "habitat", "lh2", "lox"]);
     const base = target === "habitat" ? { x: HAB.x + Phaser.Math.Between(-20, 20), y: HAB.y - 10 } : target === "lh2" ? { x: ROCKET.x - 25, y: ROCKET.y } : { x: ROCKET.x + 25, y: ROCKET.y };
     const l = { id: sim.nextLeakId++, target, x: base.x, y: base.y, size: 1, progress: 0, age: 0 };
     sim.leaks.push(l); this.addLeakSprite(l.id, l.x, l.y);
@@ -196,6 +205,13 @@ export class LunarScene extends Phaser.Scene {
 
   useTool() {
     if (useGame.getState().overlay || this.useCd > 0) return;
+    const hit = hitAlien(sim, this.player.x, this.player.y);
+    if (hit) {
+      this.useCd = 0.4; sfx.click();
+      const spr = this.alienSprites.get(hit.id);
+      if (spr) { spr.setTint(PAL.white); this.time.delayedCall(120, () => spr.clearTint()); }
+      return;
+    }
     const n = this.nearestNode();
     if (!n) return;
     this.useCd = (sim.inv.taladro ?? 0) > 0 ? 0.25 : (sim.inv.pala_mejorada ?? 0) > 0 ? 0.35 : 0.5;
@@ -233,6 +249,10 @@ export class LunarScene extends Phaser.Scene {
 
     const inShadow = ((this.player.x - SHADOW.x) / SHADOW.rx) ** 2 + ((this.player.y - SHADOW.y) / SHADOW.ry) ** 2 < 1;
     step(sim, dt, { inHabitat: this.nearHab(), inShadow });
+    this.updateAliens(dt);
+    const cd = stepCountdown(sim, dt);
+    if (cd === "launched") { sfx.ok(); saveGame(); useGame.getState().publish(); useGame.getState().go("final"); return; }
+    if (cd === "aborted") { sfx.bad(); this.say("DESPEGUE ABORTADO: REVISA EL COHETE (E)"); }
 
     // leaks
     this.leakT -= dt;
@@ -299,6 +319,26 @@ export class LunarScene extends Phaser.Scene {
     this.pubT += dt; this.saveT += dt;
     if (this.pubT > 0.15) { this.pubT = 0; useGame.getState().publish(); }
     if (this.saveT > 20) { this.saveT = 0; saveGame(); }
+  }
+
+  updateAliens(dt: number) {
+    const world: World = { player: { x: this.player.x, y: this.player.y }, inHabitat: this.nearHab(), hab: HAB, rocket: ROCKET, w: W, h: H, rnd: () => Math.random() };
+    for (const e of stepAliens(sim, dt, world)) {
+      if (e.type === "leak") this.spawnLeak(e.target);
+      if (e.type === "abducted") { onDeath(sim); sfx.bad(); this.player.setPosition(HAB.x, HAB.y + 30); }
+    }
+    const alive = new Set(sim.aliens.map((a) => a.id));
+    for (const [id, spr] of this.alienSprites) if (!alive.has(id)) { spr.destroy(); this.alienSprites.delete(id); }
+    for (const a of sim.aliens) {
+      let spr = this.alienSprites.get(a.id);
+      if (!spr) { spr = this.add.image(a.x, a.y, `al_${a.tipo}`).setDepth(a.tipo === "nodriza" ? 25 : 23); this.alienSprites.set(a.id, spr); }
+      spr.setPosition(Math.round(a.x), Math.round(a.y + Math.sin(this.time.now / 200 + a.id) * 1.5)).setAlpha(a.stun > 0 ? 0.5 : 1);
+    }
+    this.beam.clear();
+    if (sim.abduction > 0) {
+      const ab = sim.aliens.filter((a) => a.tipo === "abductor").sort((p, q) => Phaser.Math.Distance.Between(p.x, p.y, this.player.x, this.player.y) - Phaser.Math.Distance.Between(q.x, q.y, this.player.x, this.player.y))[0];
+      if (ab) this.beam.fillStyle(PAL.ok, 0.25 + sim.abduction / 250).fillTriangle(ab.x - 3, ab.y + 2, ab.x + 3, ab.y + 2, this.player.x, this.player.y + 4).fillTriangle(this.player.x - 5, this.player.y + 4, this.player.x + 5, this.player.y + 4, ab.x, ab.y + 2);
+    }
   }
 
   say(s: string) {

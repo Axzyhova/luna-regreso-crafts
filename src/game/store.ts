@@ -33,7 +33,7 @@ export const useGame = create<State>((set, get) => ({
       const base = createSim("realista", "normal");
       const saved = JSON.parse(raw);
       // Merge nested records so saves from older versions get new items/subsystems.
-      sim = { ...base, ...saved, inv: { ...base.inv, ...saved.inv }, rocket: { ...base.rocket, ...saved.rocket }, leaks: [] };
+      sim = { ...base, ...saved, inv: { ...base.inv, ...saved.inv }, rocket: { ...base.rocket, ...saved.rocket }, leaks: [], aliens: [], abduction: 0, countdown: null };
       sim.lh2 = Math.min(sim.lh2, LH2_CAP); sim.lox = Math.min(sim.lox, LOX_CAP);
       get().publish();
       return true;

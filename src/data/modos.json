@@ -1,6 +1,6 @@
 {"modos":{
  "realista":{"nombre":"REALISTA","desc":"Sin aliens. Solo peligros reales.","aliens":false,"recursos":1,"noche_oscuridad":0.55},
- "fantastico":{"nombre":"FANTÁSTICO","desc":"Aliens moderados (próxima versión).","aliens":true,"recursos":1,"noche_oscuridad":0.6},
+ "fantastico":{"nombre":"FANTÁSTICO","desc":"Aliens moderados de noche.","aliens":true,"recursos":1,"noche_oscuridad":0.6},
  "terrorifico":{"nombre":"TERRORÍFICO","desc":"Aliens agresivos, noche más oscura, menos recursos.","aliens":true,"recursos":0.7,"noche_oscuridad":0.78}},
 "dificultades":{"facil":{"nombre":"Fácil","eventos":0.7,"consumo":0.75},"normal":{"nombre":"Normal","eventos":1,"consumo":1},"dificil":{"nombre":"Difícil","eventos":1.4,"consumo":1.3}},
 "aliens":[
