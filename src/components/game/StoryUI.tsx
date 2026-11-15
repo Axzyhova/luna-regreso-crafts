@@ -6,7 +6,7 @@ import { eventBanner } from "@/game/events";
 import { PRINCIPALES, currentMain, sideAvailable, MISIONES } from "@/game/quests";
 import { ITEMS } from "@/game/items";
 import { PixelIcon } from "./PixelIcon";
-import { navigation } from "@/game/nav";
+import { missionHelp, navigation } from "@/game/nav";
 import { TUTORIAL, tutorialStep } from "@/game/tutorial";
 import { useTouchDevice } from "@/hooks/use-device";
 
@@ -25,14 +25,23 @@ function Arrow({ deg, size, warn }: { deg: number; size: number; warn?: boolean 
 export function NavCard({ className = "" }: { className?: string }) {
   const s = useGame((g) => g.snap);
   const { primary, then, etaS } = navigation(s);
+  const help = missionHelp(s);
   if (!primary) return null;
   return (
-    <div className={`pointer-events-none w-[132px] overflow-hidden rounded-[14px] bg-[#1c1c1e]/90 font-sans text-white shadow-[0_4px_14px_rgba(0,0,0,0.35)] ring-1 ring-white/10 backdrop-blur-sm sm:w-[164px] ${className}`}>
-      <div className="flex items-center gap-1.5 px-2.5 pt-2">
-        <Arrow deg={primary.deg} size={18} />
-        <span className="text-[17px] font-semibold leading-none tabular-nums sm:text-[20px]">{primary.m} m</span>
+    <div className={`pointer-events-none w-[156px] overflow-hidden rounded-[14px] bg-[#1c1c1e]/90 font-sans text-white shadow-[0_4px_14px_rgba(0,0,0,0.35)] ring-1 ring-white/10 backdrop-blur-sm sm:w-[196px] ${className}`}>
+      <div className="flex items-center justify-between gap-1.5 px-2.5 pt-2">
+        <div className="flex items-center gap-1.5">
+          <Arrow deg={primary.deg} size={18} />
+          <span className="text-[17px] font-semibold leading-none tabular-nums sm:text-[20px]">{primary.m} m</span>
+        </div>
+        <span className="text-[9px] tabular-nums text-white/60 sm:text-[10px]">({s.pos.x}, {s.pos.y})</span>
       </div>
-      <div className="truncate px-2.5 pb-1.5 pt-0.5 text-[11px] font-semibold sm:text-[12px]">{primary.label}</div>
+      <div className="truncate px-2.5 pb-1 pt-0.5 text-[11px] font-semibold sm:text-[12px]">{primary.label}</div>
+      {help && (
+        <div className="border-t border-white/10 px-2.5 py-1 text-[9px] leading-tight text-sky-200/90 sm:text-[10px]">
+          {help}
+        </div>
+      )}
       <div className={`flex items-center justify-between border-t border-white/10 px-2.5 py-1 text-[9px] sm:text-[10px] ${then?.warn ? "text-[#ff6b5b]" : "text-white/70"}`}>
         <span className="truncate">{then ? `then ${then.label}` : `~${etaS} s · ${primary.dir}`}</span>
         {then && <Arrow deg={then.deg} size={10} warn={then.warn} />}

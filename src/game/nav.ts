@@ -47,3 +47,17 @@ export function navigation(s: Sim) {
   const etaS = primary ? Math.round((primary.m * PX_PER_M) / speed) : 0;
   return { primary, then, etaS };
 }
+
+const MISSION_HELP: string[] = [
+  "Walk to the pulsing leak near Base (110, 170) & hold E (needs 1 Sealant kit).",
+  "Head SE to Shadowed Crater (330, 270) & press SPACE on Ice.",
+  "Melt Ice at Habitat (E) → Water, then keep Electrolysis & Cryotank ON.",
+  "Go to Rocket (540, 150) & press E to repair Structure & Power to 70%.",
+  "At Rocket (540, 150), open CubeSat Designer and launch the relay.",
+  "Repair all rocket subsystems to 90% and fill LH2/LOX tanks.",
+  "At Rocket (540, 150), start the launch countdown inside a return window!",
+];
+
+export function missionHelp(s: Sim): string {
+  return MISSION_HELP[s.quest.main] ?? "Explore far zones, resolve special cases, and prepare for launch!";
+}

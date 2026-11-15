@@ -1,5 +1,5 @@
 import cfg from "@/data/eventos.json";
-import { addItem, addLog, isDay, isOn, hurt, notify, TIPOS, CYCLE, DAY_LEN, type Inv, type Sim } from "./sim";
+import { addItem, addLog, diffCfg, isDay, isOn, hurt, notify, TIPOS, CYCLE, DAY_LEN, type Inv, type Sim } from "./sim";
 import { aliensEnabled, type World } from "./aliens";
 import { spawnCapsule } from "./loot";
 
@@ -62,7 +62,7 @@ export function stepEvents(s: Sim, dt: number, w: World): { x: number; y: number
     if (ev.t <= 0) { ev.phase = "activo"; ev.t = e.dura_s; addLog(s, `${e.icono} ${e.texto_activo}`); }
     return impacts;
   }
-  if (ev.id === "meteoritos") {
+  if (ev.id === "meteoritos" || ev.id === "lluvia_androides") {
     const total = e.impactos ?? 0;
     const due = Math.floor(((e.dura_s - ev.t) / e.dura_s) * total);
     while (ev.hits < Math.min(total, due)) {
@@ -71,12 +71,15 @@ export function stepEvents(s: Sim, dt: number, w: World): { x: number; y: number
       const p = { x: ev.x + Math.cos(a) * rr, y: ev.y + Math.sin(a) * rr };
       impacts.push(p); s.impacts.push({ ...p, t: 1.2 });
       const ri = e.radio_impacto ?? 0;
-      if (dist(p.x, p.y, w.player.x, w.player.y) < ri && !w.inHabitat) { hurt(s, e.dano_jugador ?? 0, "was hit by a micrometeorite"); if (s.suit.worn) s.suit.integrity = Math.max(0, s.suit.integrity - 15); addLog(s, "☄️ A micrometeorite hit you."); }
+      if (dist(p.x, p.y, w.player.x, w.player.y) < ri && !w.inHabitat) { hurt(s, e.dano_jugador ?? 0, ev.id === "lluvia_androides" ? "was struck by a falling android" : "was hit by a micrometeorite"); if (s.suit.worn) s.suit.integrity = Math.max(0, s.suit.integrity - 15); addLog(s, `${e.icono} Direct impact near you!`); }
       for (const m of s.modules) {
         if (dist(p.x, p.y, m.x, m.y) < ri + Math.max(TIPOS[m.tipo].w, TIPOS[m.tipo].h) / 2 && isOn(m)) {
           m.durabilidad = Math.max(0, m.durabilidad - (e.dano_modulo ?? 0));
-          addLog(s, `☄️ Impact on ${TIPOS[m.tipo].nombre}.`);
+          addLog(s, `${e.icono} Impact on ${TIPOS[m.tipo].nombre}.`);
         }
+      }
+      if (ev.id === "lluvia_androides") {
+        s.androids.push({ id: s.nextAndroidId++, x: Math.round(p.x), y: Math.round(p.y), hp: 3, stun: 0 });
       }
     }
   }
@@ -200,4 +203,57 @@ export function unlockCavePerk(s: Sim, caveId: number, rnd: () => number = Math.
   addLog(s, `✨ Relic calibrated! Unlocked superpower: ${pick.replace(/_/g, " ")}.`);
   notify(s, "achievement", "Superpower Unlocked", pick.replace(/_/g, " "));
   return pick;
+}
+
+/** Rogue androids from Android Drop events chase the player and drain durability if ignored. */
+export function stepAndroids(s: Sim, dt: number, w: World) {
+  for (const a of s.androids) {
+    if (a.stun > 0) { a.stun -= dt; continue; }
+    const d = dist(a.x, a.y, w.player.x, w.player.y);
+    const k = Math.min(1, (22 * dt) / (d || 1));
+    a.x += (w.player.x - a.x) * k;
+    a.y += (w.player.y - a.y) * k;
+    if (d < 10 && !w.inHabitat) hurt(s, 6 * dt, "was attacked by a rogue android");
+  }
+}
+
+export function hitAndroid(s: Sim, px: number, py: number, dmg = 1) {
+  let best: Sim["androids"][number] | null = null, bd = 18;
+  for (const a of s.androids) { const d = dist(a.x, a.y, px, py); if (d < bd) { bd = d; best = a; } }
+  if (!best) return null;
+  best.hp -= dmg; best.stun = 0.5;
+  const d = dist(best.x, best.y, px, py) || 1;
+  best.x += ((best.x - px) / d) * 10; best.y += ((best.y - py) / d) * 10;
+  if (best.hp <= 0) {
+    s.androids = s.androids.filter((a) => a !== best);
+    addItem(s, "chatarra", 2);
+    addItem(s, "metal", 1);
+    addLog(s, "🤖 Cleared rogue android: +2 Scrap, +1 Metal.");
+  }
+  return best;
+}
+
+/** Emerging operational problems that appear periodically during the mission. */
+export function stepEmergingProblems(s: Sim, dt: number, rnd: () => number) {
+  if (s.countdown !== null) return;
+  s.problemT -= dt * diffCfg(s).eventos;
+  if (s.problemT > 0) return;
+  s.problemT = 85 + rnd() * 55;
+  const roll = rnd();
+  if (roll < 0.35) {
+    for (const m of s.modules) if (m.tipo === "panel" && isOn(m)) m.durabilidad = Math.max(0, m.durabilidad - 10);
+    addLog(s, "⚠ PROBLEM: Electrostatic lunar dust coated solar panels (-10% durability).");
+    toast(s, "⚠ Problem: Dust on Solar Panels! Check Base (B)", 5);
+  } else if (roll < 0.7) {
+    const m = s.modules.find((x) => isOn(x) && x.tipo !== "habitat" && x.tipo !== "cofre");
+    if (m) {
+      m.activo = false;
+      addLog(s, `⚠ PROBLEM: Power surge tripped ${TIPOS[m.tipo].nombre} OFF! Turn it back ON in Base (B).`);
+      toast(s, `⚠ Surge tripped ${TIPOS[m.tipo].nombre} OFF!`, 5);
+    }
+  } else {
+    s.battery = Math.max(0, s.battery - 12);
+    addLog(s, "⚠ PROBLEM: Battery cell voltage drop (-12 power).");
+    toast(s, "⚠ Problem: Battery voltage drop (-12 power)", 5);
+  }
 }

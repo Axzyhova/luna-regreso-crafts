@@ -42,7 +42,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     battery: 60, energyIn: 0, energyOut: 0,
     habitatO2: 80,
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
-    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cofre: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0, alga_lunar: 0, racion: 0, comida_caliente: 0, pico_plasma: 0, armadura_lunar: 0, botas_gravedad: 0 } as Inv,
+    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: difficulty === "facil" ? 3 : 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cofre: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0, alga_lunar: 0, racion: difficulty === "facil" ? 1 : 0, comida_caliente: 0, pico_plasma: 0, armadura_lunar: 0, botas_gravedad: 0 } as Inv,
     relay: false,
     // --- historia, efectos, eventos y botín ---
     effects: [] as string[],
@@ -76,6 +76,9 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     caves: [] as { id: number; x: number; y: number; explored: boolean; chestOpened: boolean; alienHp: number; alienMaxHp: number; alienType: string; relicDone: boolean }[],
     nextCaveId: 1,
     activeCaveId: null as number | null,
+    androids: [] as { id: number; x: number; y: number; hp: number; stun: number }[],
+    nextAndroidId: 1,
+    problemT: 80,
     // Space suit: indispensable outside. Integrity wears down with use; wearing it all the time makes you thirsty.
     suit: { owned: true, worn: true, integrity: 80 },
     hydration: 100,

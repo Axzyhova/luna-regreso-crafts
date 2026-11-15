@@ -89,6 +89,11 @@ export function ModeSelect() {
           </button>
         ))}
       </div>
+      <div className="w-full max-w-2xl rounded border border-white/15 bg-black/40 px-3 py-2 text-center text-[8px] leading-4 text-white/85">
+        <div className="font-bold text-gold">{modos.dificultades[diff].nombre.toUpperCase()} · {modos.modos[mode].nombre}</div>
+        <div>{modos.dificultades[diff].desc}</div>
+        <div className="text-muted-foreground">World resources: {Math.round(modos.modos[mode].recursos * 100)}% · Night darkness: {Math.round(modos.modos[mode].noche_oscuridad * 100)}%</div>
+      </div>
       <div className="flex gap-3">
         <PixelButton onClick={() => { newGame(mode, diff); go("cinematica"); }}>Start</PixelButton>
       </div>

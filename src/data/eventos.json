@@ -50,6 +50,21 @@
    "texto_aviso": "Lunar noon in {t} s: sunlit ground gets extremely hot.",
    "texto_activo": "HEAT PEAK: outside the shade you overheat.",
    "realismo": "In sunlight the lunar surface exceeds 100 °C; in shadow it drops below −150 °C."
+  },
+  "lluvia_androides": {
+   "nombre": "Rogue Android Drop",
+   "icono": "🤖",
+   "aviso_s": 20,
+   "dura_s": 20,
+   "solo_dia": false,
+   "radio_zona": 75,
+   "impactos": 4,
+   "radio_impacto": 16,
+   "dano_jugador": 18,
+   "dano_modulo": 20,
+   "texto_aviso": "Malfunctioning orbital androids falling in {t} s near the marked zone!",
+   "texto_activo": "ANDROID RAIN! Watch for falling units and clear them (SPACE).",
+   "realismo": "FICTION: Damaged orbital maintenance drones deorbiting onto the lunar base."
   }
  }
 }

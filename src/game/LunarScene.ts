@@ -7,7 +7,7 @@ import { stepAliens, hitAlien, type World } from "./aliens";
 import { stepCountdown } from "./mission";
 import { touch } from "./touch";
 import { stepEffects, stepPsychology, effectMods, toggleEquip } from "./effects";
-import { stepEvents, stepSpecialCases, resolveSpecialCase, spawnCave, toast } from "./events";
+import { stepEvents, stepSpecialCases, resolveSpecialCase, spawnCave, toast, stepAndroids, hitAndroid, stepEmergingProblems } from "./events";
 import { initCapsules, nearestCapsule, openCapsule } from "./loot";
 import { stepQuests } from "./quests";
 import { stepTutorial, tutorialWantsLeak, TUTORIAL } from "./tutorial";
@@ -35,6 +35,7 @@ export class LunarScene extends Phaser.Scene {
   dropSprites = new Map<number, Phaser.GameObjects.Image>();
   hiveSprites = new Map<number, Phaser.GameObjects.Image>();
   bossSprites = new Map<string, Phaser.GameObjects.Image>();
+  androidSprites = new Map<number, Phaser.GameObjects.Image>();
   bridgeG!: Phaser.GameObjects.Graphics;
   lastZone = "base"; blockT = 0;
   zone!: Phaser.GameObjects.Graphics;
@@ -317,10 +318,10 @@ export class LunarScene extends Phaser.Scene {
   useTool() {
     if (useGame.getState().overlay || this.useCd > 0) return;
     const dmg = sim.inv.baton > 0 ? 2 : 1;
-    const hit = hitAlien(sim, this.player.x, this.player.y, dmg) ?? hitHive(sim, this.player.x, this.player.y, dmg) ?? hitBoss(sim, this.player.x, this.player.y, dmg);
+    const hit = hitAlien(sim, this.player.x, this.player.y, dmg) ?? hitAndroid(sim, this.player.x, this.player.y, dmg) ?? hitHive(sim, this.player.x, this.player.y, dmg) ?? hitBoss(sim, this.player.x, this.player.y, dmg);
     if (hit) {
       this.useCd = 0.4; sfx.click();
-      const spr = this.alienSprites.get(hit.id as number) ?? this.hiveSprites.get(hit.id as number) ?? this.bossSprites.get(String(hit.id));
+      const spr = this.alienSprites.get(hit.id as number) ?? this.androidSprites.get(hit.id as number) ?? this.hiveSprites.get(hit.id as number) ?? this.bossSprites.get(String(hit.id));
       if (spr) { spr.setTint(PAL.white); this.time.delayedCall(120, () => spr.clearTint()); }
       return;
     }
@@ -416,6 +417,8 @@ export class LunarScene extends Phaser.Scene {
     this.updateWorldEvents(dt, inShadow);
     stepPsychology(sim, dt, { player: this.player, inHabitat: this.nearHab(), hab: HAB, rocket: ROCKET, w: WW, h: WH, rnd: () => Math.random() }, () => Math.random());
     stepSpecialCases(sim, dt, () => Math.random());
+    this.updateAndroids(dt);
+    stepEmergingProblems(sim, dt, () => Math.random());
     const cd = stepCountdown(sim, dt);
     if (cd === "launched") { sfx.ok(); saveGame(); useGame.getState().publish(); useGame.getState().go("final"); return; }
     if (cd === "aborted") { sfx.bad(); this.say("LAUNCH ABORTED: CHECK THE ROCKET (E)"); }
@@ -656,6 +659,17 @@ export class LunarScene extends Phaser.Scene {
     if (sim.abduction > 0) {
       const ab = sim.aliens.filter((a) => a.tipo === "abductor").sort((p, q) => Phaser.Math.Distance.Between(p.x, p.y, this.player.x, this.player.y) - Phaser.Math.Distance.Between(q.x, q.y, this.player.x, this.player.y))[0];
       if (ab) this.beam.fillStyle(PAL.ok, 0.25 + sim.abduction / 250).fillTriangle(ab.x - 3, ab.y + 2, ab.x + 3, ab.y + 2, this.player.x, this.player.y + 4).fillTriangle(this.player.x - 5, this.player.y + 4, this.player.x + 5, this.player.y + 4, ab.x, ab.y + 2);
+    }
+  }
+
+  updateAndroids(dt: number) {
+    stepAndroids(sim, dt, this.world());
+    const alive = new Set(sim.androids.map((a) => a.id));
+    for (const [id, spr] of this.androidSprites) if (!alive.has(id)) { spr.destroy(); this.androidSprites.delete(id); }
+    for (const a of sim.androids) {
+      let spr = this.androidSprites.get(a.id);
+      if (!spr) { spr = this.add.image(a.x, a.y, "al_saboteador").setTint(0x66e0ff).setDepth(23).setScale(1 / HD); this.androidSprites.set(a.id, spr); }
+      spr.setPosition(Math.round(a.x), Math.round(a.y + Math.sin(this.time.now / 140 + a.id) * 1));
     }
   }
 
