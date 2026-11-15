@@ -90,7 +90,11 @@ export function stepEvents(s: Sim, dt: number, w: World): { x: number; y: number
         toast(s, "☀️ Solar flare nerfed Communications (-4%)!", 5);
       }
     }
-    if (ev.id === "meteoritos") { spawnCapsule(s, ev.x, ev.y); addLog(s, "A supply capsule was left among the impact debris."); }
+    if (ev.id === "meteoritos") {
+      spawnCapsule(s, ev.x, ev.y);
+      spawnCave(s, ev.x + 14, ev.y + 8, w.rnd);
+      addLog(s, "A supply capsule and a Meteor Cave entrance were left among the impact debris!");
+    }
     addLog(s, `${e.nombre}: over.`);
     s.event = null;
   }
@@ -135,4 +139,65 @@ export function resolveSpecialCase(s: Sim) {
   notify(s, "mission", "Special Case Complete", sc.title);
   s.specialCase = null;
   return true;
+}
+
+export const CAVE_ALIENS: Record<string, { nombre: string; hp: number; dmg: number; desc: string; loot: Record<string, number> }> = {
+  escarabajo_vacio: { nombre: "Void Beetle", hp: 6, dmg: 7, desc: "Carapace-armored subterranean alien drawn to meteor impacts.", loot: { titanio: 2, aleacion: 1, racion: 1 } },
+  acechador_cristal: { nombre: "Crystal Lurker", hp: 7, dmg: 8, desc: "Silicate cave predator that ambushes explorers near relics.", loot: { cristal_hielo: 2, pieza_motor: 1 } },
+  centinela_lunar: { nombre: "Lunar Sentinel", hp: 8, dmg: 9, desc: "Ancient subterranean guardian protecting rare gear caches.", loot: { aleacion: 2, comida_caliente: 1 } },
+};
+
+const CAVE_ALIEN_IDS = Object.keys(CAVE_ALIENS);
+const RARE_CAVE_LOOT = ["pico_plasma", "armadura_lunar", "botas_gravedad"] as const;
+const PERK_POOL = ["salto_gravedad", "escudo_bio", "vista_lunar", "mente_acero"] as const;
+
+export function spawnCave(s: Sim, x: number, y: number, rnd: () => number = Math.random) {
+  const alienType = CAVE_ALIEN_IDS[Math.floor(rnd() * CAVE_ALIEN_IDS.length)]!;
+  const def = CAVE_ALIENS[alienType]!;
+  const cave = { id: s.nextCaveId++, x: Math.round(x), y: Math.round(y), explored: false, chestOpened: false, alienHp: def.hp, alienMaxHp: def.hp, alienType, relicDone: false };
+  s.caves.push(cave);
+  return cave;
+}
+
+export function strikeCaveAlien(s: Sim, caveId: number, dmg: number): { killed: boolean; counterDmg: number } {
+  const cave = s.caves.find((c) => c.id === caveId);
+  if (!cave || cave.alienHp <= 0) return { killed: false, counterDmg: 0 };
+  if (!s.creaturesSeen.includes(cave.alienType)) s.creaturesSeen.push(cave.alienType);
+  cave.alienHp = Math.max(0, cave.alienHp - dmg);
+  const def = CAVE_ALIENS[cave.alienType]!;
+  if (cave.alienHp <= 0) {
+    s.stats.aliens++;
+    for (const [k, n] of Object.entries(def.loot)) addItem(s, k as keyof Inv, n);
+    addLog(s, `🕳 Defeated ${def.nombre} inside the cave! Looted: ${Object.entries(def.loot).map(([k, n]) => `+${n} ${k}`).join(", ")}`);
+    return { killed: true, counterDmg: 0 };
+  }
+  hurt(s, def.dmg, `was injured by a ${def.nombre} in a meteor cave`);
+  return { killed: false, counterDmg: def.dmg };
+}
+
+export function openCaveChest(s: Sim, caveId: number, rnd: () => number = Math.random): string[] {
+  const cave = s.caves.find((c) => c.id === caveId);
+  if (!cave || cave.chestOpened || cave.alienHp > 0) return [];
+  cave.chestOpened = true;
+  cave.explored = true;
+  const rare = RARE_CAVE_LOOT[Math.floor(rnd() * RARE_CAVE_LOOT.length)]!;
+  const got: string[] = [];
+  if (addItem(s, rare, 1)) got.push(rare);
+  if (addItem(s, "racion", 1)) got.push("racion");
+  if (addItem(s, "titanio", 2)) got.push("titanio");
+  addLog(s, `💎 Cave chest opened: found rare ${rare.replace(/_/g, " ")}!`);
+  return got;
+}
+
+export function unlockCavePerk(s: Sim, caveId: number, rnd: () => number = Math.random): string | null {
+  const cave = s.caves.find((c) => c.id === caveId);
+  if (!cave || cave.relicDone) return null;
+  cave.relicDone = true;
+  cave.explored = true;
+  const avail = PERK_POOL.filter((p) => !s.perks.includes(p));
+  const pick = (avail.length ? avail : PERK_POOL)[Math.floor(rnd() * (avail.length || PERK_POOL.length))]!;
+  if (!s.perks.includes(pick)) s.perks.push(pick);
+  addLog(s, `✨ Relic calibrated! Unlocked superpower: ${pick.replace(/_/g, " ")}.`);
+  notify(s, "achievement", "Superpower Unlocked", pick.replace(/_/g, " "));
+  return pick;
 }

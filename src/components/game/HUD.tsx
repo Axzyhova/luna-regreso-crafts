@@ -11,6 +11,7 @@ import { MapPanel } from "./MapPanel";
 import { ChestPanel } from "./ChestPanel";
 import { ArchivePanel } from "./ArchivePanel";
 import { FieldGuidePanel } from "./FieldGuidePanel";
+import { CavePanel } from "./CavePanel";
 import { DeathScreen, NoticeToast, AchievementList, SuitControl } from "./SurvivalUI";
 import { EventBanner, EffectsBar, QuestTracker, QuestLog } from "./StoryUI";
 import { GEAR, CONSUMIBLES, toggleEquip, consumeItem } from "@/game/effects";
@@ -83,10 +84,26 @@ export function Countdown() {
   );
 }
 
+export function PickupFeed() {
+  const s = useGame((g) => g.snap);
+  if (!s.pickupFeed.length) return null;
+  const inv = s.inv as unknown as Record<string, number>;
+  return (
+    <div className="pointer-events-none flex flex-wrap justify-center gap-1.5">
+      {s.pickupFeed.map((p) => (
+        <span key={p.item} className="flex items-center gap-1 rounded-full bg-black/35 px-2 py-0.5 text-[7px] text-white/80 backdrop-blur-[2px]">
+          <PixelIcon item={p.item} size={10} />+{p.n} {ITEMS[p.item]?.nombre ?? p.item} <span className="text-white/50">({Math.floor(inv[p.item] ?? 0)})</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function HUDBottom({ className = "", touch = false }: { className?: string; touch?: boolean }) {
   const s = useGame((g) => g.snap);
   return (
       <div className={`pointer-events-none flex flex-col items-center gap-1 bg-background/80 p-2 ${className}`}>
+        <PickupFeed />
         <QuestTracker />
         {s.hint && <div className="text-[7px] text-ok">{s.hint}</div>}
         <div className="flex items-center gap-1">
@@ -407,6 +424,6 @@ export function Overlays() {
   const panel =
     overlay === "inv" ? <Inventory /> : overlay === "base" ? <Base /> : overlay === "log" ? <Log /> : overlay === "pausa" ? <Pause /> :
     overlay === "cohete" ? <Rocket /> : overlay === "cubesat" ? <CubeSatDesigner /> : overlay === "misiones" ? <QuestLog /> :
-    overlay === "estacion" ? <StationPanel /> : overlay === "mapa" ? <MapPanel /> : overlay === "cofre" ? <ChestPanel /> : overlay === "archivo" ? <ArchivePanel /> : overlay === "guia" ? <FieldGuidePanel /> : null;
+    overlay === "estacion" ? <StationPanel /> : overlay === "mapa" ? <MapPanel /> : overlay === "cofre" ? <ChestPanel /> : overlay === "archivo" ? <ArchivePanel /> : overlay === "guia" ? <FieldGuidePanel /> : overlay === "cueva" ? <CavePanel /> : null;
   return <>{panel}<NoticeToast /><DeathScreen /></>;
 }

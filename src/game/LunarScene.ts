@@ -7,7 +7,7 @@ import { stepAliens, hitAlien, type World } from "./aliens";
 import { stepCountdown } from "./mission";
 import { touch } from "./touch";
 import { stepEffects, stepPsychology, effectMods } from "./effects";
-import { stepEvents, stepSpecialCases, resolveSpecialCase, toast } from "./events";
+import { stepEvents, stepSpecialCases, resolveSpecialCase, spawnCave, toast } from "./events";
 import { initCapsules, nearestCapsule, openCapsule } from "./loot";
 import { stepQuests } from "./quests";
 import { stepTutorial, tutorialWantsLeak, TUTORIAL } from "./tutorial";
@@ -124,7 +124,12 @@ export class LunarScene extends Phaser.Scene {
     this.keys = this.input.keyboard!.addKeys("W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE,ONE,TWO,THREE,FOUR,FIVE,C,Q") as LunarScene["keys"];
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
       const w = p.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
-      if (sim.buildMode) this.place(p.wasTouch ? { x: w.x, y: w.y } : undefined); else this.useTool();
+      if (sim.buildMode) { this.place(p.wasTouch ? { x: w.x, y: w.y } : undefined); return; }
+      const clickedCave = sim.caves.find((c) => Phaser.Math.Distance.Between(c.x, c.y, w.x, w.y) < 16);
+      if (clickedCave && Phaser.Math.Distance.Between(clickedCave.x, clickedCave.y, this.player.x, this.player.y) < 38) {
+        sim.activeCaveId = clickedCave.id; sfx.click(); useGame.getState().publish(); useGame.getState().setOverlay("cueva"); return;
+      }
+      this.useTool();
     });
     this.input.on("pointermove", (p: Phaser.Input.Pointer) => { if (!p.wasTouch) this.touchMode = false; });
     this.input.keyboard!.on("keydown-C", () => this.toggleBuild());
@@ -138,6 +143,7 @@ export class LunarScene extends Phaser.Scene {
     (["ONE", "TWO", "THREE", "FOUR", "FIVE"] as const).forEach((n, i) => this.input.keyboard!.on(`keydown-${n}`, () => { sim.hotbar = i + 1; sfx.click(); }));
     for (const l of sim.leaks) this.addLeakSprite(l.id, l.x, l.y);
     initCapsules(sim, { w: W, h: H, hab: HAB, rnd: () => Math.random() });
+    if (!sim.caves.length) spawnCave(sim, 235, 195);
     this.drawBridge();
     if (!sim.log.length) addLog(sim, "Emergency landing at the lunar south pole. No fuel.");
     this.leakT = 90;
@@ -328,7 +334,7 @@ export class LunarScene extends Phaser.Scene {
     if (n.type === "hielo") sim.stats.hielo += got;
     sim.fatigue = Math.min(100, sim.fatigue + 0.6);
     n.amount -= got; sfx.pick();
-    if (got > 1) this.floatText(n.spr.x, n.spr.y - 6, `+${got}`);
+    this.floatText(n.spr.x, n.spr.y - 6, `+${got} ${ITEMS[n.type]?.nombre ?? n.type}`, "rgba(255,255,255,0.78)");
     this.tweens.add({ targets: n.spr, y: n.spr.y - 2, yoyo: true, duration: 60 });
     if (n.amount <= 0) { n.spr.destroy(); this.nodes = this.nodes.filter((x) => x !== n); this.time.delayedCall(40000, () => this.spawnNode(n.type, n.zone)); }
   }
@@ -340,6 +346,10 @@ export class LunarScene extends Phaser.Scene {
       const title = sim.specialCase.title;
       if (resolveSpecialCase(sim)) { sfx.ok(); toast(sim, `⭐ Resolved: ${title}`, 4); }
       return;
+    }
+    const nearCave = sim.caves.find((c) => Phaser.Math.Distance.Between(c.x, c.y, this.player.x, this.player.y) < 24);
+    if (nearCave) {
+      sim.activeCaveId = nearCave.id; sfx.click(); useGame.getState().publish(); useGame.getState().setOverlay("cueva"); return;
     }
     if (!sim.bridge && Phaser.Math.Distance.Between(BRIDGE.x, BRIDGE.y, this.player.x, this.player.y) < 30) {
       if (buildBridge(sim)) { sfx.ok(); toast(sim, "🌉 Bridge built! The Alien Hive is open.", 4); this.drawBridge(); } else { sfx.bad(); toast(sim, "Bridge needs 10 Metal, 6 Regolith and 2 Titanium.", 4); }
@@ -395,7 +405,7 @@ export class LunarScene extends Phaser.Scene {
     const zone = zoneAt(this.player.x, this.player.y);
     const distFromHab = Phaser.Math.Distance.Between(this.player.x, this.player.y, HAB.x, HAB.y);
     step(sim, dt, { inHabitat: this.nearHab(), inShadow, zoneTemp: zone.temp, distFromHab });
-    reveal(sim, this.player.x, this.player.y); sim.pos = { x: Math.round(this.player.x), y: Math.round(this.player.y) };
+    reveal(sim, this.player.x, this.player.y, sim.perks.includes("vista_lunar") ? 145 : undefined); sim.pos = { x: Math.round(this.player.x), y: Math.round(this.player.y) };
     checkSubzoneVisit(sim, this.player.x, this.player.y);
     this.updateHive(dt);
     this.updateBosses(dt);
@@ -453,6 +463,7 @@ export class LunarScene extends Phaser.Scene {
     const n = this.nearestNode();
     if (leak) this.say(sim.inv.kits > 0 ? `HOLD E: SEAL LEAK (1 KIT · ${sim.inv.kits} LEFT)` : "NEED 1 SEALANT KIT (CRAFT IN TAB: 2 SCRAP + 1 METAL)");
     else if (sim.specialCase && Phaser.Math.Distance.Between(sim.specialCase.x, sim.specialCase.y, this.player.x, this.player.y) < 28) this.say(`E: RESOLVE ${sim.specialCase.title.toUpperCase()}`);
+    else if (sim.caves.some((c) => Phaser.Math.Distance.Between(c.x, c.y, this.player.x, this.player.y) < 24)) this.say("E or CLICK: ENTER METEOR CAVE");
     else if (this.nearestDrop()) this.say("E: PICK UP YOUR LOST ITEMS");
     else if (!sim.bridge && Phaser.Math.Distance.Between(BRIDGE.x, BRIDGE.y, this.player.x, this.player.y) < 30) this.say("E: BUILD BRIDGE (10 METAL, 6 REGOLITH, 2 TITANIUM)");
     else if (this.upgradeHint()) this.say(this.upgradeHint()!);
@@ -594,6 +605,10 @@ export class LunarScene extends Phaser.Scene {
     if (sim.specialCase) {
       this.zone.lineStyle(2, PAL.gold, 0.85).strokeCircle(sim.specialCase.x, sim.specialCase.y, 12 + Math.sin(this.time.now / 220) * 3);
     }
+    for (const c of sim.caves) {
+      this.zone.fillStyle(0x06040a, 0.92).fillCircle(c.x, c.y, 8);
+      this.zone.lineStyle(1.5, c.explored ? 0x6b7280 : 0xb388ff, 0.9).strokeCircle(c.x, c.y, 8);
+    }
   }
 
   drawBridge() {
@@ -636,9 +651,9 @@ export class LunarScene extends Phaser.Scene {
   }
 
   /** Small rising number (e.g. +3 when a better tool gathers more). */
-  floatText(x: number, y: number, s: string) {
-    const t = this.add.text(x, y, s, { fontFamily: '"Press Start 2P"', resolution: HD * 2, fontSize: "6px", color: "#4fc26a", stroke: "#14141c", strokeThickness: 2 }).setDepth(41);
-    this.tweens.add({ targets: t, y: y - 10, alpha: 0, duration: 700, onComplete: () => t.destroy() });
+  floatText(x: number, y: number, s: string, color = "rgba(255,255,255,0.78)") {
+    const t = this.add.text(x, y, s, { fontFamily: '"Press Start 2P"', resolution: HD * 2, fontSize: "5px", color, stroke: "#14141c", strokeThickness: 2 }).setDepth(41).setAlpha(0.8);
+    this.tweens.add({ targets: t, y: y - 10, alpha: 0, duration: 850, onComplete: () => t.destroy() });
   }
 
   /** Hint above the astronaut, kept inside the visible part of the map. */

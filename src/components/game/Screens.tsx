@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import modos from "@/data/modos.json";
 import fuentes from "@/data/fuentes.json";
-import { useGame, hasSave } from "@/game/store";
+import { useGame } from "@/game/store";
 import type { Mode, Difficulty } from "@/game/sim";
 import { sfx } from "@/game/audio";
 import { GAME_TITLE } from "@/game/title";
@@ -61,7 +61,7 @@ export function Rechazo() {
 }
 
 export function ModeSelect() {
-  const { go, newGame, loadGame } = useGame();
+  const { go, newGame } = useGame();
   const [mode, setMode] = useState<Mode>("realista");
   const [diff, setDiff] = useState<Difficulty>("normal");
   return (
@@ -91,7 +91,6 @@ export function ModeSelect() {
       </div>
       <div className="flex gap-3">
         <PixelButton onClick={() => { newGame(mode, diff); go("cinematica"); }}>Start</PixelButton>
-        {hasSave() && <PixelButton tone="ghost" onClick={() => { if (loadGame()) go("juego"); }}>Continue</PixelButton>}
       </div>
     </div>
   );

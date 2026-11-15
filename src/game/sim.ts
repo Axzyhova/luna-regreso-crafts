@@ -32,7 +32,7 @@ export const CYCLE = DAY_LEN + NIGHT_LEN;
 export const LH2_CAP = balance.lh2_cap_kg;
 export const LOX_CAP = balance.lox_cap_kg;
 
-export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cofre: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number; alga_lunar: number; racion: number; comida_caliente: number }
+export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cofre: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number; alga_lunar: number; racion: number; comida_caliente: number; pico_plasma: number; armadura_lunar: number; botas_gravedad: number }
 
 export function createSim(mode: Mode, difficulty: Difficulty) {
   return {
@@ -42,7 +42,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     battery: 60, energyIn: 0, energyOut: 0,
     habitatO2: 80,
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
-    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cofre: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0, alga_lunar: 0, racion: 0, comida_caliente: 0 } as Inv,
+    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cofre: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0, alga_lunar: 0, racion: 0, comida_caliente: 0, pico_plasma: 0, armadura_lunar: 0, botas_gravedad: 0 } as Inv,
     relay: false,
     // --- historia, efectos, eventos y botín ---
     effects: [] as string[],
@@ -70,6 +70,12 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     specialCase: null as null | { id: string; title: string; desc: string; x: number; y: number; reward: Record<string, number>; t: number },
     nextCaseT: 95,
     casesDone: 0,
+    // Pickup feed, exploration perks (superpowers), and meteor caves.
+    pickupFeed: [] as { item: string; n: number; t: number }[],
+    perks: [] as string[],
+    caves: [] as { id: number; x: number; y: number; explored: boolean; chestOpened: boolean; alienHp: number; alienMaxHp: number; alienType: string; relicDone: boolean }[],
+    nextCaveId: 1,
+    activeCaveId: null as number | null,
     // Space suit: indispensable outside. Integrity wears down with use; wearing it all the time makes you thirsty.
     suit: { owned: true, worn: true, integrity: 80 },
     hydration: 100,
@@ -195,9 +201,11 @@ export function usedSlots(inv: Inv) {
 
 // ---- Tools: what you hold decides how much each swing gathers and how fast ----
 export function toolInfo(s: Sim) {
-  if (s.inv.pala_titanio > 0) return { name: "Titanium shovel", yield: 3, cd: 0.22 };
-  if (s.inv.pala_mejorada > 0) return { name: "Better shovel", yield: 2, cd: 0.32 };
-  return { name: "Bare hands", yield: 1, cd: 0.5 };
+  const bonus = s.perks.includes("vista_lunar") ? 1 : 0;
+  if (s.inv.pico_plasma > 0) return { name: "Plasma cutter", yield: 4 + bonus, cd: 0.18 };
+  if (s.inv.pala_titanio > 0) return { name: "Titanium shovel", yield: 3 + bonus, cd: 0.22 };
+  if (s.inv.pala_mejorada > 0) return { name: "Better shovel", yield: 2 + bonus, cd: 0.32 };
+  return { name: "Bare hands", yield: 1 + bonus, cd: 0.5 };
 }
 
 /** Melt carried ice into the habitat water tank (only as much as fits). Returns kg added. */
@@ -251,7 +259,12 @@ export function addItem(s: Sim, key: keyof Inv, n = 1) {
   const next = { ...s.inv, [key]: s.inv[key] + n };
   if (usedSlots(next) > SLOTS) return false;
   s.inv[key] += n;
-  if (n > 0 && !s.discoveredItems.includes(key)) s.discoveredItems.push(key);
+  if (n > 0) {
+    if (!s.discoveredItems.includes(key)) s.discoveredItems.push(key);
+    const existing = s.pickupFeed.find((p) => p.item === key);
+    if (existing) { existing.n += n; existing.t = 4.5; }
+    else { s.pickupFeed.unshift({ item: key, n, t: 4.5 }); if (s.pickupFeed.length > 4) s.pickupFeed.pop(); }
+  }
   return true;
 }
 export type Receta = (typeof recetas)[number];
@@ -327,7 +340,8 @@ export function notify(s: Sim, kind: "achievement" | "mission", title: string, t
 /** Apply damage and remember what caused it (shown on the death screen). */
 export function hurt(s: Sim, amount: number, cause: string) {
   if (amount <= 0) return;
-  s.health = Math.max(0, s.health - amount);
+  const mult = s.equip.includes("armadura_lunar") ? 0.6 : 1;
+  s.health = Math.max(0, s.health - amount * mult);
   s.lastHurt = cause;
 }
 
@@ -506,6 +520,7 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   // acts
   if (s.act === 1 && s.inv.hielo + s.inv.agua >= 6 && s.inv.chatarra >= 4 && s.actFlags.leakFixed) advanceAct(s);
   if (s.act === 2 && s.lh2 >= balance.meta_acto2_lh2_kg) advanceAct(s);
+  s.pickupFeed = s.pickupFeed.map((p) => ({ ...p, t: p.t - dt })).filter((p) => p.t > 0);
   cleanupInventory(s);
 }
 

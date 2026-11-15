@@ -1,4 +1,5 @@
 import { ALIENS } from "./aliens";
+import { CAVE_ALIENS } from "./events";
 import { ITEMS } from "./items";
 import { BOSS_DEFS } from "./zones";
 
@@ -21,12 +22,15 @@ export const MATERIAL_GUIDE: MaterialGuideEntry[] = [
   { id: "titanio", where: "Titanium Quarry & Far Scorch Caldera (Scorch Fields)", use: "Build Ravine Bridge, Titanium shovel & level-3 upgrades." },
   { id: "aleacion", where: "Alloy Spires, Hive Matriarch Lair & Hive Creatures", use: "Top-tier module upgrades." },
   { id: "pieza_motor", where: "Supply Capsules, Special Cases & Far-Zone Bosses", use: "Repairs the rocket's Propulsion subsystem." },
+  { id: "pico_plasma", where: "Meteor Cave Chests (after defeating the cave alien)", use: "Rare tool: gathers 4 per swing at high speed." },
+  { id: "armadura_lunar", where: "Meteor Cave Chests (after defeating the cave alien)", use: "Rare gear: equip for -40% incoming damage." },
+  { id: "botas_gravedad", where: "Meteor Cave Chests (after defeating the cave alien)", use: "Rare gear: +15% speed & immunity to Low-G Vertigo." },
 ];
 
 export interface CreatureGuideEntry {
   id: string;
   nombre: string;
-  kind: "Night Alien" | "Hive Creature" | "Zone Boss";
+  kind: "Night Alien" | "Hive Creature" | "Zone Boss" | "Cave Alien";
   where: string;
   desc: string;
   loot: string;
@@ -38,6 +42,14 @@ export const CREATURE_GUIDE: CreatureGuideEntry[] = [
   { id: "saboteador", nombre: ALIENS.tipos.saboteador.nombre, kind: "Night Alien", where: "Landing Site at night, targets Habitat & tanks", desc: ALIENS.tipos.saboteador.consejo, loot: "Prevents leaks & theft" },
   { id: "nodriza", nombre: ALIENS.tipos.nodriza.nombre, kind: "Night Alien", where: "Rocket pad during final launch countdown", desc: ALIENS.tipos.nodriza.consejo, loot: "Protects rocket" },
   { id: "criatura_colmena", nombre: "Hive Stalker", kind: "Hive Creature", where: "Alien Hive (SE region, all modes)", desc: "Aggressive territorial creature guarding Alloy Spires.", loot: "1 Alien alloy" },
+  ...Object.entries(CAVE_ALIENS).map(([id, c]) => ({
+    id,
+    nombre: c.nombre,
+    kind: "Cave Alien" as const,
+    where: "Meteor Caves (spawned after meteor showers)",
+    desc: c.desc,
+    loot: Object.entries(c.loot).map(([k, n]) => `${n}x ${ITEMS[k]?.nombre ?? k}`).join(", "),
+  })),
   ...Object.values(BOSS_DEFS).map((b) => ({
     id: b.id,
     nombre: b.nombre,

@@ -2,10 +2,13 @@ import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { createSim, step, addItem } from "@/game/sim";
 import { consumeItem, stepPsychology } from "@/game/effects";
-import { stepEvents, stepSpecialCases, resolveSpecialCase } from "@/game/events";
+import { stepEvents, stepSpecialCases, resolveSpecialCase, spawnCave, strikeCaveAlien, openCaveChest, unlockCavePerk } from "@/game/events";
 import { SUBZONAS, stepBosses, hitBoss, checkSubzoneVisit } from "@/game/zones";
 import { FieldGuidePanel } from "@/components/game/FieldGuidePanel";
 import { MapPanel } from "@/components/game/MapPanel";
+import { ModeSelect } from "@/components/game/Screens";
+import { PickupFeed } from "@/components/game/HUD";
+import { CavePanel } from "@/components/game/CavePanel";
 import { useGame } from "@/game/store";
 
 describe("Lunar survival & exploration expansions", () => {
@@ -100,5 +103,49 @@ describe("Lunar survival & exploration expansions", () => {
     expect(screen.getByText("MAP")).toBeInTheDocument();
     expect(screen.getByText(/Resource Land/i)).toBeInTheDocument();
     expect(screen.getByText(/Far Boss Zone/i)).toBeInTheDocument();
+  });
+
+  it("ModeSelect shows only Start (no Continue) and goes to story", () => {
+    localStorage.setItem("varados_save_v3", JSON.stringify(createSim("realista", "normal")));
+    useGame.setState({ screen: "modo" });
+    render(<ModeSelect />);
+    expect(screen.getByRole("button", { name: "Start" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+    expect(useGame.getState().screen).toBe("cinematica");
+  });
+
+  it("pickup feed tracks collected items and renders counter", () => {
+    const s = createSim("realista", "normal");
+    addItem(s, "hielo", 3);
+    expect(s.pickupFeed[0]?.item).toBe("hielo");
+    expect(s.pickupFeed[0]?.n).toBe(3);
+    useGame.setState({ snap: s });
+    render(<PickupFeed />);
+    expect(screen.getByText(/\+3 Ice/i)).toBeInTheDocument();
+  });
+
+  it("meteor caves spawn cave aliens, rare chests, and superpower perks", () => {
+    const s = createSim("realista", "normal");
+    const cave = spawnCave(s, 250, 200, () => 0);
+    s.activeCaveId = cave.id;
+    expect(cave.alienHp).toBeGreaterThan(0);
+
+    // Defeat cave alien
+    for (let i = 0; i < 10 && cave.alienHp > 0; i++) strikeCaveAlien(s, cave.id, 2);
+    expect(cave.alienHp).toBe(0);
+
+    // Unlock superpower & rare chest
+    const perk = unlockCavePerk(s, cave.id, () => 0);
+    expect(perk).toBeTruthy();
+    expect(s.perks.length).toBe(1);
+
+    const loot = openCaveChest(s, cave.id, () => 0);
+    expect(loot.length).toBeGreaterThan(0);
+    expect(cave.chestOpened).toBe(true);
+
+    useGame.setState({ snap: s, overlay: "cueva" });
+    render(<CavePanel />);
+    expect(screen.getByText(/METEOR CAVE/i)).toBeInTheDocument();
   });
 });

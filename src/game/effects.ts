@@ -6,9 +6,16 @@ export type EffectId = keyof typeof cfg.efectos;
 export const EFECTOS = cfg.efectos as Record<EffectId, { nombre: string; icono: string; desc: string; velocidad: number; recoleccion: number; reparar?: number; salud_s?: number; o2_extra?: number; protege?: string; remedio: string }>;
 export const UMBRALES = cfg.umbrales;
 export const EQUIPO_MAX = cfg.equipo_max;
-export const GEAR = ["traje_termico", "capa_reflectante", "escudo_radiacion"];
+export const GEAR = ["traje_termico", "capa_reflectante", "escudo_radiacion", "armadura_lunar", "botas_gravedad"];
 export const CONSUMIBLES = ["botiquin", "estimulante", "racion", "comida_caliente"];
 const PSYCH_EFFECTS: EffectId[] = ["vertigo_gravedad", "aislamiento", "panico"];
+
+export const PERKS: Record<string, { nombre: string; icono: string; desc: string }> = {
+  salto_gravedad: { nombre: "Low-G Thrusters", icono: "🚀", desc: "+25% movement speed on the lunar surface." },
+  escudo_bio: { nombre: "Bio-Regen Field", icono: "💚", desc: "Passive +0.4 HP/s regeneration even outside." },
+  vista_lunar: { nombre: "Deep Scanner", icono: "🔭", desc: "+1 bonus gathering yield & wider fog reveal." },
+  mente_acero: { nombre: "Astronaut Focus", icono: "🧘", desc: "-50% sanity drain from isolation and gravity." },
+};
 
 const dist = (ax: number, ay: number, bx: number, by: number) => Math.hypot(ax - bx, ay - by);
 const has = (s: Sim, item: string) => s.equip.includes(item);
@@ -57,6 +64,7 @@ export function stepEffects(s: Sim, dt: number, w: World, inShadow: boolean) {
     if (c.o2_extra && !w.inHabitat) s.suitO2 = Math.max(0, s.suitO2 - c.o2_extra * dt);
     if (!before.has(e)) addLog(s, `${c.icono} ${c.nombre}: ${c.remedio}`);
   }
+  if (s.perks.includes("escudo_bio") && s.health > 0) s.health = Math.min(100, s.health + 0.4 * dt);
   s.effects = now;
 }
 
@@ -73,7 +81,7 @@ export function stepPsychology(s: Sim, dt: number, w: World, rnd: () => number) 
     s.sanity = Math.min(100, s.sanity + 3.0 * dt);
     if (s.psychEffect) s.psychEffect.t = Math.max(0, s.psychEffect.t - 3 * dt);
   } else {
-    const drain = (far ? 0.38 : 0.08) + (dark ? 0.25 : 0) + (s.aliens.length ? 0.2 : 0) + (s.leaks.length ? 0.15 : 0) + (s.hydration < 30 ? 0.2 : 0);
+    const drain = ((far ? 0.38 : 0.08) + (dark ? 0.25 : 0) + (s.aliens.length ? 0.2 : 0) + (s.leaks.length ? 0.15 : 0) + (s.hydration < 30 ? 0.2 : 0)) * (s.perks.includes("mente_acero") ? 0.5 : 1);
     s.sanity = Math.max(0, s.sanity - drain * dt);
   }
   if (s.psychEffect) {
@@ -86,7 +94,8 @@ export function stepPsychology(s: Sim, dt: number, w: World, rnd: () => number) 
     if (!w.inHabitat && !s.psychEffect) {
       const p = Math.max(0, Math.min(0.75, 0.05 + Math.max(0, 75 - s.sanity) / 100 * 0.45 + (far ? 0.15 : 0) + (dark ? 0.1 : 0)));
       if (rnd() < p) {
-        const pick = far && rnd() < 0.5 ? "vertigo_gravedad" : PSYCH_EFFECTS[Math.floor(rnd() * PSYCH_EFFECTS.length)]!;
+        let pick = far && rnd() < 0.5 ? "vertigo_gravedad" : PSYCH_EFFECTS[Math.floor(rnd() * PSYCH_EFFECTS.length)]!;
+        if (pick === "vertigo_gravedad" && s.equip.includes("botas_gravedad")) pick = "aislamiento";
         s.psychEffect = { id: pick, t: 20 };
         const ef = EFECTOS[pick];
         addLog(s, `${ef.icono} ${ef.nombre}: ${ef.desc}`);
@@ -103,6 +112,8 @@ export function effectMods(s: Sim) {
     if (!c) continue;
     speed *= c.velocidad; gather *= c.recoleccion; repair *= c.reparar ?? 1;
   }
+  if (s.perks.includes("salto_gravedad")) speed *= 1.25;
+  if (s.equip.includes("botas_gravedad")) speed *= 1.15;
   return { speed, gather, repair };
 }
 

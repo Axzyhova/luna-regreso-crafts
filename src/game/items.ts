@@ -35,6 +35,9 @@ export const ITEMS: Record<string, ItemInfo> = {
   alga_lunar: { nombre: "Lunar algae", desc: "Edible bioluminescent moss from the Shadowed Crater & Deep Glacial Rift. Used to craft Space rations and Hot meals.", icon: ["..g..g..", ".gg.gg..", ".gwgwgg.", "..gggg..", ".ggwgg..", "..ggg...", "...g....", "........"], colors: { g: c.ok, w: c.white } },
   racion: { nombre: "Space ration", desc: "Food: restores +25 Health, +15 Sanity and +10 Hydration. Craft at Workshop (2 Lunar algae + 1 Scrap) or find in capsules.", icon: ["........", ".oooooo.", "owwwwwwo", "owrrrrwo", "owwwwwwo", ".oooooo.", "........", "........"], colors: { o: c.alert, w: c.white, r: c.red } },
   comida_caliente: { nombre: "Hot meal", desc: "Food: restores +45 Health, +25 Sanity, +15 Hydration and clears Cold/Vertigo. Craft at Furnace (2 Lunar algae + 1 Metal).", icon: ["..w..w..", "...w.w..", ".rrrrrr.", "ryyyyyyr", ".mmmmmm.", "..mmmm..", "........", "........"], colors: { w: c.white, r: c.red, y: c.gold, m: c.moon3 } },
+  pico_plasma: { nombre: "Plasma cutter", desc: "Rare Cave Tool: gathers 4 per swing at high speed. Just carry it.", icon: ["....cc..", "...cwc..", "....c...", "...g....", "..g.....", ".g......", "g.......", "........"], colors: { c: c.suitL, w: c.white, g: c.moon3 } },
+  armadura_lunar: { nombre: "Lunar exo-armor", desc: "Rare Cave Gear: equip to reduce all incoming damage by 40%.", icon: ["..mmmm..", ".mwwwwm.", "mwmmmmwm", "mwmmmmwm", ".mwwwwm.", ".m.mm.m.", ".m....m.", "........"], colors: { m: c.moon3, w: c.suitL } },
+  botas_gravedad: { nombre: "Mag-boots", desc: "Rare Cave Gear: equip for +15% speed and immunity to Low-G Vertigo.", icon: ["........", ".mm..mm.", ".mm..mm.", ".mm..mm.", "mmm..mmm", "yyy..yyy", "........", "........"], colors: { m: c.moon3, y: c.gold } },
 };
 
 /** Display order for inventory grids: every item except base-stored ones (water lives in the habitat tank). */

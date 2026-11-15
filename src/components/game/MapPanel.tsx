@@ -69,6 +69,14 @@ export function MapPanel() {
       g.font = "bold 10px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
       g.fillStyle = "#f2d24f"; g.fillText("★", sx, sy);
     }
+    // meteor cave holes
+    for (const c of s.caves) {
+      if (!explored(c.x, c.y)) continue;
+      g.fillStyle = c.explored ? "#6b7280" : "#b388ff";
+      g.beginPath(); g.arc(c.x * S, c.y * S, 4, 0, Math.PI * 2); g.fill();
+      g.fillStyle = "#06040a";
+      g.beginPath(); g.arc(c.x * S, c.y * S, 2, 0, Math.PI * 2); g.fill();
+    }
     // zone names (+ lock reason)
     g.font = "bold 10px sans-serif";
     for (const z of ZONAS) {

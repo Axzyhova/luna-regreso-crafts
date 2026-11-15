@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useGame, sim } from "@/game/store";
 import { sfx } from "@/game/audio";
-import { EFECTOS, type EffectId } from "@/game/effects";
+import { EFECTOS, PERKS, type EffectId } from "@/game/effects";
 import { eventBanner } from "@/game/events";
 import { PRINCIPALES, currentMain, sideAvailable, MISIONES } from "@/game/quests";
 import { ITEMS } from "@/game/items";
@@ -56,12 +56,13 @@ export function EventBanner() {
 /** Active negative states and worn gear. */
 export function EffectsBar() {
   const s = useGame((g) => g.snap);
-  if (!s.effects.length && !s.equip.length && s.fatigue < 40) return null;
+  if (!s.effects.length && !s.equip.length && !s.perks.length && s.fatigue < 40) return null;
   return (
     <div className="flex flex-wrap items-center justify-center gap-2 text-[7px]">
       {(s.effects as EffectId[]).map((e) => <span key={e} title={EFECTOS[e]?.desc} className="animate-pulse text-alert">{EFECTOS[e]?.icono} {EFECTOS[e]?.nombre}</span>)}
       {!s.effects.includes("cansancio") && s.fatigue >= 40 && <span className="text-muted-foreground">😮‍💨 Fatigue {Math.round(s.fatigue)}%</span>}
       {s.equip.map((g) => <span key={g} className="flex items-center gap-1 text-ok"><PixelIcon item={g} size={10} />{ITEMS[g]?.nombre}</span>)}
+      {s.perks.map((p) => <span key={p} title={PERKS[p]?.desc} className="text-gold">{PERKS[p]?.icono} {PERKS[p]?.nombre}</span>)}
     </div>
   );
 }
