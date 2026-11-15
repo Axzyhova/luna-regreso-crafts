@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Lunar Colony Simulator</title>
+  <meta name="description" content="A lunar colonization simulator built on real NASA engineering: ISRU chemistry, electrostatic dust, ground stability, closed-loop life support and a ship fuelled on the Moon." />
+  <link rel="stylesheet" href="css/mission-control.css" />
+  <!-- three.js (r160, MIT) is the only dependency. It ships in vendor/ so the simulator works offline. -->
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.min.js" } }
+  </script>
+</head>
+<body data-mode="realista">
+  <div id="app">
+    <div id="view" aria-label="3D view of the colony"></div>
+    <header id="topbar"></header>
+    <aside id="left" aria-live="polite"></aside>
+    <aside id="right"></aside>
+    <footer id="bottom"></footer>
+    <div id="toasts" aria-live="polite"></div>
+    <div id="crt" aria-hidden="true"></div>
+    <div id="modal" role="dialog" aria-modal="true"></div>
+  </div>
+  <noscript>This simulator needs JavaScript. / Este simulador necesita JavaScript.</noscript>
+  <script>
+    // If the game can't start, say why on the page instead of leaving it blank.
+    function showFatal(msg) {
+      var v = document.getElementById("view");
+      if (v && !v.querySelector(".fatal")) v.insertAdjacentHTML("beforeend", '<p class="fatal" id="fatal"></p>');
+      var f = document.getElementById("fatal");
+      if (f) f.textContent = "The simulator could not start: " + msg;
+    }
+    window.addEventListener("error", function (e) { var src = e.target && (e.target.src || e.target.href); showFatal(e.message || ("a file failed to load" + (src ? ": " + src : "") + "")); }, true);
+    window.addEventListener("unhandledrejection", function (e) { showFatal(String(e.reason && e.reason.message || e.reason)); });
+  </script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
