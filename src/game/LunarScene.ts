@@ -467,6 +467,7 @@ export class LunarScene extends Phaser.Scene {
       if (m.tipo === "rover" && m.rx !== undefined) { // the rover drives around the map
         const rx = m.rx, ry = m.ry!;
         if (Math.abs(sp.img.x - rx) > 0.05) sp.img.setFlipX(rx < sp.img.x);
+        sp.img.setTint(ROBERT_SKINS[sim.roverTech.skin]?.tint ?? 0xffffff);
         sp.img.setPosition(rx, ry).setDepth(sortDepth(groundLine(ry, TIPOS.rover.h), H)); sp.shadow.setPosition(rx, groundLine(ry, TIPOS.rover.h));
         sp.warn.setPosition(rx - 1, ry - TIPOS.rover.h / 2 - 8); sp.up.setPosition(rx + TIPOS.rover.w / 2 - 3, sp.up.y);
       }
@@ -813,6 +814,7 @@ export class LunarScene extends Phaser.Scene {
       { x: SHADOW.x, y: SHADOW.y, r: 40, color: 0x4fc2ff, dayAlpha: 0.03 },
     ];
     for (const m of sim.modules) if (m.tipo === "torre_luz" && m.activo && m.durabilidad > 0 && sim.battery > 0) lights.push({ x: m.x, y: m.y, r: 140, color: 0xfff0aa, dayAlpha: 0.12 });
+    if (sim.roverTech.skills.includes("lights")) for (const m of sim.modules) if (m.tipo === "rover") lights.push({ x: m.rx ?? m.x, y: m.ry ?? m.y, r: 55, color: 0xfff0c0, dayAlpha: 0 }); // rover headlights
     if (sim.robert.skills.includes("lamp")) lights.push({ x: this.robert.x, y: this.robert.y, r: 40 + sim.robert.level * 10, color: 0xbfe6ff, dayAlpha: 0 }); // Robert's headlamp
     for (const c of sim.capsules) lights.push({ x: c.x, y: c.y, r: 46, color: 0xf2d24f, dayAlpha: 0.14 });
     for (const cv of sim.caves) lights.push({ x: cv.x, y: cv.y, r: 48, color: 0x66e0ff, dayAlpha: 0.12 });

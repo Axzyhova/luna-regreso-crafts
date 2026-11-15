@@ -32,3 +32,19 @@ describe("Robert Station", () => {
     expect(s.health).toBeGreaterThan(51);
   });
 });
+
+describe("Robert Station — Auto-Miner Rovers", () => {
+  it("levels, skills and paint change every rover's stats", async () => {
+    const { upgradeRovers, unlockRoverSkill, setRoverSkin, roverSpeed, roverMineS, roverLoad, ROVER_SPEED, ROVER_MINE_S, ROVER_LOAD } = await import("@/game/sim");
+    const s = createSim("realista", "normal");
+    expect([roverSpeed(s), roverMineS(s), roverLoad(s)]).toEqual([ROVER_SPEED, ROVER_MINE_S, ROVER_LOAD]);
+    Object.assign(s.inv, { metal: 99, chatarra: 99, baterias: 9, titanio: 9, cristal_hielo: 4 });
+    expect(upgradeRovers(s)).toBe(true);
+    for (const id of ["turbo", "cargo", "drill"]) expect(unlockRoverSkill(s, id)).toBe(true);
+    expect(setRoverSkin(s, "green")).toBe(true);
+    expect(roverLoad(s)).toBe(ROVER_LOAD + 1 + 3);
+    expect(roverMineS(s)).toBe(ROVER_MINE_S / 2);
+    expect(roverSpeed(s)).toBeCloseTo(ROVER_SPEED * 1.1 * 1.4);
+    expect(s.roverTech.skin).toBe("green");
+  });
+});

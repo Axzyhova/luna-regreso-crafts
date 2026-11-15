@@ -1,5 +1,5 @@
 import { useGame, sim } from "@/game/store";
-import { ROVER_MATS, ROVER_LOAD, roverSite, setRoverMat } from "@/game/sim";
+import { ROVER_MATS, roverLoad, roverSite, setRoverMat } from "@/game/sim";
 import { ITEMS } from "@/game/items";
 import { sfx } from "@/game/audio";
 import { PixelIcon } from "./PixelIcon";
@@ -25,11 +25,12 @@ export function RoverPanel() {
           <button type="button" onClick={() => { sim.roverUid = null; setOverlay(null); }} className="tr-btn px-2 py-1 text-[9px]">✕</button>
         </div>
         <p className="mb-2 text-[9px] leading-4 text-white/85">
-          It drives to the nearest place with the material, mines {ROVER_LOAD}, comes back and drops them in the storage chest. Day and night, on its own power.
+          It drives to the nearest place with the material, mines {roverLoad(s)}, comes back and drops them in the storage chest. Day and night, on its own power.
         </p>
         <div className="mb-2 rounded bg-black/35 px-2 py-1.5 text-[9px] text-white">
           {PHASE[m.rst ?? "idle"]} · {m.note ?? "Ready"} · delivered so far: {m.tick ?? 0}
         </div>
+        <p className="mb-2 text-[8px] text-suit-light">Level {s.roverTech.level} · {s.roverTech.skills.length} upgrades installed · {roverLoad(s)} per trip. Upgrade, add skills and repaint it at the 🤖 Robert Station.</p>
         <div className="tr-text mb-1 text-[9px] text-white/90">Choose what to collect</div>
         <div className="grid grid-cols-2 gap-1.5">
           {ROVER_MATS.map((mat) => {

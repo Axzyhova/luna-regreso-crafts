@@ -880,6 +880,10 @@
       {
        "t": "Collect",
        "d": "Pick which material the Forager brings you."
+      },
+      {
+       "t": "Auto-Miner Rovers",
+       "d": "Switch to 🚜 AUTO-MINER ROVERS at the station: level them up (faster, bigger loads), install Turbo wheels, Cargo bay, Diamond drill or Headlights, repaint them and set each rover's material."
       }
      ]
     }

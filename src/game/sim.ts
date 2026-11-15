@@ -151,6 +151,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     shed: false,
     robertMet: false,
     robert: { level: 1, skills: [] as string[], mat: "regolito", skin: "gold" }, // upgrades from the Robert Station
+    roverTech: { level: 1, skills: [] as string[], skin: "gold" }, // Auto-Miner Rover upgrades (Robert Station), shared by all rovers
     roverUid: null as number | null, // rover whose panel is open // saw Mini Robert's mandatory intro
     machineFx: [] as { x: number; y: number; text: string }[],
     farms: {} as Record<string, { crop: string | number; growth: number; water?: number }>,
@@ -779,7 +780,7 @@ function stepRover(s: Sim, m: Module, dt: number, chests: Module[]) {
   const home = chests.reduce<Module | undefined>((b, c) => (!b || Math.hypot(c.x - m.x, c.y - m.y) < Math.hypot(b.x - m.x, b.y - m.y) ? c : b), undefined);
   if (!home) { m.rst = "idle"; m.note = "Needs a storage chest"; s.modStatus[m.uid] = "idle"; return; }
   const drive = (x: number, y: number) => {
-    const dx = x - m.rx!, dy = y - m.ry!, d = Math.hypot(dx, dy), step = ROVER_SPEED * dt;
+    const dx = x - m.rx!, dy = y - m.ry!, d = Math.hypot(dx, dy), step = roverSpeed(s) * dt;
     if (d <= step) { m.rx = x; m.ry = y; return true; }
     m.rx! += (dx / d) * step; m.ry! += (dy / d) * step; return false;
   };
@@ -792,7 +793,7 @@ function stepRover(s: Sim, m: Module, dt: number, chests: Module[]) {
   if (m.rst === "go" && drive(m.tx!, m.ty!)) { m.rst = "mine"; m.acc = 0; m.note = "Mining…"; }
   else if (m.rst === "mine") {
     m.acc = (m.acc ?? 0) + dt;
-    if (m.acc >= ROVER_MINE_S) { m.load = ROVER_LOAD; m.rst = "back"; m.note = "Returning to base"; }
+    if (m.acc >= roverMineS(s)) { m.load = roverLoad(s); m.rst = "back"; m.note = "Returning to base"; }
   } else if (m.rst === "back" && drive(home.x, home.y + 10)) {
     const name = ITEMS[m.mat]?.nombre ?? m.mat;
     let put = 0;
@@ -803,6 +804,35 @@ function stepRover(s: Sim, m: Module, dt: number, chests: Module[]) {
     m.rst = "idle"; m.note = "Unloaded";
   }
 }
+// Auto-Miner upgrades (bought at the Robert Station; every rover shares them).
+export const ROVER_MAX_LEVEL = 5;
+export const ROVER_SKILLS: Record<string, { nombre: string; icon: string; desc: string; cost: Record<string, number> }> = {
+  turbo: { nombre: "Turbo wheels", icon: "🛞", desc: "Drives 40% faster to the site and back.", cost: { metal: 4, baterias: 1 } },
+  cargo: { nombre: "Cargo bay", icon: "📦", desc: "Carries 3 more units on every trip.", cost: { metal: 5, chatarra: 3 } },
+  drill: { nombre: "Diamond drill", icon: "💎", desc: "Mines twice as fast at the site.", cost: { metal: 3, cristal_hielo: 2 } },
+  lights: { nombre: "Headlights", icon: "🔦", desc: "Lights the ground around the rover at night.", cost: { metal: 2, chatarra: 2 } },
+};
+export function roverUpCost(level: number): Record<string, number> {
+  return { metal: 4 * level, chatarra: 2 * level, ...(level >= 2 ? { baterias: 1 } : {}), ...(level >= 4 ? { titanio: 2 } : {}) };
+}
+const rt = (s: Sim) => s.roverTech ?? { level: 1, skills: [], skin: "gold" };
+/** Rover stats from its level and skills. */
+export const roverSpeed = (s: Sim) => ROVER_SPEED * (1 + 0.1 * (rt(s).level - 1)) * (rt(s).skills.includes("turbo") ? 1.4 : 1);
+export const roverMineS = (s: Sim) => ROVER_MINE_S * (rt(s).skills.includes("drill") ? 0.5 : 1);
+export const roverLoad = (s: Sim) => ROVER_LOAD + (rt(s).level - 1) + (rt(s).skills.includes("cargo") ? 3 : 0);
+export function upgradeRovers(s: Sim) {
+  if (s.roverTech.level >= ROVER_MAX_LEVEL || !payCost(s, roverUpCost(s.roverTech.level))) return false;
+  s.roverTech.level++; addLog(s, `🚜 Auto-Miner Rovers upgraded to level ${s.roverTech.level}.`);
+  return true;
+}
+export function unlockRoverSkill(s: Sim, id: string) {
+  const sk = ROVER_SKILLS[id];
+  if (!sk || s.roverTech.skills.includes(id) || !payCost(s, sk.cost)) return false;
+  s.roverTech.skills.push(id); addLog(s, `🚜 Rovers got: ${sk.nombre}.`);
+  return true;
+}
+export function setRoverSkin(s: Sim, skin: string) { if (!ROBERT_SKINS[skin]) return false; s.roverTech.skin = skin; return true; }
+
 /** Pick the rover's material (from its panel); it heads out on the next trip. */
 export function setRoverMat(s: Sim, m: Module, mat: string) {
   if (!(ROVER_MATS as readonly string[]).includes(mat)) return false;
