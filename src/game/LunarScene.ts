@@ -17,6 +17,7 @@ import { FONT_KEY, registerPixelFont, toFont } from "./pixelfont";
 import { WALK_SPEED, RUN_MULT, RUN_FATIGUE_S, runState, strideFrame } from "./movement";
 import { makeSprites, HD } from "./sprites";
 import { stepHive, hitHive } from "./zones";
+import { twinkle, bobOffset, beamStrips, ringPhase, edgeMarker } from "./pickups";
 
 const W = 640, H = 360; // landing site (night aliens, events and capsules stay here)
 const WW = WORLD.w, WH = WORLD.h; // whole explorable world
@@ -26,6 +27,8 @@ const SHADOW = { x: 330, y: 270, rx: 120, ry: 60 };
 type NodeType = "hielo" | "regolito" | "chatarra" | "cristal_hielo" | "titanio" | "aleacion";
 const NODE_TEX: Record<NodeType, string> = { hielo: "ice", regolito: "reg", chatarra: "scrap", cristal_hielo: "n_cristal", titanio: "n_titanio", aleacion: "n_aleacion" };
 interface RNode { type: NodeType; amount: number; spr: Phaser.GameObjects.Image; zone?: string }
+/** Glow colour under each kind of resource lying on the ground. */
+const NODE_GLOW: Record<NodeType, number> = { hielo: PAL.ice, cristal_hielo: PAL.ice, regolito: PAL.moon4, chatarra: PAL.alert, titanio: 0xd8e0ea, aleacion: PAL.ok };
 
 /** Static solids that are not modules: the rocket and its two tanks (sprite size + centre). */
 const STATIC_SPRITES = [
@@ -42,6 +45,8 @@ export class LunarScene extends Phaser.Scene {
   alienSprites = new Map<number, Phaser.GameObjects.Image>();
   capSprites = new Map<number, Phaser.GameObjects.Image>();
   dropSprites = new Map<number, Phaser.GameObjects.Image>();
+  dropLabels = new Map<number, Phaser.GameObjects.BitmapText>();
+  pickFx!: Phaser.GameObjects.Graphics;
   hiveSprites = new Map<number, Phaser.GameObjects.Image>();
   bridgeG!: Phaser.GameObjects.Graphics;
   lastZone = "base"; blockT = 0;
@@ -113,6 +118,7 @@ export class LunarScene extends Phaser.Scene {
     this.ring = this.add.graphics().setDepth(30);
     this.beam = this.add.graphics().setDepth(22);
     this.zone = this.add.graphics().setDepth(24);
+    this.pickFx = this.add.graphics().setDepth(11); // glow, light shafts and pointers for things on the ground
     this.tint = this.add.rectangle(0, 0, W, H, PAL.red, 0).setOrigin(0).setScrollFactor(0).setDepth(26);
     this.night = this.add.rectangle(0, 0, W, H, PAL.black, 0).setOrigin(0).setScrollFactor(0).setDepth(20);
     // World text uses the pixel font at HD density (1 font pixel = 1 HD pixel), matching the sprites.
@@ -231,10 +237,90 @@ export class LunarScene extends Phaser.Scene {
     toast(sim, `🧑‍🚀 ${msg}`, 3); sfx.click(); useGame.getState().publish();
   }
   nearestDrop() { return sim.drops.find((d) => Phaser.Math.Distance.Between(d.x, d.y, this.player.x, this.player.y) < 18); }
+  /** The bag of lost items: bobs and pulses, with a "LOST ITEMS" tag, so it can't be missed. */
   syncDrops() {
     const alive = new Set(sim.drops.map((d) => d.id));
-    for (const [id, spr] of this.dropSprites) if (!alive.has(id)) { spr.destroy(); this.dropSprites.delete(id); }
-    for (const d of sim.drops) if (!this.dropSprites.has(d.id)) this.dropSprites.set(d.id, this.add.image(d.x, d.y, "bag").setDepth(5).setScale(1 / HD));
+    for (const [id, spr] of this.dropSprites) if (!alive.has(id)) { spr.destroy(); this.dropSprites.delete(id); this.dropLabels.get(id)?.destroy(); this.dropLabels.delete(id); }
+    const now = this.time.now;
+    for (const d of sim.drops) {
+      let spr = this.dropSprites.get(d.id);
+      if (!spr) {
+        spr = this.add.image(d.x, d.y, "bag").setDepth(9).setScale(1 / HD); this.dropSprites.set(d.id, spr);
+        this.dropLabels.set(d.id, this.label(d.x, d.y + 7, "LOST ITEMS", PAL.gold, 11));
+      }
+      spr.setPosition(d.x, d.y + bobOffset(now, d.id, 1.5, 1 / HD)).setScale((1 + Math.sin(now / 260) * 0.05) / HD);
+    }
+  }
+
+  /**
+   * Extra emphasis for everything lying on the ground, drawn on one overlay that is cleared every frame:
+   *  - resources: soft ground glow + a twinkle; the one in reach gets gold brackets and a bouncing arrow
+   *  - supply capsules: a tall pulsing light shaft and a bigger twinkle
+   *  - the bag of lost items: shaft, expanding rings, arrow, and an edge-of-screen pointer when it is off screen
+   */
+  emphasizePickups() {
+    const g = this.pickFx.clear(), now = this.time.now, v = this.cameras.main.worldView;
+    const inView = (x: number, y: number, m = 10) => x > v.x - m && x < v.right + m && y > v.y - m && y < v.bottom + m;
+    const q = 1 / HD; // one HD pixel in world units
+    const star = (x: number, y: number, arm: number, color: number, a: number) => {
+      g.fillStyle(color, a).fillRect(x - arm, y - q / 2, arm * 2, q).fillRect(x - q / 2, y - arm, q, arm * 2);
+      g.fillStyle(0xffffff, a).fillRect(x - q / 2, y - q / 2, q, q);
+    };
+    const arrow = (x: number, y: number, color: number, size: number) => { // downward-pointing marker
+      g.fillStyle(0x0b0b14, 0.9).fillTriangle(x - size - q, y - q, x + size + q, y - q, x, y + size + q * 2);
+      g.fillStyle(color, 1).fillTriangle(x - size, y, x + size, y, x, y + size);
+    };
+    // resources on the ground
+    const reach = this.nearestNode();
+    for (const n of this.nodes) {
+      const { x, y } = n.spr;
+      if (!inView(x, y)) continue;
+      const pulse = 0.5 + 0.5 * Math.sin(now / 520 + x);
+      g.fillStyle(NODE_GLOW[n.type], 0.1 + 0.08 * pulse).fillEllipse(x, y + 1.5, 10, 4.5); // soft glow on the ground
+      const tw = twinkle(now, x * 31 + y);
+      if (tw > 0) star(x + 2.5, y - 2.5, 1 + tw * 1.5, NODE_GLOW[n.type], tw);
+    }
+    if (reach) { // the one you can pick up right now
+      const { x, y } = reach.spr, a = 0.65 + 0.35 * Math.sin(now / 180), r = 4.5, L = 2;
+      g.fillStyle(PAL.gold, a);
+      for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
+        g.fillRect(x + sx * r - (sx > 0 ? L : 0), y + sy * r - (sy > 0 ? q : 0), L, q);
+        g.fillRect(x + sx * r - (sx > 0 ? q : 0), y + sy * r - (sy > 0 ? L : 0), q, L);
+      }
+      arrow(x, y - 9 + bobOffset(now, 0, 1.5, q), PAL.gold, 2);
+    }
+    // supply capsules
+    for (const c of sim.capsules) {
+      if (!inView(c.x, c.y, 24)) continue;
+      const pulse = 0.5 + 0.5 * Math.sin(now / 340 + c.id);
+      for (const s of beamStrips(c.x, c.y - 6, 26, 7, 0.16 + 0.12 * pulse, 4)) g.fillStyle(PAL.gold, s.a).fillRect(s.x, s.y, s.w, s.h);
+      for (const s of beamStrips(c.x, c.y - 6, 26, 7, 0.32 + 0.2 * pulse, 1.5)) g.fillStyle(0xffffff, s.a).fillRect(s.x, s.y, s.w, s.h);
+      const tw = twinkle(now, c.id * 17 + 5, 2000, 420);
+      if (tw > 0) star(c.x + 4, c.y - 8, 1.5 + tw * 2.5, PAL.gold, tw);
+    }
+    // the bag of lost items
+    for (const d of sim.drops) {
+      const bx = d.x, by = d.y + 4; // ground contact
+      const m = edgeMarker(v, d, 7);
+      if (m) { // off screen: pulsing pointer on the edge of the view
+        const a = 0.7 + 0.3 * Math.sin(now / 200), ux = Math.cos(m.angle), uy = Math.sin(m.angle), px = -uy, py = ux;
+        g.fillStyle(0x0b0b14, 0.9).fillTriangle(m.x + ux * 6, m.y + uy * 6, m.x - ux * 3 + px * 4.5, m.y - uy * 3 + py * 4.5, m.x - ux * 3 - px * 4.5, m.y - uy * 3 - py * 4.5);
+        g.fillStyle(PAL.gold, a).fillTriangle(m.x + ux * 5, m.y + uy * 5, m.x - ux * 2 + px * 3.5, m.y - uy * 2 + py * 3.5, m.x - ux * 2 - px * 3.5, m.y - uy * 2 - py * 3.5);
+        continue;
+      }
+      for (let i = 0; i < 2; i++) { // rings spreading out on the ground
+        const p = ringPhase(now, i), r = 4 + p * 13;
+        g.lineStyle(q, i ? PAL.gold : PAL.red, (1 - p) * 0.85).strokeEllipse(bx, by, r * 2, r);
+      }
+      g.fillStyle(PAL.red, 0.22).fillEllipse(bx, by, 11, 5); // warm pool under it
+      const pulse = 0.5 + 0.5 * Math.sin(now / 240);
+      for (const s of beamStrips(bx, by - 4, 36, 9, 0.2 + 0.1 * pulse, 6)) g.fillStyle(PAL.red, s.a).fillRect(s.x, s.y, s.w, s.h);
+      for (const s of beamStrips(bx, by - 4, 36, 9, 0.5 + 0.2 * pulse, 2)) g.fillStyle(PAL.gold, s.a).fillRect(s.x, s.y, s.w, s.h);
+      arrow(bx, by - 44 + bobOffset(now, d.id, 2, q), PAL.gold, 3);
+      const tw = twinkle(now, d.id * 13, 1300, 400);
+      if (tw > 0) star(bx + 5, by - 7, 1.5 + tw * 2, PAL.gold, tw);
+      const lbl = this.dropLabels.get(d.id); if (lbl) lbl.setPosition(Math.round(bx), Math.round(by + 3));
+    }
   }
   nearHab() { return Phaser.Math.Distance.Between(HAB.x, HAB.y, this.player.x, this.player.y) < 36; }
   nearModule(pred: (m: Module) => boolean, r = 22) {
@@ -477,6 +563,7 @@ export class LunarScene extends Phaser.Scene {
       sfx.bad(); saveGame(); useGame.getState().publish(); return;
     }
     this.syncDrops();
+    this.emphasizePickups();
 
     this.pubT += dt; this.saveT += dt;
     if (this.pubT > 0.15) { this.pubT = 0; this.publishRadar(); useGame.getState().publish(); }
