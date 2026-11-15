@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import modos from "@/data/modos.json";
 import { useGame, sim, saveGame } from "@/game/store";
-import { respawn, toggleSuit } from "@/game/sim";
+import { respawn, sacrificeCost, toggleSuit, type DeathSacrifice } from "@/game/sim";
 import { sfx } from "@/game/audio";
 
 const habitatPos = () => {
@@ -9,23 +9,105 @@ const habitatPos = () => {
   return { x: h?.x ?? 110, y: h?.y ?? 170 };
 };
 
-/** "You died" screen: respawn in the habitat (items stay in a bag where you died) or go to the menu. */
+/** "You died" screen: Hard mode is permadeath; Easy/Normal require choosing a reserve to sacrifice. */
 export function DeathScreen() {
   const s = useGame((g) => g.snap);
   const publish = useGame((g) => g.publish);
   const go = useGame((g) => g.go);
+  const newGame = useGame((g) => g.newGame);
   const setOverlay = useGame((g) => g.setOverlay);
   if (!s.dead) return null;
+
+  if (s.difficulty === "dificil") {
+    return (
+      <div className="absolute inset-0 z-30 flex flex-col items-center justify-center-safe gap-4 overflow-y-auto bg-[radial-gradient(ellipse_at_center,rgba(90,0,0,0.7),rgba(15,0,0,0.94))] p-4 text-center">
+        <h2 className="tr-title text-2xl text-red-400 short:text-xl">GAME OVER — TOTAL LOSS</h2>
+        <p className="tr-text text-[11px]">Commander {s.dead.cause}.</p>
+        <p className="max-w-sm text-[9px] leading-4 text-white/80">
+          Hard mode has no emergency respawn. All mission progress and reserves are lost.
+        </p>
+        <div className="flex w-64 flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => { newGame(s.mode, s.difficulty); saveGame(); setOverlay(null); sfx.bad(); go("modo"); }}
+            className="tr-btn !bg-[linear-gradient(180deg,#d94444,#8a1c1c)] px-4 py-3 text-[11px] font-semibold"
+          >
+            NEW GAME (START OVER)
+          </button>
+          <button
+            type="button"
+            onClick={() => { newGame(s.mode, s.difficulty); saveGame(); setOverlay(null); go("intro"); }}
+            className="tr-btn px-4 py-2 text-[10px]"
+          >
+            Main menu
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const waterCost = sacrificeCost(s, "agua");
+  const scrapCost = sacrificeCost(s, "chatarra");
+  const metalCost = sacrificeCost(s, "metal");
+  const hasAny = waterCost > 0 || scrapCost > 0 || metalCost > 0;
+  const doRespawn = (sac?: DeathSacrifice) => {
+    respawn(sim, habitatPos(), sac);
+    setOverlay(null);
+    sfx.ok();
+    publish();
+  };
+
   return (
-    <div className="absolute inset-0 z-30 flex flex-col items-center justify-center-safe gap-4 overflow-y-auto bg-[radial-gradient(ellipse_at_center,rgba(80,0,0,0.55),rgba(30,0,0,0.85))] p-4 text-center">
+    <div className="absolute inset-0 z-30 flex flex-col items-center justify-center-safe gap-3 overflow-y-auto bg-[radial-gradient(ellipse_at_center,rgba(80,0,0,0.55),rgba(30,0,0,0.85))] p-4 text-center">
       <h2 className="tr-title text-2xl text-white short:text-xl">YOU DIED!</h2>
       <p className="tr-text text-[11px]">Commander {s.dead.cause}.</p>
-      <p className="max-w-sm text-[9px] leading-4 text-white/80">Respawning loses everything you carried: it stays in a bag 🎒 where you fell. You wake up in the habitat with the spare suit.</p>
-      <div className="flex w-64 flex-col gap-2">
-        <button type="button" onClick={() => { respawn(sim, habitatPos()); setOverlay(null); sfx.ok(); publish(); }}
-          className="tr-btn !bg-[linear-gradient(180deg,#4fc26a,#2f8a45)] px-4 py-3 text-[12px] font-semibold">RESPAWN</button>
-        <button type="button" onClick={() => { respawn(sim, habitatPos()); saveGame(); publish(); go("intro"); }}
-          className="tr-btn px-4 py-2 text-[10px]">Main menu</button>
+      <p className="max-w-sm text-[9px] leading-4 text-white/80">
+        Choose which reserve to sacrifice for emergency rescue at the Habitat (60% HP, 100% O2). Carried items drop in a bag 🎒 where you fell.
+      </p>
+      <div className="flex w-72 flex-col gap-2">
+        {hasAny ? (
+          <>
+            <button
+              type="button"
+              disabled={waterCost <= 0}
+              onClick={() => doRespawn("agua")}
+              className="tr-btn !bg-[linear-gradient(180deg,#3578b8,#1e4d7a)] px-3 py-2.5 text-[10px] font-semibold disabled:opacity-40"
+            >
+              💧 Sacrifice Water (-{waterCost} kg)
+            </button>
+            <button
+              type="button"
+              disabled={scrapCost <= 0}
+              onClick={() => doRespawn("chatarra")}
+              className="tr-btn !bg-[linear-gradient(180deg,#b87a2e,#784b18)] px-3 py-2.5 text-[10px] font-semibold disabled:opacity-40"
+            >
+              🔩 Sacrifice Scrap (-{scrapCost})
+            </button>
+            <button
+              type="button"
+              disabled={metalCost <= 0}
+              onClick={() => doRespawn("metal")}
+              className="tr-btn !bg-[linear-gradient(180deg,#6c7689,#424a59)] px-3 py-2.5 text-[10px] font-semibold disabled:opacity-40"
+            >
+              ⚙ Sacrifice Metal (-{metalCost})
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => doRespawn()}
+            className="tr-btn !bg-[linear-gradient(180deg,#4fc26a,#2f8a45)] px-4 py-3 text-[11px] font-semibold"
+          >
+            RESPAWN (NO RESERVES)
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => { newGame(s.mode, s.difficulty); saveGame(); setOverlay(null); go("intro"); }}
+          className="tr-btn px-4 py-2 text-[10px]"
+        >
+          Abandon run (Main menu)
+        </button>
       </div>
     </div>
   );

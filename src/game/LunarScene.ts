@@ -7,7 +7,7 @@ import { stepAliens, hitAlien, type World } from "./aliens";
 import { stepCountdown } from "./mission";
 import { touch } from "./touch";
 import { stepEffects, stepPsychology, effectMods, toggleEquip } from "./effects";
-import { stepEvents, stepSpecialCases, resolveSpecialCase, spawnCave, toast } from "./events";
+import { stepEvents, stepSpecialCases, resolveSpecialCase, spawnCave, toast, stepAndroids, hitAndroid, stepEmergingProblems } from "./events";
 import { initCapsules, nearestCapsule, openCapsule } from "./loot";
 import { stepQuests } from "./quests";
 import { stepTutorial, tutorialWantsLeak, TUTORIAL } from "./tutorial";
@@ -21,11 +21,11 @@ import { twinkle, bobOffset, beamStrips, ringPhase, edgeMarker } from "./pickups
 import { canMine } from "./tools";
 import { view } from "./view";
 
-const W = 640, H = 360; // landing site (night aliens, events and capsules stay here)
-const WW = WORLD.w, WH = WORLD.h; // whole explorable world
+const W = 1280, H = 720; // landing site (night aliens, events and capsules stay here)
+const WW = WORLD.w, WH = WORLD.h; // whole explorable world (2560x1440)
 const isStation = (m: Module) => m.tipo === "taller" || m.tipo === "horno";
-const HAB = { x: 110, y: 170 } /* matches habitat in modulos.json */, ROCKET = { x: 540, y: 150 };
-const SHADOW = { x: 330, y: 270, rx: 120, ry: 60 };
+const HAB = { x: 110, y: 170 } /* matches habitat in modulos.json */, ROCKET = { x: 760, y: 220 };
+const SHADOW = { x: 640, y: 520, rx: 180, ry: 90 };
 type NodeType = "hielo" | "regolito" | "chatarra" | "cristal_hielo" | "titanio" | "aleacion" | "alga_lunar";
 const NODE_TEX: Record<NodeType, string> = { hielo: "ice", regolito: "reg", chatarra: "scrap", cristal_hielo: "n_cristal", titanio: "n_titanio", aleacion: "n_aleacion", alga_lunar: "n_aleacion" };
 interface RNode { type: NodeType; amount: number; spr: Phaser.GameObjects.Image; zone?: string | undefined }
@@ -52,6 +52,7 @@ export class LunarScene extends Phaser.Scene {
   pickFx!: Phaser.GameObjects.Graphics;
   hiveSprites = new Map<number, Phaser.GameObjects.Image>();
   bossSprites = new Map<string, Phaser.GameObjects.Image>();
+  androidSprites = new Map<number, Phaser.GameObjects.Image>();
   bridgeG!: Phaser.GameObjects.Graphics;
   lastZone = "base"; blockT = 0;
   zone!: Phaser.GameObjects.Graphics;
@@ -111,11 +112,12 @@ export class LunarScene extends Phaser.Scene {
 
     // resources
     const k = modeCfg(sim).recursos;
-    for (let i = 0; i < Math.round(12 * k); i++) this.spawnNode("hielo");
-    for (let i = 0; i < Math.round(10 * k); i++) this.spawnNode("regolito");
-    for (let i = 0; i < Math.round(8 * k); i++) this.spawnNode("chatarra");
-    for (let i = 0; i < 10; i++) { this.spawnNode("cristal_hielo"); this.spawnNode("titanio"); }
-    for (let i = 0; i < 8; i++) { this.spawnNode("hielo", "ice"); this.spawnNode("aleacion"); this.spawnNode("regolito", "fire"); }
+    for (let i = 0; i < Math.round(16 * k); i++) this.spawnNode("hielo");
+    for (let i = 0; i < Math.round(14 * k); i++) this.spawnNode("regolito");
+    for (let i = 0; i < Math.round(18 * k); i++) this.spawnNode("chatarra");
+    for (let i = 0; i < 4; i++) { this.spawnNode("chatarra", "ice"); this.spawnNode("chatarra", "fire"); this.spawnNode("chatarra", "hive"); }
+    for (let i = 0; i < 12; i++) { this.spawnNode("cristal_hielo"); this.spawnNode("titanio"); }
+    for (let i = 0; i < 10; i++) { this.spawnNode("hielo", "ice"); this.spawnNode("aleacion"); this.spawnNode("regolito", "fire"); }
     // Dedicated resource lands ("Tierras de recursos dedicados") & far boss caches
     for (const sz of SUBZONAS) {
       const count = sz.tipo === "jefe" ? 5 : 4;
@@ -131,8 +133,8 @@ export class LunarScene extends Phaser.Scene {
     this.beam = this.add.graphics().setDepth(22);
     this.zone = this.add.graphics().setDepth(24);
     this.pickFx = this.add.graphics().setDepth(11); // glow, light shafts and pointers for things on the ground
-    this.tint = this.add.rectangle(0, 0, W, H, PAL.red, 0).setOrigin(0).setScrollFactor(0).setDepth(26);
-    this.night = this.add.rectangle(0, 0, W, H, PAL.black, 0).setOrigin(0).setScrollFactor(0).setDepth(20);
+    this.tint = this.add.rectangle(0, 0, 640, 360, PAL.red, 0).setOrigin(0).setScrollFactor(0).setDepth(26);
+    this.night = this.add.rectangle(0, 0, 640, 360, PAL.black, 0).setOrigin(0).setScrollFactor(0).setDepth(20);
     // World text uses the pixel font at HD density (1 font pixel = 1 HD pixel), matching the sprites.
     this.promptBg = this.add.rectangle(0, 0, 4, 5, 0x0b1230, 0.88).setOrigin(0).setDepth(39).setStrokeStyle(0.5, 0x6f86d6, 0.8).setVisible(false);
     this.prompt = this.add.bitmapText(0, 0, FONT_KEY, "").setScale(1 / HD).setTint(PAL.gold).setDepth(40).setVisible(false);
@@ -463,10 +465,10 @@ export class LunarScene extends Phaser.Scene {
   useTool() {
     if (useGame.getState().overlay || this.useCd > 0) return;
     const dmg = sim.inv.baton > 0 ? 2 : 1;
-    const hit = hitAlien(sim, this.player.x, this.player.y, dmg) ?? hitHive(sim, this.player.x, this.player.y, dmg) ?? hitBoss(sim, this.player.x, this.player.y, dmg);
+    const hit = hitAlien(sim, this.player.x, this.player.y, dmg) ?? hitAndroid(sim, this.player.x, this.player.y, dmg) ?? hitHive(sim, this.player.x, this.player.y, dmg) ?? hitBoss(sim, this.player.x, this.player.y, dmg);
     if (hit) {
       this.useCd = 0.4; sfx.click();
-      const spr = this.alienSprites.get(hit.id as number) ?? this.hiveSprites.get(hit.id as number) ?? this.bossSprites.get(String(hit.id));
+      const spr = this.alienSprites.get(hit.id as number) ?? this.androidSprites.get(hit.id as number) ?? this.hiveSprites.get(hit.id as number) ?? this.bossSprites.get(String(hit.id));
       if (spr) { spr.setTint(PAL.white); this.time.delayedCall(120, () => spr.clearTint()); }
       return;
     }
@@ -492,7 +494,7 @@ export class LunarScene extends Phaser.Scene {
     n.amount -= got; sfx.pick();
     this.floatText(n.spr.x, n.spr.y - 4, `+${got}`, got > 1 ? PAL.gold : PAL.white);
     this.tweens.add({ targets: n.spr, y: n.spr.y - 2, yoyo: true, duration: 60 });
-    if (n.amount <= 0) { n.spr.destroy(); this.nodes = this.nodes.filter((x) => x !== n); this.time.delayedCall(40000, () => this.spawnNode(n.type, n.zone)); }
+    if (n.amount <= 0) { n.spr.destroy(); this.nodes = this.nodes.filter((x) => x !== n); this.time.delayedCall(n.type === "chatarra" ? 25000 : 40000, () => this.spawnNode(n.type, n.zone)); }
   }
 
   interact() {
@@ -584,6 +586,8 @@ export class LunarScene extends Phaser.Scene {
     this.updateWorldEvents(dt, inShadow);
     stepPsychology(sim, dt, { player: this.player, inHabitat: this.nearHab(), hab: HAB, rocket: ROCKET, w: WW, h: WH, rnd: () => Math.random() }, () => Math.random());
     stepSpecialCases(sim, dt, () => Math.random());
+    this.updateAndroids(dt);
+    stepEmergingProblems(sim, dt, () => Math.random());
     const cd = stepCountdown(sim, dt);
     if (cd === "launched") { sfx.ok(); saveGame(); useGame.getState().publish(); useGame.getState().go("final"); return; }
     if (cd === "aborted") { sfx.bad(); this.say("LAUNCH ABORTED: CHECK THE ROCKET (E)"); }
@@ -825,6 +829,17 @@ export class LunarScene extends Phaser.Scene {
     if (sim.abduction > 0) {
       const ab = sim.aliens.filter((a) => a.tipo === "abductor").sort((p, q) => Phaser.Math.Distance.Between(p.x, p.y, this.player.x, this.player.y) - Phaser.Math.Distance.Between(q.x, q.y, this.player.x, this.player.y))[0];
       if (ab) this.beam.fillStyle(PAL.ok, 0.25 + sim.abduction / 250).fillTriangle(ab.x - 3, ab.y + 2, ab.x + 3, ab.y + 2, this.player.x, this.player.y + 4).fillTriangle(this.player.x - 5, this.player.y + 4, this.player.x + 5, this.player.y + 4, ab.x, ab.y + 2);
+    }
+  }
+
+  updateAndroids(dt: number) {
+    stepAndroids(sim, dt, this.world());
+    const alive = new Set(sim.androids.map((a) => a.id));
+    for (const [id, spr] of this.androidSprites) if (!alive.has(id)) { spr.destroy(); this.androidSprites.delete(id); }
+    for (const a of sim.androids) {
+      let spr = this.androidSprites.get(a.id);
+      if (!spr) { spr = this.add.image(a.x, a.y, "al_saboteador").setTint(0x66e0ff).setDepth(23).setScale(1 / HD); this.androidSprites.set(a.id, spr); }
+      spr.setPosition(Math.round(a.x), Math.round(a.y + Math.sin(this.time.now / 140 + a.id) * 1));
     }
   }
 

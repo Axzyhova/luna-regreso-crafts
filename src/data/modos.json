@@ -26,17 +26,20 @@
   "facil": {
    "nombre": "Easy",
    "eventos": 0.7,
-   "consumo": 0.75
+   "consumo": 0.75,
+   "desc": "O2 & module wear -25% · Hazards & leaks -30% · Extra starter supplies (+2 Kits, +1 Ration)"
   },
   "normal": {
    "nombre": "Normal",
    "eventos": 1,
-   "consumo": 1
+   "consumo": 1,
+   "desc": "Standard O2 & module wear (100%) · Standard hazards & leaks (100%) · Balanced survival"
   },
   "dificil": {
    "nombre": "Hard",
    "eventos": 1.4,
-   "consumo": 1.3
+   "consumo": 1.3,
+   "desc": "O2 & module wear +30% · Hazards, leaks & threats +40% · High-pressure survival"
   }
  },
  "aliens": [

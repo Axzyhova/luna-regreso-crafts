@@ -11,9 +11,9 @@ const Z = (id: string) => ZONAS.find((z) => z.id === id)!;
 describe("zones and access", () => {
   it("finds the zone for a position", () => {
     expect(zoneAt(100, 100).id).toBe("base");
-    expect(zoneAt(100, 500).id).toBe("ice");
-    expect(zoneAt(900, 100).id).toBe("fire");
-    expect(zoneAt(900, 500).id).toBe("hive");
+    expect(zoneAt(100, 900).id).toBe("ice");
+    expect(zoneAt(1500, 100).id).toBe("fire");
+    expect(zoneAt(1500, 900).id).toBe("hive");
   });
   it("the Scorch Fields need the Reflective cape; the Frozen Basin the Thermal suit", () => {
     const s = createSim("realista", "normal");

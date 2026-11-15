@@ -95,6 +95,10 @@ export function CharacterDoll({ dragging = false, flash }: { dragging?: boolean;
   const hot = over || dragging;
   return (
     <div className="flex flex-col items-center gap-2">
+      <div className="flex w-full items-center justify-between text-[6px]">
+        <span className="font-bold text-gold">ASTRONAUT</span>
+        <span className="tabular-nums text-white/75">HP {Math.round(s.health)}% · O2 {Math.round(s.suitO2)}%</span>
+      </div>
       <div data-doll data-drop="doll"
         onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
         onDrop={(e) => { e.preventDefault(); setOver(false); const k = e.dataTransfer.getData("text/item"); if (k) drop(k); }}
@@ -109,13 +113,14 @@ export function CharacterDoll({ dragging = false, flash }: { dragging?: boolean;
       <div className="flex gap-1" aria-label="Gear slots">
         {GEAR.map((k) => {
           const on = s.equip.includes(k);
+          const owned = ((s.inv as unknown as Record<string, number>)[k] ?? 0) >= 1;
           return (
-            <button key={k} type="button" disabled={!on} draggable={on}
+            <button key={k} type="button" disabled={!on && !owned} draggable={on}
               onDragStart={(e) => e.dataTransfer.setData("text/unequip", k)}
-              onClick={() => on && takeOff(k)}
-              title={on ? `${ITEMS[k]?.nombre}: tap or drag back to the grid to take it off` : `${SLOT_LABEL[k]} slot: drag ${ITEMS[k]?.nombre} onto the astronaut`}
-              className={`tr-slot flex h-12 w-12 flex-col items-center justify-center short:h-9 short:w-9 ${on ? "tr-slot-active" : "opacity-60"}`}>
-              {on ? <PixelIcon item={k} size={22} /> : <span className="text-[10px] text-white/40">+</span>}
+              onClick={() => { if (on) takeOff(k); else if (owned) drop(k); }}
+              title={on ? `${ITEMS[k]?.nombre}: tap or drag back to the grid to take it off` : owned ? `Tap to equip ${ITEMS[k]?.nombre}` : `${SLOT_LABEL[k]} slot: craft or find ${ITEMS[k]?.nombre}`}
+              className={`tr-slot flex h-12 w-12 flex-col items-center justify-center short:h-9 short:w-9 ${on ? "tr-slot-active" : owned ? "border-ok/60 opacity-90 hover:opacity-100" : "opacity-50"}`}>
+              {on ? <PixelIcon item={k} size={22} /> : <span className={`text-[10px] ${owned ? "text-ok" : "text-white/40"}`}>{owned ? "EQUIP" : "+"}</span>}
               <span className="tr-text mt-0.5 text-[5px]">{SLOT_LABEL[k]}</span>
             </button>
           );

@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { createSim, step, addItem } from "@/game/sim";
+import { createSim, step, addItem, healInHabitat } from "@/game/sim";
 import { consumeItem, stepPsychology } from "@/game/effects";
-import { stepEvents, stepSpecialCases, resolveSpecialCase, spawnCave, strikeCaveAlien, openCaveChest, unlockCavePerk } from "@/game/events";
+import { stepEvents, stepSpecialCases, resolveSpecialCase, spawnCave, strikeCaveAlien, openCaveChest, unlockCavePerk, hitAndroid, stepEmergingProblems } from "@/game/events";
+import { missionHelp } from "@/game/nav";
+import { NavCard } from "@/components/game/StoryUI";
 import { SUBZONAS, stepBosses, hitBoss, checkSubzoneVisit } from "@/game/zones";
 import { FieldGuidePanel } from "@/components/game/FieldGuidePanel";
 import { MapPanel } from "@/components/game/MapPanel";
@@ -76,7 +78,7 @@ describe("Lunar survival & exploration expansions", () => {
   it("dedicated resource lands, far bosses and field guide work together", () => {
     const s = createSim("realista", "normal");
     expect(SUBZONAS.length).toBeGreaterThanOrEqual(9);
-    const sz = checkSubzoneVisit(s, 465, 90);
+    const sz = checkSubzoneVisit(s, 920, 160);
     expect(sz?.id).toBe("tierra_chatarra");
     expect(s.subzonesVisited).toContain("tierra_chatarra");
 
@@ -147,5 +149,74 @@ describe("Lunar survival & exploration expansions", () => {
     useGame.setState({ snap: s, overlay: "cueva" });
     render(<CavePanel />);
     expect(screen.getByText(/METEOR CAVE/i)).toBeInTheDocument();
+  });
+
+  it("rogue android drop spawns androids and hitAndroid awards loot on defeat", () => {
+    const s = createSim("realista", "normal");
+    s.event = { id: "lluvia_androides", phase: "aviso", t: 0.1, x: 400, y: 300, hits: 0, maxDose: 0 };
+    const w = { player: { x: 400, y: 300 }, inHabitat: false, hab: { x: 480, y: 360 }, rocket: { x: 430, y: 240 }, w: 960, h: 720, rnd: () => 0.1 };
+    stepEvents(s, 0.2, w); // transitions aviso -> activo
+    stepEvents(s, 6, w);   // spawns androids during activo
+    expect(s.androids.length).toBeGreaterThan(0);
+
+    const target = s.androids[0]!;
+    const beforeMetal = s.inv.metal;
+    for (let i = 0; i < 4; i++) hitAndroid(s, target.x, target.y, 1);
+    expect(s.androids.some((a) => a.id === target.id)).toBe(false);
+    expect(s.inv.metal).toBeGreaterThan(beforeMetal);
+  });
+
+  it("emerging problems trigger operational failures over time", () => {
+    const s = createSim("realista", "normal");
+    s.problemT = 0.1;
+    stepEmergingProblems(s, 0.2, () => 0);
+    expect(s.toast).toBeTruthy();
+  });
+
+  it("NavCard displays live coordinates and missionHelp orientation", () => {
+    const s = createSim("realista", "normal");
+    s.tut.step = 99;
+    s.pos = { x: 412, y: 298 };
+    s.radar = [{ k: "base", dx: 68, dy: 62 }];
+    useGame.setState({ snap: s });
+    render(<NavCard />);
+    expect(screen.getByText("(412, 298)")).toBeInTheDocument();
+    expect(screen.getByText(missionHelp(s))).toBeInTheDocument();
+  });
+
+  it("ModeSelect shows gameplay differences when switching difficulties", () => {
+    render(<ModeSelect />);
+    expect(screen.getByText(/NORMAL · REALISTIC/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Hard/i }));
+    expect(screen.getByText(/\+40%/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Easy/i }));
+    expect(screen.getByText(/\+2 Kits, \+1 Ration/i)).toBeInTheDocument();
+  });
+
+  it("O2 depletion causes suffocation damage and healInHabitat restores HP using water", () => {
+    const s = createSim("realista", "normal");
+    s.suitO2 = 0;
+    s.health = 80;
+    step(s, 2, { inHabitat: false, inShadow: false });
+    expect(s.health).toBeLessThan(70);
+    expect(s.alert).toMatch(/OXYGEN DEPLETED/i);
+
+    s.near.habitat = true;
+    s.inv.agua = 10;
+    const beforeHp = s.health;
+    const res = healInHabitat(s);
+    expect(res.ok).toBe(true);
+    expect(s.health).toBeGreaterThan(beforeHp);
+    expect(s.inv.agua).toBe(5);
+  });
+
+  it("unsealed leaks drain battery and crew morale", () => {
+    const s = createSim("realista", "normal");
+    s.battery = 50;
+    s.sanity = 80;
+    s.leaks.push({ id: 1, target: "habitat", x: 110, y: 170, size: 2, progress: 0, age: 0 });
+    step(s, 5, { inHabitat: false, inShadow: false });
+    expect(s.battery).toBeLessThan(50);
+    expect(s.sanity).toBeLessThan(80);
   });
 });

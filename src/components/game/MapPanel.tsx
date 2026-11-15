@@ -106,9 +106,9 @@ export function MapPanel() {
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 p-3 short:p-1">
       <div className="tr-panel flex max-h-full w-full max-w-4xl flex-col p-3 short:p-2">
-        <div className="mb-2 flex items-center justify-between">
+        <div className="mb-2 flex items-center justify-between gap-2">
           <h3 className="tr-title text-[11px] text-gold">MAP</h3>
-          <span className="text-[9px] text-white/80">Explored {Math.round((seen / (FOG_COLS * FOG_ROWS)) * 100)}% · Regions {s.visited.length}/{ZONAS.length} · Sites {s.subzonesVisited.length}/{SUBZONAS.length}</span>
+          <span className="text-[9px] tabular-nums text-white/80">Pos ({s.pos.x}, {s.pos.y}) · Explored {Math.round((seen / (FOG_COLS * FOG_ROWS)) * 100)}% · Regions {s.visited.length}/{ZONAS.length} · Sites {s.subzonesVisited.length}/{SUBZONAS.length}</span>
           <button type="button" onClick={() => setOverlay(null)} className="tr-btn px-2 py-1 text-[9px]">✕</button>
         </div>
         <canvas ref={ref} onClick={handleClick} width={WORLD.w * S} height={WORLD.h * S} className="min-h-0 w-full flex-1 cursor-crosshair rounded-[6px] border-2 border-[#0b1230] object-contain [image-rendering:pixelated]" aria-label="World map" />
@@ -116,7 +116,7 @@ export function MapPanel() {
           <div className="mt-2 rounded bg-black/55 px-2.5 py-1.5 text-[9px] text-white">
             <div className="flex items-center justify-between gap-2">
               <span className="font-bold text-gold">{selected.tipo === "jefe" ? "💀" : "⛏"} {selected.nombre}</span>
-              <span className="text-[8px] text-white/70">{s.subzonesVisited.includes(selected.id) ? "✔ Explored" : "? Unexplored"}</span>
+              <span className="text-[8px] tabular-nums text-white/70">({selected.x}, {selected.y}) · {s.subzonesVisited.includes(selected.id) ? "✔ Explored" : "? Unexplored"}</span>
             </div>
             <div className="text-[8px] text-white/85">{selected.desc}</div>
             <div className="mt-0.5 text-[8px] text-[#b8ffd4]">

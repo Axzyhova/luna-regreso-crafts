@@ -7,7 +7,7 @@ import { PRINCIPALES, currentMain, sideAvailable, MISIONES } from "@/game/quests
 import { expedicion } from "@/game/history";
 import { ITEMS } from "@/game/items";
 import { PixelIcon } from "./PixelIcon";
-import { navigation } from "@/game/nav";
+import { missionHelp, navigation } from "@/game/nav";
 import { TUTORIAL, tutorialStep } from "@/game/tutorial";
 import { useTouchDevice } from "@/hooks/use-device";
 
@@ -41,6 +41,7 @@ function Compass({ deg, size, warn }: { deg: number; size: number; warn?: boolea
 export function NavCard({ className = "" }: { className?: string }) {
   const s = useGame((g) => g.snap);
   const { primary, then, etaS } = navigation(s);
+  const help = missionHelp(s);
   if (!primary) return null;
   const leak = primary.k === "fuga";
   const text = leak ? "text-alert" : "text-suit-light";
@@ -50,10 +51,14 @@ export function NavCard({ className = "" }: { className?: string }) {
         <Compass deg={primary.deg} size={24} warn={leak} />
       </span>
       <div className="leading-tight">
-        <div className={`text-[6px] ${text}`}>{leak ? "⚠ " : "▸ "}{primary.label.toUpperCase()}</div>
+        <div className={`flex items-center justify-between gap-2 text-[6px] ${text}`}>
+          <span>{leak ? "⚠ " : "▸ "}{primary.label.toUpperCase()}</span>
+          <span className="tabular-nums text-white/60">({s.pos.x}, {s.pos.y})</span>
+        </div>
         <div className="tr-text mt-0.5 text-[8px] tabular-nums">
           {primary.m}m {primary.dir} <span className="text-[6px] text-white/60">~{etaS}s</span>
         </div>
+        {help && <div className="mt-0.5 max-w-[165px] text-[5px] leading-tight text-sky-200/90">{help}</div>}
         {then && <div className={`mt-0.5 text-[5px] ${then.warn ? "text-alert" : "text-white/55"}`}>THEN {then.label.toUpperCase()} {then.m}m</div>}
       </div>
     </div>
