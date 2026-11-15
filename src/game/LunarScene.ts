@@ -20,6 +20,7 @@ import { SUBZONAS, stepHive, hitHive, stepBosses, hitBoss, checkSubzoneVisit } f
 import { twinkle, bobOffset, beamStrips, ringPhase, edgeMarker } from "./pickups";
 import { canMine } from "./tools";
 import { view } from "./view";
+import { createFxTextures, NightLighting, paintRichTerrain, sunShadow } from "./visualFx";
 
 const W = 1280, H = 720; // landing site (night aliens, events and capsules stay here)
 const WW = WORLD.w, WH = WORLD.h; // whole explorable world (2560x1440)
@@ -59,7 +60,11 @@ export class LunarScene extends Phaser.Scene {
   tint!: Phaser.GameObjects.Rectangle;
   beam!: Phaser.GameObjects.Graphics;
   ring!: Phaser.GameObjects.Graphics;
-  night!: Phaser.GameObjects.Rectangle;
+  nightFx!: NightLighting;
+  playerShadow!: Phaser.GameObjects.Image;
+  staticShadows: { spr: Phaser.GameObjects.Image; baseX: number; baseY: number; w: number; h: number }[] = [];
+  vignetteFx?: Phaser.FX.Vignette;
+  aimRad = 0; fxT = 0;
   preview!: Phaser.GameObjects.Graphics;
   modSprites = new Map<number, { img: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Image; warn: Phaser.GameObjects.BitmapText; up: Phaser.GameObjects.BitmapText; glow: Phaser.GameObjects.Image | undefined }>();
   buildValid = false;
@@ -74,36 +79,22 @@ export class LunarScene extends Phaser.Scene {
     const T = PAL;
     // HD pixel art (sprites.ts): every texture is drawn at HD× and shown at 1/HD scale; the camera zooms HD×.
     makeSprites(this);
+    createFxTextures(this);
     registerPixelFont(Phaser, this);
     const lg = this.add.graphics();
     for (let r = 48; r > 0; r -= 4) { lg.fillStyle(0xffffff, 0.08); lg.fillCircle(48, 48, r); }
     lg.generateTexture("glow", 96, 96); lg.destroy();
 
-    // terrain: fine grain, pebbles with a lit top, craters with lit rims and inner shadow
+    // multi-layered rich lunar terrain + outer biomes
     const g = this.add.graphics();
-    g.fillStyle(T.moon1).fillRect(0, 0, W, H);
-    for (let i = 0; i < 1400; i++) { g.fillStyle(Phaser.Math.RND.pick([T.moon0, T.moon2, 0x55555f, 0x3a3a44])); g.fillRect(Phaser.Math.Between(0, W * 2) / 2, Phaser.Math.Between(0, H * 2) / 2, Phaser.Math.RND.pick([0.5, 1, 1.5]), 0.5); }
-    for (let i = 0; i < 70; i++) {
-      const x = Phaser.Math.Between(4, W - 4), y = Phaser.Math.Between(4, H - 4), s = Phaser.Math.RND.pick([1, 1.5, 2]);
-      g.fillStyle(0x14141c).fillEllipse(x, y + 0.5, s * 2 + 1, s + 1); g.fillStyle(T.moon2).fillEllipse(x, y, s * 2, s); g.fillStyle(T.moon3).fillRect(x - s / 2, y - s / 2, s / 2, 0.5);
-    }
-    for (let i = 0; i < 18; i++) {
-      const x = Phaser.Math.Between(20, W - 20), y = Phaser.Math.Between(20, H - 20), r = Phaser.Math.Between(6, 16);
-      g.fillStyle(T.moon0).fillEllipse(x, y, r * 2, r * 1.4); g.fillStyle(T.moon2).fillEllipse(x + 1, y - 1, r * 1.6, r);
-      g.fillStyle(T.moon1).fillEllipse(x + 2, y, r * 1.5, r * 0.9);
-      g.fillStyle(T.moon3, 0.6).fillEllipse(x - r * 0.35, y - r * 0.45, r * 0.9, 0.8); // lit rim
-      g.fillStyle(0x2a2a36, 0.7).fillEllipse(x + 1.5, y + r * 0.2, r * 1.1, r * 0.35); // inner shadow
-    }
-    g.fillStyle(T.moon0).fillEllipse(SHADOW.x, SHADOW.y, SHADOW.rx * 2 + 16, SHADOW.ry * 2 + 10);
-    g.fillStyle(T.space).fillEllipse(SHADOW.x, SHADOW.y, SHADOW.rx * 2, SHADOW.ry * 2);
-    g.fillStyle(0x0b0b18).fillEllipse(SHADOW.x + 6, SHADOW.y + 4, SHADOW.rx * 1.6, SHADOW.ry * 1.5);
-    g.lineStyle(1, T.moon3, 0.5).strokeEllipse(SHADOW.x, SHADOW.y - 1, SHADOW.rx * 2 + 14, SHADOW.ry * 2 + 8);
-    this.drawZones(g);
+    paintRichTerrain(Phaser, this, g, W, H, SHADOW, PAL, FONT_KEY, toFont);
     this.label(SHADOW.x, SHADOW.y - 3, "SHADOWED CRATER", PAL.moon2, 1);
 
     // rocket and tanks: separate sprites so the astronaut can walk behind them (depth sorted by their base)
+    this.staticShadows = [];
     for (const s of STATIC_SPRITES) {
-      this.add.image(s.x, s.y + s.h / 2, "shadow").setDisplaySize(s.w + 6, 8).setDepth(5.5);
+      const sh = this.add.image(s.x, s.y + s.h / 2, "shadow").setDisplaySize(s.w + 6, 8).setDepth(5.5);
+      this.staticShadows.push({ spr: sh, baseX: s.x, baseY: s.y + s.h / 2, w: s.w + 6, h: 8 });
       this.add.image(s.x, s.y, s.key).setScale(1 / HD).setDepth(sortDepth(groundLine(s.y, s.h), H));
     }
     this.label(ROCKET.x, ROCKET.y + 29, "ROCKET", PAL.moon4);
@@ -128,13 +119,18 @@ export class LunarScene extends Phaser.Scene {
     }
 
     this.preview = this.add.graphics().setDepth(35);
+    this.playerShadow = this.add.image(HAB.x, HAB.y + 30 + PLAYER_FOOT_Y, "shadow").setDisplaySize(10, 4).setDepth(5.5);
     this.player = this.add.image(HAB.x, HAB.y + 30, "astro_idle0").setScale(1 / HD).setDepth(10);
     this.ring = this.add.graphics().setDepth(30);
     this.beam = this.add.graphics().setDepth(22);
     this.zone = this.add.graphics().setDepth(24);
     this.pickFx = this.add.graphics().setDepth(11); // glow, light shafts and pointers for things on the ground
     this.tint = this.add.rectangle(0, 0, 640, 360, PAL.red, 0).setOrigin(0).setScrollFactor(0).setDepth(26);
-    this.night = this.add.rectangle(0, 0, 640, 360, PAL.black, 0).setOrigin(0).setScrollFactor(0).setDepth(20);
+    this.nightFx = new NightLighting(this);
+    if (this.renderer.type === Phaser.WEBGL && this.cameras.main.postFX) {
+      this.cameras.main.postFX.addBloom(0xffffff, 1, 1, 1.05, 0.3);
+      this.vignetteFx = this.cameras.main.postFX.addVignette(0.5, 0.5, 0.92, 0.18);
+    }
     // World text uses the pixel font at HD density (1 font pixel = 1 HD pixel), matching the sprites.
     this.promptBg = this.add.rectangle(0, 0, 4, 5, 0x0b1230, 0.88).setOrigin(0).setDepth(39).setStrokeStyle(0.5, 0x6f86d6, 0.8).setVisible(false);
     this.prompt = this.add.bitmapText(0, 0, FONT_KEY, "").setScale(1 / HD).setTint(PAL.gold).setDepth(40).setVisible(false);
@@ -570,6 +566,11 @@ export class LunarScene extends Phaser.Scene {
     this.animatePlayer(dt, this.player.x !== ox || this.player.y !== oy, rs.running);
     sim.tut.moved += Math.hypot(this.player.x - ox, this.player.y - oy);
     if (vx) { this.facing = Math.sign(vx); this.player.setFlipX(vx < 0); }
+    if (vx || vy) this.aimRad = Math.atan2(vy, vx);
+    else if (!this.touchMode) {
+      const wp = this.input.activePointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
+      if (Math.hypot(wp.x - this.player.x, wp.y - this.player.y) > 4) this.aimRad = Math.atan2(wp.y - this.player.y, wp.x - this.player.x);
+    }
     this.useCd = Math.max(0, this.useCd - dt);
     const mouseHeld = this.input.activePointer.isDown && !this.input.activePointer.wasTouch;
     if ((k.SPACE.isDown || touch.useHeld || mouseHeld) && !sim.buildMode) this.useTool();
@@ -655,13 +656,49 @@ export class LunarScene extends Phaser.Scene {
     else if (this.winded && this.wantsRun) this.say("TOO TIRED TO RUN");
     else { this.prompt.setVisible(false); this.promptBg.setVisible(false); }
 
-    // day/night lighting
+    // day/night lighting, dynamic sun shadows, flashlight & WebGL postFX
     const t = sim.time % CYCLE;
     const dark = modeCfg(sim).noche_oscuridad;
     let a = t < DAY_LEN ? 0 : dark;
     if (t > DAY_LEN - 20 && t < DAY_LEN) a = ((t - (DAY_LEN - 20)) / 20) * dark;
     if (t > CYCLE - 20) a = ((CYCLE - t) / 20) * dark;
-    this.night.setAlpha(a);
+
+    const sh = sunShadow(sim.time);
+    this.playerShadow.setPosition(this.player.x + sh.ox * 0.7, this.player.y + PLAYER_FOOT_Y + sh.oy * 0.5).setDisplaySize(10 * sh.sx, 4 * sh.sy).setAlpha(sh.alpha);
+    for (const st of this.staticShadows) st.spr.setPosition(st.baseX + sh.ox, st.baseY + sh.oy).setDisplaySize(st.w * sh.sx, st.h * sh.sy).setAlpha(sh.alpha);
+    for (const m of sim.modules) {
+      const sp = this.modSprites.get(m.uid);
+      if (sp) { const mt = TIPOS[m.tipo]; sp.shadow.setPosition(m.x + sh.ox, groundLine(m.y, mt.h) + sh.oy).setDisplaySize((mt.w + 4) * sh.sx, 6 * sh.sy).setAlpha(sh.alpha); }
+    }
+
+    const lights: { x: number; y: number; r: number }[] = [
+      { x: HAB.x, y: HAB.y, r: sim.battery > 0 ? 115 : 55 },
+      { x: ROCKET.x, y: ROCKET.y, r: 95 },
+    ];
+    for (const m of sim.modules) if (m.tipo === "torre_luz" && m.activo && m.durabilidad > 0 && sim.battery > 0) lights.push({ x: m.x, y: m.y, r: 135 });
+    for (const c of sim.capsules) lights.push({ x: c.x, y: c.y, r: 42 });
+    for (const cv of sim.caves) lights.push({ x: cv.x, y: cv.y, r: 45 });
+    if (sim.specialCase) lights.push({ x: sim.specialCase.x, y: sim.specialCase.y, r: 58 });
+
+    this.nightFx.update(this, sim, a, inShadow, this.player.x, this.player.y, this.aimRad, lights);
+    if (this.vignetteFx) {
+      const danger = sim.suitO2 < 20 || sim.effects.length > 0;
+      this.vignetteFx.strength = danger ? 0.34 + Math.abs(Math.sin(this.time.now / 400)) * 0.12 : 0.16;
+    }
+
+    this.fxT += dt;
+    if (this.fxT >= 0.18) {
+      this.fxT = 0;
+      for (const l of sim.leaks) {
+        const spk = this.add.image(l.x + Phaser.Math.Between(-3, 3), l.y, "fx_spark").setTint(Phaser.Math.RND.pick([0xf2d24f, 0xf08a24])).setDepth(37).setScale(1 / HD);
+        this.tweens.add({ targets: spk, x: spk.x + Phaser.Math.Between(-6, 6), y: spk.y - Phaser.Math.Between(6, 12), alpha: 0, duration: 360, onComplete: () => spk.destroy() });
+      }
+      for (const c of sim.capsules) {
+        const gl = this.add.image(c.x + Phaser.Math.Between(-5, 5), c.y - 2, "fx_spark").setTint(0xf2d24f).setDepth(12).setScale(1 / HD);
+        this.tweens.add({ targets: gl, y: gl.y - 8, alpha: 0, duration: 480, onComplete: () => gl.destroy() });
+      }
+    }
+
     this.syncModules(a);
     this.preview.clear();
     if (sim.buildMode) {

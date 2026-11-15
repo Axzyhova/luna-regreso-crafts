@@ -5,6 +5,7 @@ import { consumeItem, stepPsychology } from "@/game/effects";
 import { stepEvents, stepSpecialCases, resolveSpecialCase, spawnCave, strikeCaveAlien, openCaveChest, unlockCavePerk, hitAndroid, stepEmergingProblems } from "@/game/events";
 import { missionHelp } from "@/game/nav";
 import { NavCard } from "@/components/game/StoryUI";
+import { sunShadow } from "@/game/visualFx";
 import { SUBZONAS, stepBosses, hitBoss, checkSubzoneVisit } from "@/game/zones";
 import { FieldGuidePanel } from "@/components/game/FieldGuidePanel";
 import { MapPanel } from "@/components/game/MapPanel";
@@ -218,5 +219,16 @@ describe("Lunar survival & exploration expansions", () => {
     step(s, 5, { inHabitat: false, inShadow: false });
     expect(s.battery).toBeLessThan(50);
     expect(s.sanity).toBeLessThan(80);
+  });
+
+  it("sunShadow sweeps directional shadows across day and dims at night", () => {
+    const dawn = sunShadow(10);
+    const noon = sunShadow(180);
+    const dusk = sunShadow(340);
+    const night = sunShadow(450);
+    expect(dawn.ox).toBeGreaterThan(0);
+    expect(dusk.ox).toBeLessThan(0);
+    expect(Math.abs(noon.ox)).toBeLessThan(Math.abs(dawn.ox));
+    expect(night.alpha).toBeLessThan(dawn.alpha);
   });
 });
