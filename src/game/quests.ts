@@ -47,6 +47,7 @@ export function archiveReady(s: Sim, cond: string) {
   if (cond === "inicio") return true;
   if (cond.startsWith("M")) return s.quest.main >= Number(cond.slice(1));
   if (cond.startsWith("zona_")) return s.visited.includes(cond.slice(5));
+  if (cond.startsWith("poi_")) return s.pois.includes(cond.slice(4));
   return false;
 }
 

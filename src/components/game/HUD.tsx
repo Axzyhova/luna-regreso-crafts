@@ -187,6 +187,7 @@ function Base() {
         <div className="text-[7px] leading-4 text-white/70">
           ☀ <span className="text-ok">{solarCount} solar panel{solarCount === 1 ? "" : "s"}</span> make +{solarIn.toFixed(0)}/s{day ? "" : " (night: 0)"} · ⚙ machines use −{s.energyOut.toFixed(0)}/s. Add panels to run more machines; add batteries to last the night.
         </div>
+        <div className="text-[8px]">Solar panels: {s.eds ? <span className="text-ok">EDS Dust Shield installed (no dust loss)</span> : <span className={s.dust > 0.3 ? "text-alert" : ""}>dust {Math.round(s.dust * 100)}% → −{Math.round(s.dust * 50)}% power (press E next to a panel to clean, or craft the EDS)</span>}</div>
         <div className="text-[8px]">Batteries {s.battery.toFixed(0)}/{batteryCap(s)} · They last tonight: <span className={nightSec < NIGHT_LEN ? "text-alert" : "text-ok"}>{fmtTime(nightSec)}</span> <span className="text-muted-foreground">(night lasts {NIGHT_LEN / 60} min)</span></div>
         <div className="text-[7px] text-muted-foreground">Habitat O2 {s.habitatO2.toFixed(0)}% · Water tank {s.inv.agua.toFixed(0)}/{WATER_TANK_KG} kg · H2 gas {s.h2gas.toFixed(2)} kg · O2 gas {s.o2gas.toFixed(2)} kg</div>
       </div>
@@ -277,6 +278,7 @@ function Rocket() {
       <div className="mt-3 flex flex-wrap gap-3">
         <PixelButton disabled={blockers.length > 0 || s.countdown !== null} onClick={() => { if (startLaunch(sim)) { sfx.alert(); publish(); useGame.getState().setOverlay(null); } }}>{s.countdown !== null ? "Countdown…" : `Launch (T-${countdownLength(s)} s)`}</PixelButton>
         <PixelButton tone="ghost" onClick={() => useGame.getState().setOverlay("cubesat")}>{s.relay ? "View CubeSat relay" : "Design CubeSat relay"}</PixelButton>
+        {s.navcore && <PixelButton tone="alert" disabled={blockers.length > 0 || s.countdown !== null} onClick={() => { if (startLaunch(sim, "mars")) { sfx.alert(); publish(); useGame.getState().setOverlay(null); } }}>🔴 Launch to Mars (Jezero)</PixelButton>}
       </div>
       {blockers.length > 0 && (
         <ul className="mt-2 space-y-1 text-[7px] text-alert">

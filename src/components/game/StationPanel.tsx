@@ -106,6 +106,7 @@ export function StationPanel() {
                 <Slot item={result[0]} n={result[1]} big dim={!!block} title={ITEMS[result[0]]?.nombre} />
               </div>
               <p className="text-[9px] leading-4 text-white/80">{ITEMS[result[0]]?.desc}</p>
+              {"ref" in sel && sel.ref && <p className="rounded bg-[#e8f0ff] px-1.5 py-1 text-[8px] leading-4 text-[#1d3f8a]">🚀 {String(sel.ref)}</p>}
               <div className="flex items-center gap-2">
                 <button type="button" disabled={!!block} onClick={() => { if (craft(sim, sel)) { sfx.ok(); publish(); } else sfx.bad(); }}
                   className="tr-btn tr-btn-primary px-4 py-2 text-[10px] disabled:opacity-40">CRAFT</button>

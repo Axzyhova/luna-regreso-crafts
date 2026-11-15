@@ -84,6 +84,22 @@
    "w": 14,
    "h": 11,
    "item": "cofre"
+  },
+  "rover": {
+   "nombre": "Auto-Miner Rover",
+   "energia": -1,
+   "desgaste": 0.01,
+   "w": 12,
+   "h": 10,
+   "item": "rover"
+  },
+  "biorreactor": {
+   "nombre": "Algae Bioreactor",
+   "energia": -1,
+   "desgaste": 0.01,
+   "w": 16,
+   "h": 14,
+   "item": "biorreactor"
   }
  },
  "iniciales": [

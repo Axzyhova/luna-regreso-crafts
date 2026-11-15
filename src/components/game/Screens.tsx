@@ -171,10 +171,16 @@ export function Final() {
   return (
     <div className="relative flex h-full flex-col items-center justify-center-safe gap-6 overflow-y-auto p-6 text-center short:gap-3 short:p-3">
       <Stars />
-      <h2 className="text-2xl text-ok drop-shadow-[3px_3px_0_var(--color-moon-0)] short:text-lg">BACK HOME!</h2>
+      <h2 className="text-2xl text-ok drop-shadow-[3px_3px_0_var(--color-moon-0)] short:text-lg">{r?.destino === "mars" ? "NEXT STOP: MARS!" : "BACK HOME!"}</h2>
       {r && (
         <div className="max-w-xl space-y-2 text-[9px] leading-5">
-          {MISIONES.final.map((l) => <p key={l} className="text-suit-light">{l}</p>)}
+          {r.destino === "mars" ? (
+            <>
+              <p className="text-suit-light">With fuel made entirely on the Moon and the Interplanetary Nav-Core installed, the Selene-7 leaves for Mars.</p>
+              <p className="text-suit-light">Destination: Jezero Crater, an ancient lake bed where NASA's Perseverance rover landed in February 2021 and MOXIE made oxygen from Martian air.</p>
+              <p className="text-suit-light">That's NASA's Moon to Mars idea: learn to live off the land on the Moon, then go further.</p>
+            </>
+          ) : MISIONES.final.map((l) => <p key={l} className="text-suit-light">{l}</p>)}
           <p className="pt-2">You launched on day {r.dia} in window {r.ventana}.</p>
           <p>Side missions: {s.quest.sideDone.length}/{sideAvailable(s).length} · Capsules opened: {s.stats.capsulas} · Repairs: {s.stats.reparaciones}</p>
           <p>Fuel left over: LH2 {r.lh2Sobra.toFixed(1)} kg · LOX {r.loxSobra.toFixed(1)} kg</p>

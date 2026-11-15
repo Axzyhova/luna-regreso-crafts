@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { PAL } from "./palette";
 import { sim, useGame, saveGame } from "./store";
-import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, dropItem, TIPOS, PLACEABLE, leakAllowed, toolInfo, meltIce, WATER_TANK_KG, nextLeakDelay, pickUpDrop, toggleSuit, WORLD, ZONAS, zoneAt, zoneBlock, reveal, BRIDGE, buildBridge, canUpgrade, upgradeCost, upgradeModule, lvl, type Zona, type LeakTarget, type Module, type ModType } from "./sim";
+import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, dropItem, TIPOS, PLACEABLE, leakAllowed, hurt, visitPoi, useBridgeKit, type Leak, toolInfo, meltIce, WATER_TANK_KG, nextLeakDelay, pickUpDrop, toggleSuit, WORLD, ZONAS, zoneAt, zoneBlock, reveal, BRIDGE, buildBridge, canUpgrade, upgradeCost, upgradeModule, lvl, type Zona, type LeakTarget, type Module, type ModType } from "./sim";
 import { sfx } from "./audio";
 import { stepAliens, hitAlien, type World } from "./aliens";
 import { stepCountdown } from "./mission";
@@ -16,6 +16,7 @@ import { feetBox, footprint, groundLine, moveWithCollision, overlaps, sortDepth,
 import { FONT_KEY, registerPixelFont, toFont } from "./pixelfont";
 import { WALK_SPEED, RUN_MULT, RUN_FATIGUE_S, runState, strideFrame } from "./movement";
 import { makeSprites, HD } from "./sprites";
+import { POIS } from "./world";
 import { SUBZONAS, stepHive, hitHive, stepBosses, hitBoss, checkSubzoneVisit } from "./zones";
 import { twinkle, bobOffset, beamStrips, ringPhase, edgeMarker } from "./pickups";
 import { canMine } from "./tools";
@@ -25,6 +26,10 @@ import { HAB, ROCKET, SHADOW, RAVINE, BRIDGE_DECK } from "./world";
 const W = 1280, H = 720; // landing site (night aliens, events and capsules stay here)
 const WW = WORLD.w, WH = WORLD.h; // whole explorable world (2560x1440)
 const isStation = (m: Module) => m.tipo === "taller" || m.tipo === "horno";
+/** How far beyond an object's edge E still reaches (world px): practically touching it. */
+export const INTERACT_EDGE = 7;
+type TargetKind = "leak" | "special" | "cave" | "drop" | "bridge" | "poi" | "capsule" | "rocket" | "melt" | "chest" | "station" | "repair" | "upgrade" | "clean";
+interface Target { kind: TargetKind; x: number; y: number; ref?: unknown; label: string }
 type NodeType = "hielo" | "regolito" | "chatarra" | "cristal_hielo" | "titanio" | "aleacion" | "alga_lunar";
 const NODE_TEX: Record<NodeType, string> = { hielo: "ice", regolito: "reg", chatarra: "scrap", cristal_hielo: "n_cristal", titanio: "n_titanio", aleacion: "n_aleacion", alga_lunar: "n_aleacion" };
 interface RNode { type: NodeType; amount: number; spr: Phaser.GameObjects.Image; zone?: string | undefined }
@@ -65,6 +70,7 @@ export class LunarScene extends Phaser.Scene {
   prompt!: Phaser.GameObjects.BitmapText;
   promptBg!: Phaser.GameObjects.Rectangle;
   animT = 0; dustT = 0; winded = false; wantsRun = false;
+  faceX = 1; faceY = 0;
   touchMode = false;
   pubT = 0; saveT = 0; repairT = 0; leakT = 0; useCd = 0; facing = 1;
   constructor() { super("lunar"); }
@@ -164,6 +170,7 @@ export class LunarScene extends Phaser.Scene {
     initCapsules(sim, { w: W, h: H, hab: HAB, rnd: () => Math.random() });
     if (!sim.caves.length) spawnCave(sim, 235, 195);
     this.drawBridge();
+    for (const p of POIS) this.add.image(p.x, p.y, `poi_${p.id}`).setDepth(p.y).setScale(1 / HD);
     if (!sim.log.length) addLog(sim, "Emergency landing at the lunar south pole. No fuel.");
     this.leakT = 90;
   }
@@ -245,7 +252,7 @@ export class LunarScene extends Phaser.Scene {
   }
 
   nearestNode() {
-    let best: RNode | null = null, bd = 14;
+    let best: RNode | null = null, bd = 10; // short reach: stand next to the node
     for (const n of this.nodes) { const d = Phaser.Math.Distance.Between(n.spr.x, n.spr.y, this.player.x, this.player.y); if (d < bd) { bd = d; best = n; } }
     return best;
   }
@@ -493,49 +500,70 @@ export class LunarScene extends Phaser.Scene {
     n.amount -= got; sfx.pick();
     this.floatText(n.spr.x, n.spr.y - 4, `+${got}`, got > 1 ? PAL.gold : PAL.white);
     this.tweens.add({ targets: n.spr, y: n.spr.y - 2, yoyo: true, duration: 60 });
+    if (n.amount <= 0 && this.inShadowAt(n.spr.x, n.spr.y) && !sim.scanner && Math.random() < 0.3) { hurt(sim, 12, "was caught in a regolith collapse"); this.cameras.main.shake(200, 0.012); toast(sim, "⚠ The crater wall collapsed! The VIPER scanner would have warned you.", 4); }
     if (n.amount <= 0) { n.spr.destroy(); this.nodes = this.nodes.filter((x) => x !== n); this.time.delayedCall(n.type === "chatarra" ? 25000 : 40000, () => this.spawnNode(n.type, n.zone)); }
+  }
+
+  /**
+   * The single thing E acts on: the closest object whose edge is within INTERACT_EDGE px of the
+   * astronaut, preferring what it faces. One target = one prompt, no overlapping signs.
+   */
+  pickTarget(): Target | null {
+    const px = this.player.x, py = this.player.y;
+    let best: Target | null = null, bs = Infinity;
+    const consider = (tg: Target, half: number) => {
+      const dx = tg.x - px, dy = tg.y - py, d = Math.hypot(dx, dy);
+      const edge = Math.max(0, d - half);
+      if (edge > INTERACT_EDGE) return;
+      const facing = d > 1 ? (dx * this.faceX + dy * this.faceY) / d : 1;
+      const score = edge + (facing < -0.25 ? 6 : 0) - facing;
+      if (score < bs) { bs = score; best = tg; }
+    };
+    for (const l of sim.leaks) consider({ kind: "leak", x: l.x, y: l.y, ref: l, label: sim.inv.kits > 0 ? `HOLD E: SEAL LEAK (1 KIT · ${sim.inv.kits} LEFT)` : "NEED 1 SEALANT KIT (CRAFT IN TAB: 2 SCRAP + 1 METAL)" }, 4);
+    if (sim.specialCase) consider({ kind: "special", x: sim.specialCase.x, y: sim.specialCase.y, label: `E: RESOLVE ${sim.specialCase.title.toUpperCase()}` }, 6);
+    for (const c of sim.caves) consider({ kind: "cave", x: c.x, y: c.y, ref: c, label: "E: ENTER METEOR CAVE" }, 8);
+    for (const d of sim.drops) consider({ kind: "drop", x: d.x, y: d.y, ref: d, label: d.kind === "thrown" ? "E: PICK UP " + this.dropText(d) : "E: PICK UP YOUR LOST ITEMS" }, 5);
+    if (!sim.bridge) consider({ kind: "bridge", x: BRIDGE.x, y: BRIDGE.y, label: sim.inv.puente_kit > 0 ? "E: USE BRIDGE KIT" : "NEEDS A BRIDGE KIT (WORKSHOP: 4 METAL + 4 REGOLITH)" }, 8);
+    for (const p of POIS) if (!sim.pois.includes(p.id)) consider({ kind: "poi", x: p.x, y: p.y, ref: p, label: `E: EXAMINE ${p.nombre.toUpperCase()}` }, 7);
+    for (const c of sim.capsules) consider({ kind: "capsule", x: c.x, y: c.y, ref: c, label: "E: OPEN SUPPLY CAPSULE" }, 6);
+    consider({ kind: "rocket", x: ROCKET.x, y: ROCKET.y, label: "E: CHECK ROCKET" }, 12);
+    for (const m of sim.modules) {
+      const half = Math.max(TIPOS[m.tipo].w, TIPOS[m.tipo].h) / 2;
+      const name = TIPOS[m.tipo].nombre.toUpperCase();
+      if (m.tipo === "habitat") { if (sim.inv.hielo > 0) consider({ kind: "melt", x: m.x, y: m.y, ref: m, label: sim.inv.agua >= WATER_TANK_KG ? "WATER TANK FULL" : "E: MELT ICE INTO WATER" }, half); continue; }
+      if (m.tipo === "cofre") consider({ kind: "chest", x: m.x, y: m.y, ref: m, label: "E: OPEN STORAGE CHEST" }, half);
+      else if (isStation(m) && m.durabilidad > 0) consider({ kind: "station", x: m.x, y: m.y, ref: m, label: m.tipo === "taller" ? "E: OPEN WORKSHOP" : "E: OPEN FURNACE" }, half);
+      else if (m.durabilidad < 60) consider({ kind: "repair", x: m.x, y: m.y, ref: m, label: `HOLD E: REPAIR ${name} (1 KIT)` }, half);
+      else if (canUpgrade(sim, m)) consider({ kind: "upgrade", x: m.x, y: m.y, ref: m, label: `E: UPGRADE ${name} → LV${lvl(m) + 1}` }, half);
+      else if (m.tipo === "panel" && !sim.eds && sim.dust > 0.15) consider({ kind: "clean", x: m.x, y: m.y, ref: m, label: `E: CLEAN DUST OFF PANELS (−${Math.round(sim.dust * 50)}% POWER)` }, half);
+    }
+    return best;
   }
 
   interact() {
     if (useGame.getState().overlay || sim.dead) return;
-    if (this.nearestLeak()) return; // hold handled in update
-    if (sim.specialCase && Phaser.Math.Distance.Between(sim.specialCase.x, sim.specialCase.y, this.player.x, this.player.y) < 28) {
-      const title = sim.specialCase.title;
-      if (resolveSpecialCase(sim)) { sfx.ok(); toast(sim, `⭐ Resolved: ${title}`, 4); }
-      return;
-    }
-    const nearCave = sim.caves.find((c) => Phaser.Math.Distance.Between(c.x, c.y, this.player.x, this.player.y) < 24);
-    if (nearCave) {
-      sim.activeCaveId = nearCave.id; sfx.click(); useGame.getState().publish(); useGame.getState().setOverlay("cueva"); return;
-    }
-    if (!sim.bridge && Phaser.Math.Distance.Between(BRIDGE.x, BRIDGE.y, this.player.x, this.player.y) < 30) {
-      if (buildBridge(sim)) { sfx.ok(); toast(sim, "🌉 Bridge built! The Alien Hive is open.", 4); this.drawBridge(); } else { sfx.bad(); toast(sim, "Bridge needs 10 Metal, 6 Regolith and 2 Titanium.", 4); }
-      return;
-    }
-    const upg = this.nearModule((m) => !isStation(m) && canUpgrade(sim, m), 20);
-    if (upg && !(upg.tipo === "habitat" && sim.inv.hielo > 0)) { upgradeModule(sim, upg); sfx.ok(); toast(sim, `⬆ ${TIPOS[upg.tipo].nombre} → level ${lvl(upg)}`, 3); return; }
-    const bag = this.nearestDrop();
-    if (bag) { const ok = pickUpDrop(sim, bag.id); if (ok) sfx.ok(); else sfx.bad(); toast(sim, ok ? (bag.kind === "thrown" ? "🎒 Picked up" : "🎒 You picked up your lost items") : "Inventory full: some items are still on the ground", 3); useGame.getState().publish(); return; }
-    const cap = nearestCapsule(sim, this.player.x, this.player.y);
-    if (cap) {
-      const found = openCapsule(sim, cap.id, () => Math.random());
-      toast(sim, `📦 ${found.map((f) => `+${f.n} ${ITEMS[f.item]?.nombre ?? f.item}`).join(" · ") || "Inventory full"}`);
-      sfx.ok();
-      return;
-    }
-    if (this.nearHab() && sim.inv.hielo > 0) {
-      const w = meltIce(sim); // water goes to the habitat tank, which has a cap
-      if (w > 0) { addLog(sim, `You melted ice: +${w} kg into the habitat water tank (${Math.round(sim.inv.agua)}/${WATER_TANK_KG} kg).`); sfx.ok(); toast(sim, `💧 +${w} kg water (tank ${Math.round(sim.inv.agua)}/${WATER_TANK_KG})`, 3); }
-      else { toast(sim, "💧 Water tank full: drink, make medkits, run electrolysis, or pour some out (TAB)", 5); sfx.bad(); }
-    } else if (Phaser.Math.Distance.Between(ROCKET.x, ROCKET.y, this.player.x, this.player.y) < 36) {
-      useGame.getState().setOverlay("cohete");
-    } else if (this.nearModule((m) => m.tipo === "cofre", 24)) {
-      const chest = this.nearModule((m) => m.tipo === "cofre", 24)!;
-      sim.chestUid = chest.uid; sfx.click(); useGame.getState().publish(); useGame.getState().setOverlay("cofre");
-    } else {
-      // Crafting stations open their own interface (unless they need a repair: hold E for that).
-      const st = this.nearModule((m) => isStation(m) && m.durabilidad > 0, 26);
-      if (st) { sim.station = st.tipo as "taller" | "horno"; sim.stationUid = st.uid; sfx.click(); useGame.getState().publish(); useGame.getState().setOverlay("estacion"); }
+    const tg = this.pickTarget();
+    if (!tg) return;
+    const G = useGame.getState();
+    switch (tg.kind) {
+      case "leak": case "repair": return; // held: handled in update
+      case "special": { const title = sim.specialCase!.title; if (resolveSpecialCase(sim)) { sfx.ok(); toast(sim, `⭐ Resolved: ${title}`, 4); } return; }
+      case "cave": sim.activeCaveId = (tg.ref as { id: number }).id; sfx.click(); G.publish(); G.setOverlay("cueva"); return;
+      case "drop": { const bag = tg.ref as (typeof sim.drops)[number]; const ok = pickUpDrop(sim, bag.id); if (ok) sfx.ok(); else sfx.bad(); toast(sim, ok ? (bag.kind === "thrown" ? "🎒 Picked up" : "🎒 You picked up your lost items") : "Inventory full: some items are still on the ground", 3); G.publish(); return; }
+      case "bridge": if (useBridgeKit(sim)) { sfx.ok(); toast(sim, "🌉 Bridge built! The Alien Hive is open.", 4); this.drawBridge(); } else { sfx.bad(); toast(sim, "Craft a Bridge Kit at the Workshop (4 Metal + 4 Regolith).", 4); } return;
+      case "poi": if (visitPoi(sim, tg.ref as (typeof POIS)[number])) sfx.ok(); G.publish(); return;
+      case "capsule": { const found = openCapsule(sim, (tg.ref as { id: number }).id, () => Math.random()); toast(sim, `📦 ${found.map((f) => `+${f.n} ${ITEMS[f.item]?.nombre ?? f.item}`).join(" · ") || "Inventory full"}`); sfx.ok(); return; }
+      case "rocket": G.setOverlay("cohete"); return;
+      case "melt": {
+        const w = meltIce(sim);
+        if (w > 0) { addLog(sim, `You melted ice: +${w} kg into the habitat water tank (${Math.round(sim.inv.agua)}/${WATER_TANK_KG} kg).`); sfx.ok(); toast(sim, `💧 +${w} kg water (tank ${Math.round(sim.inv.agua)}/${WATER_TANK_KG})`, 3); }
+        else { toast(sim, "💧 Water tank full: drink, make medkits, run electrolysis, or pour some out (TAB)", 5); sfx.bad(); }
+        return;
+      }
+      case "chest": sim.chestUid = (tg.ref as Module).uid; sfx.click(); G.publish(); G.setOverlay("cofre"); return;
+      case "station": { const st = tg.ref as Module; sim.station = st.tipo as "taller" | "horno"; sim.stationUid = st.uid; sfx.click(); G.publish(); G.setOverlay("estacion"); return; }
+      case "upgrade": { const m = tg.ref as Module; upgradeModule(sim, m); sfx.ok(); toast(sim, `⬆ ${TIPOS[m.tipo].nombre} → level ${lvl(m)}`, 3); return; }
+      case "clean": sim.dust = 0; sfx.ok(); toast(sim, "🧹 Panels cleaned: full solar power again. An EDS Dust Shield would do this for you.", 4); return;
     }
   }
 
@@ -567,6 +595,7 @@ export class LunarScene extends Phaser.Scene {
     this.animatePlayer(dt, this.player.x !== ox || this.player.y !== oy, rs.running);
     sim.tut.moved += Math.hypot(this.player.x - ox, this.player.y - oy);
     if (vx) { this.facing = Math.sign(vx); this.player.setFlipX(vx < 0); }
+    if (vx || vy) { const l = Math.hypot(vx, vy); this.faceX = vx / l; this.faceY = vy / l; }
     this.useCd = Math.max(0, this.useCd - dt);
     const mouseHeld = this.input.activePointer.isDown && !this.input.activePointer.wasTouch;
     if ((k.SPACE.isDown || touch.useHeld || mouseHeld) && !sim.buildMode) this.useTool();
@@ -605,9 +634,10 @@ export class LunarScene extends Phaser.Scene {
     sim.near.habitat = this.nearHab();
     sim.near.taller = !!this.nearModule((m) => m.tipo === "taller" && m.durabilidad > 0, 26);
     sim.near.horno = !!this.nearModule((m) => m.tipo === "horno" && m.durabilidad > 0, 26);
-    const leak = this.nearestLeak();
+    const target = this.pickTarget();
+    const leak = target?.kind === "leak" ? (target.ref as Leak) : undefined;
     // Working stations are repaired from their own panel; everything else (and broken stations) with hold-E.
-    const broken = leak ? undefined : this.nearModule((m) => m.durabilidad < 100 && !(isStation(m) && m.durabilidad > 0));
+    const broken = target?.kind === "repair" ? (target.ref as Module) : undefined;
     if (broken && (k.E.isDown || touch.e) && broken.durabilidad < 60) {
       if (sim.inv.kits < 1) this.say("NO KITS: CRAFT ONE (INVENTORY)");
       else {
@@ -631,24 +661,11 @@ export class LunarScene extends Phaser.Scene {
     } else if (leak) leak.progress = Math.max(0, leak.progress - dt * 0.5);
     for (const l of sim.leaks) { const s = this.leakSprites.get(l.id); if (s) s.setScale((0.8 + l.size * 0.25) / HD).setAlpha(Math.sin(this.time.now / 120) > 0 ? 1 : 0.4); }
 
-    // prompts
+    // prompts: one sign for the one target in reach; otherwise mining or status hints
     const n = this.nearestNode();
-    if (leak) this.say(sim.inv.kits > 0 ? `HOLD E: SEAL LEAK (1 KIT · ${sim.inv.kits} LEFT)` : "NEED 1 SEALANT KIT (CRAFT IN TAB: 2 SCRAP + 1 METAL)");
-    else if (sim.specialCase && Phaser.Math.Distance.Between(sim.specialCase.x, sim.specialCase.y, this.player.x, this.player.y) < 28) this.say(`E: RESOLVE ${sim.specialCase.title.toUpperCase()}`);
-    else if (sim.caves.some((c) => Phaser.Math.Distance.Between(c.x, c.y, this.player.x, this.player.y) < 24)) this.say("E or CLICK: ENTER METEOR CAVE");
-    else if (this.nearestDrop()) this.say(this.nearestDrop()!.kind === "thrown" ? "E: PICK UP " + this.dropText(this.nearestDrop()!) : "E: PICK UP YOUR LOST ITEMS");
-    else if (!sim.bridge && Phaser.Math.Distance.Between(BRIDGE.x, BRIDGE.y, this.player.x, this.player.y) < 30) this.say("E: BUILD BRIDGE (10 METAL, 6 REGOLITH, 2 TITANIUM)");
-    else if (this.upgradeHint()) this.say(this.upgradeHint()!);
-    else if (nearestCapsule(sim, this.player.x, this.player.y)) this.say("E: OPEN SUPPLY CAPSULE");
+    if (target) this.say(target.label);
     else if (n) this.say(canMine(sim.inv, n.type).ok ? `HOLD ACTION: MINE ${(ITEMS[n.type]?.nombre ?? n.type).toUpperCase()}` : `NEEDS A ${canMine(sim.inv, n.type).need!.toUpperCase()} (WORKSHOP)`);
-    else if (broken && broken.durabilidad < 60 && !(this.nearHab() && sim.inv.hielo > 0)) this.say(`HOLD E: REPAIR ${TIPOS[broken.tipo].nombre.toUpperCase()} (1 KIT)`);
-    else if (this.nearHab() && sim.inv.hielo > 0) this.say(sim.inv.agua >= WATER_TANK_KG ? "WATER TANK FULL" : "E: MELT ICE INTO WATER");
-    else if (this.nearModule((m) => m.tipo === "cofre", 24)) this.say("E: OPEN STORAGE CHEST");
     else if (this.nearHab()) this.say("HABITAT: REFILLING O2");
-    else if (Phaser.Math.Distance.Between(ROCKET.x, ROCKET.y, this.player.x, this.player.y) < 36) this.say("E: CHECK ROCKET");
-    else if (this.nearModule((m) => m.tipo === "cofre", 20)) this.say("E: OPEN STORAGE CHEST");
-    else if (sim.near.taller) this.say("E: OPEN WORKSHOP");
-    else if (sim.near.horno) this.say("E: OPEN FURNACE");
     else if (this.winded && this.wantsRun) this.say("TOO TIRED TO RUN");
     else { this.prompt.setVisible(false); this.promptBg.setVisible(false); }
 

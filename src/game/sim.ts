@@ -19,7 +19,7 @@ export interface TipoInfo { nombre: string; energia: number; desgaste: number; w
 export const TIPOS = modulos.tipos as Record<ModType, TipoInfo>;
 export type AlienTipo = "abductor" | "rastreador" | "saboteador" | "nodriza";
 export interface Alien { id: number; tipo: AlienTipo; x: number; y: number; hp: number; stun: number; target?: LeakTarget | undefined }
-export interface Module { uid: number; tipo: ModType; x: number; y: number; durabilidad: number; activo: boolean; level?: number }
+export interface Module { uid: number; tipo: ModType; x: number; y: number; durabilidad: number; activo: boolean; level?: number; acc?: number; tick?: number }
 export const STACK = 50;
 export const SLOTS = 20;
 /** Inventory item -> module type it places. */
@@ -33,7 +33,7 @@ export const CYCLE = DAY_LEN + NIGHT_LEN;
 export const LH2_CAP = balance.lh2_cap_kg;
 export const LOX_CAP = balance.lox_cap_kg;
 
-export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cofre: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number; alga_lunar: number; racion: number; comida_caliente: number; pico_plasma: number; armadura_lunar: number; botas_gravedad: number }
+export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cofre: number; puente_kit: number; rover: number; biorreactor: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number; alga_lunar: number; racion: number; comida_caliente: number; pico_plasma: number; armadura_lunar: number; botas_gravedad: number }
 
 export function createSim(mode: Mode, difficulty: Difficulty) {
   return {
@@ -43,11 +43,18 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     battery: 60, energyIn: 0, energyOut: 0,
     habitatO2: 80,
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
-    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: difficulty === "facil" ? 3 : 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cofre: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0, alga_lunar: 0, racion: difficulty === "facil" ? 1 : 0, comida_caliente: 0, pico_plasma: 0, armadura_lunar: 0, botas_gravedad: 0 } as Inv,
+    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: difficulty === "facil" ? 3 : 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cofre: 0, puente_kit: 0, rover: 0, biorreactor: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0, alga_lunar: 0, racion: difficulty === "facil" ? 1 : 0, comida_caliente: 0, pico_plasma: 0, armadura_lunar: 0, botas_gravedad: 0 } as Inv,
     relay: false,
     // --- historia, efectos, eventos y botín ---
     effects: [] as string[],
     fatigue: 0,
+    // Base tech: dust on the solar panels, the EDS shield, the Mars nav-core, historic sites visited, launch destination.
+    dust: 0,
+    eds: false,
+    navcore: false,
+    pois: [] as string[],
+    scanner: false,
+    destino: "earth" as "earth" | "mars",
     chests: {} as Record<string, Record<string, number>>,
     modStatus: {} as Record<number, "ok" | "nopower" | "idle" | "off">,
     archive: [] as string[],
@@ -115,7 +122,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     alienSeen: [] as string[],
     countdown: null as number | null,
     cubesat: [] as { uid: number; id: string; x: number; y: number; rot: number }[],
-    result: null as null | { ok: boolean; dia: number; ventana: string; lh2Sobra: number; loxSobra: number },
+    result: null as null | { ok: boolean; dia: number; ventana: string; lh2Sobra: number; loxSobra: number; destino?: "earth" | "mars" },
     hotbarItems: ["kits", "chatarra", "metal", null, null] as (string | null)[],
     near: { taller: false, horno: false, habitat: false },
     station: null as null | "taller" | "horno",
@@ -175,13 +182,16 @@ export function upgradeModule(s: Sim, m: Module) {
 }
 const bestMult = (s: Sim, tipo: ModType) => Math.max(1, ...s.modules.filter((m) => m.tipo === tipo && isOn(m)).map(lvMult));
 
+/** Solar output multiplier from dust (set every step; the EDS keeps it at 1). */
+let dustFactor = 1;
 export function moduleEnergy(m: Module, day: boolean) {
   if (!isOn(m)) return 0;
   const t = TIPOS[m.tipo];
   if (t.solo_dia && !day) return 0;
-  return t.energia * (t.energia > 0 && m.durabilidad < 30 ? 0.5 : 1) * (t.energia > 0 ? lvMult(m) : 1);
+  return t.energia * (t.energia > 0 && m.durabilidad < 30 ? 0.5 : 1) * (t.energia > 0 ? lvMult(m) : 1) * (m.tipo === "panel" ? dustFactor : 1);
 }
 export function energyBalance(s: Sim, day: boolean) {
+  dustFactor = 1 - dustLoss(s); // this sim's dust, never a stale value from another game
   let inp = 0, out = 0;
   for (const m of s.modules) { const e = moduleEnergy(m, day); if (e > 0) inp += e; else out -= e; }
   return { inp, out };
@@ -309,6 +319,8 @@ export function recipeBlock(s: Sim, r: Receta): string | null {
   if (!r.disponible) return "Coming soon";
   if (r.lugar === "taller" && !s.near.taller) return "Go to the Workshop";
   if (r.lugar === "horno" && !s.near.horno) return "Go to the Furnace";
+  if (r.id === "navcore" && !marsReady(s)) return "Needs full tanks at a 6:1 LOX:LH2 mix";
+  if ((r.id === "navcore" && s.navcore) || (r.id === "eds" && s.eds)) return "Already installed";
   if (!canCraft(s.inv, r.ingredientes)) return "Missing materials";
   return null;
 }
@@ -317,6 +329,8 @@ export function craft(s: Sim, r: Receta) {
   const inv = s.inv as unknown as Record<string, number>;
   for (const [k, v] of Object.entries(r.ingredientes)) inv[k] = (inv[k] ?? 0) - (v ?? 0);
   for (const [k, v] of Object.entries(r.resultado)) {
+    if (k === "eds") { s.eds = true; s.dust = 0; addLog(s, "EDS Dust Shield installed on your solar panels."); continue; }
+    if (k === "navcore") { s.navcore = true; addLog(s, "Interplanetary Nav-Core installed: Mars (Jezero Crater) is now a launch option."); continue; }
     if (k === "traje_espacial") { s.suit = { owned: true, worn: s.suit.worn && s.suit.owned, integrity: 100 }; continue; }
     inv[k] = (inv[k] ?? 0) + (v ?? 0);
   }
@@ -565,6 +579,7 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   if (s.act === 1 && s.inv.hielo + s.inv.agua >= 6 && s.inv.chatarra >= 4 && s.actFlags.leakFixed) advanceAct(s);
   if (s.act === 2 && s.lh2 >= balance.meta_acto2_lh2_kg) advanceAct(s);
   s.pickupFeed = s.pickupFeed.map((p) => ({ ...p, t: p.t - dt })).filter((p) => p.t > 0);
+  stepBaseTech(s, dt, day);
   cleanupInventory(s);
 }
 
@@ -677,10 +692,76 @@ export function reveal(s: Sim, x: number, y: number, r = zonasCfg.radio_vision) 
 }
 export const BRIDGE = zonasCfg.puente;
 export function buildBridge(s: Sim) {
-  if (s.bridge || !canCraft(s.inv, BRIDGE.costo)) return false;
+  return useBridgeKit(s);
+}
+
+// ---- Base automation and dust (Auto-Miner Rover, Algae Bioreactor, EDS) ----
+export const DUST_PER_S = 1 / 1800;      // panels fully dusty after ~30 min without cleaning
+export const ROVER_PERIOD_S = 20;        // one load every 20 s
+export const BIO_RATION_S = 120;         // a Space ration every 2 min
+export const marsReady = (s: Sim) => s.lh2 >= LH2_CAP * 0.99 && s.lox >= LOX_CAP * 0.99 && Math.abs(s.lox / Math.max(0.01, s.lh2) - 6) <= 0.3;
+export const dustLoss = (s: Sim) => (s.eds ? 0 : s.dust * 0.5);
+
+export function stepBaseTech(s: Sim, dt: number, day: boolean) {
+  // Electrostatic lunar dust builds up on the panels (Apollo crews fought it); the EDS removes it.
+  s.dust = s.eds ? 0 : Math.min(1, s.dust + DUST_PER_S * dt);
+  dustFactor = 1 - dustLoss(s);
+  void day;
+  const powered = s.battery > 0 || s.energyIn > 0;
+  const chests = s.modules.filter((m) => m.tipo === "cofre");
   const inv = s.inv as unknown as Record<string, number>;
-  for (const [k, v] of Object.entries(BRIDGE.costo)) inv[k] = (inv[k] ?? 0) - v;
-  s.bridge = true;
-  addLog(s, "🌉 You built the ravine bridge. The Alien Hive is now reachable.");
+  for (const m of s.modules) {
+    if (!isOn(m) || !powered) continue;
+    if (m.tipo === "rover") {
+      if (!chests.length) { s.modStatus[m.uid] = "idle"; continue; }
+      m.acc = (m.acc ?? 0) + dt / ROVER_PERIOD_S;
+      while (m.acc >= 1) {
+        m.acc -= 1; m.tick = (m.tick ?? 0) + 1;
+        const item = m.tick % 2 === 0 ? "hielo" : "regolito";
+        const target = chests.find((c) => moveIntoChest(s, c.uid, item, 1));
+        if (!target) s.modStatus[m.uid] = "idle";
+      }
+    } else if (m.tipo === "biorreactor") {
+      const water = 0.02 * dt;
+      if (s.inv.agua < water) { s.modStatus[m.uid] = "idle"; continue; }
+      s.inv.agua -= water;
+      s.habitatO2 = Math.min(100, s.habitatO2 + 0.06 * dt);
+      m.acc = (m.acc ?? 0) + dt / BIO_RATION_S;
+      if (m.acc >= 1) {
+        m.acc -= 1;
+        const chest = chests.find((c) => moveIntoChest(s, c.uid, "racion", 1));
+        if (!chest && addItem(s, "racion" as keyof Inv, 1)) addLog(s, "The bioreactor grew a Space ration.");
+      }
+    }
+  }
+}
+
+/** Put an item straight into a chest (used by machines). */
+export function moveIntoChest(s: Sim, uid: number, key: string, n: number) {
+  const c = (s.chests[String(uid)] ??= {});
+  const slots = Object.values(c).reduce((a, v) => a + Math.ceil(v / STACK), 0);
+  const next = Math.ceil(((c[key] ?? 0) + n) / STACK) - Math.ceil((c[key] ?? 0) / STACK);
+  if (slots + next > 20) return false;
+  c[key] = (c[key] ?? 0) + n;
+  return true;
+}
+
+/** Use a Bridge Kit at the ravine. */
+export function useBridgeKit(s: Sim) {
+  if (s.bridge || s.inv.puente_kit < 1) return false;
+  s.inv.puente_kit -= 1; s.bridge = true;
+  addLog(s, "🌉 You assembled the Bridge Kit across the ravine. The Alien Hive is now reachable.");
+  return true;
+}
+
+/** Visit a historic site once: reward, story text, and (for VIPER) the ground scanner. */
+export function visitPoi(s: Sim, poi: { id: string; nombre: string; texto: string; reward: Record<string, number> }) {
+  if (s.pois.includes(poi.id)) return false;
+  s.pois.push(poi.id);
+  for (const [k, n] of Object.entries(poi.reward)) giveItem(s, k as keyof Inv, n);
+  if (poi.id === "viper") s.scanner = true;
+  s.dialog.push({ quien: "ARIA", texto: poi.texto });
+  addLog(s, `🏛 Historic site: ${poi.nombre}.`);
+  notify(s, "mission", "Historic site found", poi.nombre);
   return true;
 }

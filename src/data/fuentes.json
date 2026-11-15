@@ -150,6 +150,12 @@
   "nota": "Made up for the game. Any resemblance to real people is a coincidence; the real astronauts are in the Archive."
  },
  {
+  "titulo": "NASA tech references: Electrodynamic Dust Shield (KSC), RASSOR, ISS Oxygen Generation System, BLSS/Veggie, MOXIE, PRIME-1, VIPER, LCROSS, Apollo 12 & Surveyor 3, Moon to Mars",
+  "tipo": "EXTERNAL",
+  "url": "",
+  "nota": "Short 'NASA Ref' lines on crafting recipes and the historic sites. Simplified; to do: cite exact NASA pages."
+ },
+ {
   "titulo": "Aliens, ARIA and the story, crafting recipes, capsules, scrap and compressed time",
   "tipo": "FICTION",
   "url": "",
