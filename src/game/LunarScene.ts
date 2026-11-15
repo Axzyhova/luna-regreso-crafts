@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { PAL } from "./palette";
 import { sim, useGame, saveGame } from "./store";
-import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, TIPOS, PLACEABLE, BAL, leakAllowed, nextLeakDelay, pickUpDrop, toggleSuit, WORLD, ZONAS, zoneAt, zoneBlock, reveal, BRIDGE, buildBridge, canUpgrade, upgradeCost, upgradeModule, lvl, type Zona, type LeakTarget, type Module, type ModType } from "./sim";
+import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, TIPOS, PLACEABLE, leakAllowed, toolInfo, meltIce, WATER_TANK_KG, nextLeakDelay, pickUpDrop, toggleSuit, WORLD, ZONAS, zoneAt, zoneBlock, reveal, BRIDGE, buildBridge, canUpgrade, upgradeCost, upgradeModule, lvl, type Zona, type LeakTarget, type Module, type ModType } from "./sim";
 import { sfx } from "./audio";
 import { stepAliens, hitAlien, type World } from "./aliens";
 import { stepCountdown } from "./mission";
@@ -242,9 +242,13 @@ export class LunarScene extends Phaser.Scene {
       }
       const on = m.activo && m.durabilidad > 0;
       sp.img.setAlpha(on ? 1 : 0.45);
-      sp.warn.setVisible(m.durabilidad < 25 && Math.sin(this.time.now / 200) > 0);
       // ⬆ appears over modules you can afford to upgrade.
       sp.up.setVisible(canUpgrade(sim, m)).setY(m.y - TIPOS[m.tipo].h / 2 - 10 + Math.sin(this.time.now / 250) * 1.5);
+      // Status at a glance: 🔌 no power, 💤 idle; working machines puff a little.
+      const st = sim.modStatus[m.uid];
+      sp.warn.setText(m.durabilidad < 25 ? "!" : st === "nopower" ? "🔌" : st === "idle" && m.tipo !== "panel" ? "💤" : "");
+      sp.warn.setVisible(m.durabilidad < 25 ? Math.sin(this.time.now / 200) > 0 : st === "nopower" || (st === "idle" && m.tipo !== "panel"));
+      sp.img.setTint(st === "ok" && TIPOS[m.tipo].energia !== 0 && Math.sin(this.time.now / 300 + m.uid) > 0.85 ? 0xfff3c0 : 0xffffff);
       sp.glow?.setAlpha(on && sim.battery > 0 ? a * 1.4 : 0);
     }
   }
@@ -300,11 +304,15 @@ export class LunarScene extends Phaser.Scene {
     }
     const n = this.nearestNode();
     if (!n) return;
-    this.useCd = ((sim.inv.pala_titanio ?? 0) > 0 ? 0.2 : (sim.inv.taladro ?? 0) > 0 ? 0.25 : (sim.inv.pala_mejorada ?? 0) > 0 ? 0.35 : 0.5) * effectMods(sim).gather;
-    if (!addItem(sim, n.type, 1)) { this.say("INVENTORY FULL"); sfx.bad(); return; }
-    if (n.type === "hielo") sim.stats.hielo++;
+    const tool = toolInfo(sim);
+    this.useCd = tool.cd * effectMods(sim).gather;
+    let got = 0;
+    for (let i = 0; i < Math.min(tool.yield, n.amount); i++) { if (!addItem(sim, n.type, 1)) break; got++; }
+    if (!got) { this.say("INVENTORY FULL: DROP ITEMS OR USE A CHEST"); sfx.bad(); return; }
+    if (n.type === "hielo") sim.stats.hielo += got;
     sim.fatigue = Math.min(100, sim.fatigue + 0.6);
-    n.amount -= 1; sfx.pick();
+    n.amount -= got; sfx.pick();
+    if (got > 1) this.floatText(n.spr.x, n.spr.y - 6, `+${got}`);
     this.tweens.add({ targets: n.spr, y: n.spr.y - 2, yoyo: true, duration: 60 });
     if (n.amount <= 0) { n.spr.destroy(); this.nodes = this.nodes.filter((x) => x !== n); this.time.delayedCall(40000, () => this.spawnNode(n.type, n.zone)); }
   }
@@ -328,12 +336,15 @@ export class LunarScene extends Phaser.Scene {
       return;
     }
     if (this.nearHab() && sim.inv.hielo > 0) {
-      const w = sim.inv.hielo * BAL.hielo_a_agua_kg; sim.inv.agua += w; sim.inv.hielo = 0;
-      addLog(sim, `You melted ice: +${w} kg of water for electrolysis.`); sfx.ok();
+      const w = meltIce(sim);
+      if (w > 0) { addLog(sim, `You melted ice: +${w} kg into the habitat water tank (${Math.round(sim.inv.agua)}/${WATER_TANK_KG} kg).`); sfx.ok(); }
+      else { toast(sim, "💧 The water tank is full: run the electrolysis plant to use it", 4); sfx.bad(); }
     } else if (Phaser.Math.Distance.Between(ROCKET.x, ROCKET.y, this.player.x, this.player.y) < 36) {
       useGame.getState().setOverlay("cohete");
     } else {
       // Crafting stations open their own interface (unless they need a repair: hold E for that).
+      const chest = this.nearModule((m) => m.tipo === "cofre", 20);
+      if (chest) { sim.chestUid = chest.uid; sfx.click(); useGame.getState().publish(); useGame.getState().setOverlay("cofre"); return; }
       const st = this.nearModule((m) => isStation(m) && m.durabilidad > 0, 26);
       if (st) { sim.station = st.tipo as "taller" | "horno"; sim.stationUid = st.uid; sfx.click(); useGame.getState().publish(); useGame.getState().setOverlay("estacion"); }
     }
@@ -424,6 +435,7 @@ export class LunarScene extends Phaser.Scene {
     else if (this.nearHab() && sim.inv.hielo > 0) this.say("E: MELT ICE");
     else if (this.nearHab()) this.say("HABITAT: REFILLING O2");
     else if (Phaser.Math.Distance.Between(ROCKET.x, ROCKET.y, this.player.x, this.player.y) < 36) this.say("E: CHECK ROCKET");
+    else if (this.nearModule((m) => m.tipo === "cofre", 20)) this.say("E: OPEN STORAGE CHEST");
     else if (sim.near.taller) this.say("E: OPEN WORKSHOP");
     else if (sim.near.horno) this.say("E: OPEN FURNACE");
     else this.prompt.setVisible(false);
@@ -579,6 +591,12 @@ export class LunarScene extends Phaser.Scene {
       const ab = sim.aliens.filter((a) => a.tipo === "abductor").sort((p, q) => Phaser.Math.Distance.Between(p.x, p.y, this.player.x, this.player.y) - Phaser.Math.Distance.Between(q.x, q.y, this.player.x, this.player.y))[0];
       if (ab) this.beam.fillStyle(PAL.ok, 0.25 + sim.abduction / 250).fillTriangle(ab.x - 3, ab.y + 2, ab.x + 3, ab.y + 2, this.player.x, this.player.y + 4).fillTriangle(this.player.x - 5, this.player.y + 4, this.player.x + 5, this.player.y + 4, ab.x, ab.y + 2);
     }
+  }
+
+  /** Small rising number (e.g. +3 when a better tool gathers more). */
+  floatText(x: number, y: number, s: string) {
+    const t = this.add.text(x, y, s, { fontFamily: '"Press Start 2P"', resolution: HD * 2, fontSize: "6px", color: "#4fc26a", stroke: "#14141c", strokeThickness: 2 }).setDepth(41);
+    this.tweens.add({ targets: t, y: y - 10, alpha: 0, duration: 700, onComplete: () => t.destroy() });
   }
 
   /** Hint above the astronaut, kept inside the visible part of the map. */

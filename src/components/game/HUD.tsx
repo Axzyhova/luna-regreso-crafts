@@ -2,16 +2,18 @@ import { useEffect, useState } from "react";
 import modos from "@/data/modos.json";
 import recetas from "@/data/recetas.json";
 import { useGame, sim, saveGame } from "@/game/store";
-import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft, PLACEABLE, upgradeCost, canUpgrade, upgradeModule, UPGRADES, SUBSISTEMAS, UMBRAL_VERDE, repairBlock, repairSubsystem, subCap } from "@/game/sim";
+import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft, PLACEABLE, dropItem, toolInfo, WATER_TANK_KG, upgradeCost, canUpgrade, upgradeModule, UPGRADES, SUBSISTEMAS, UMBRAL_VERDE, repairBlock, repairSubsystem, subCap } from "@/game/sim";
 import { launchBlockers, startLaunch, countdownLength, currentWindow, nextWindow, windowSecondsLeft, windowsUntil, VENTANAS_PROVISIONALES } from "@/game/mission";
 import { CubeSatDesigner } from "./CubeSatDesigner";
 import { Vitals, DayClock } from "./Vitals";
 import { StationPanel } from "./StationPanel";
 import { MapPanel } from "./MapPanel";
+import { ChestPanel } from "./ChestPanel";
+import { ArchivePanel } from "./ArchivePanel";
 import { DeathScreen, NoticeToast, AchievementList, SuitControl } from "./SurvivalUI";
 import { EventBanner, EffectsBar, QuestTracker, QuestLog } from "./StoryUI";
 import { GEAR, CONSUMIBLES, toggleEquip, consumeItem } from "@/game/effects";
-import { ITEMS } from "@/game/items";
+import { ITEMS, INV_ORDER } from "@/game/items";
 import { PixelIcon } from "./PixelIcon";
 import { sfx } from "@/game/audio";
 import { PixelButton } from "./Screens";
@@ -96,7 +98,7 @@ export function HUDBottom({ className = "", touch = false }: { className?: strin
           <Hotbar />
           {!touch && <button type="button" onClick={() => { sfx.click(); useGame.getState().setOverlay("mapa"); }} className="tr-btn pointer-events-auto ml-1 h-10 px-2 text-[10px]" title="Map (M)">🗺 MAP</button>}
         </div>
-        {!touch && <div className="text-[6px] text-muted-foreground">WASD move · SPACE pick up/hit · E interact (hold to seal/repair) · TAB inventory · C build · B base · L log · M map · J missions · V suit · ESC pause · 1-5 or click: pick item</div>}
+        {!touch && <div className="text-[6px] text-muted-foreground">WASD move · SPACE pick up/hit · E interact (hold to seal/repair) · TAB inventory · C build · B base · L log · M map · J missions · K archive · V suit · ESC pause · 1-5 or click: pick item</div>}
       </div>
   );
 }
@@ -152,7 +154,6 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-const INV_ORDER = ["hielo", "agua", "regolito", "chatarra", "metal", "kits", "baterias", "paneles", "taladro", "taller", "horno", "torres_luz", "pala_mejorada", "aislamiento", "planta_electrolisis", "criotanque", "pieza_motor", "traje_termico", "capa_reflectante", "escudo_radiacion", "botiquin", "estimulante"];
 
 function Inventory() {
   const s = useGame((g) => g.snap);
@@ -174,7 +175,7 @@ function Inventory() {
         {(["inv", "craft"] as const).map((t) => (
           <button key={t} onClick={() => { setTab(t); sfx.click(); }} className={`px-3 py-2 text-[9px] ${tab === t ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{t === "inv" ? "Items" : "Crafting"}</button>
         ))}
-        <span className="ml-auto self-center text-[7px] text-muted-foreground">{usedSlots(s.inv)}/{SLOTS} slots · max {STACK} per stack</span>
+        <span className="ml-auto self-center text-right text-[8px] leading-4 text-muted-foreground">{usedSlots(s.inv)}/{SLOTS} slots · max {STACK} per stack<br />💧 Habitat water tank {Math.round(s.inv.agua)}/{WATER_TANK_KG} kg · ⛏ {toolInfo(s).name} (×{toolInfo(s).yield})</span>
       </div>
       {tab === "inv" ? (
         <div className="flex flex-col items-center gap-4">
@@ -194,6 +195,12 @@ function Inventory() {
             {pending && <div className="text-ok">Now tap a hotbar slot to put it there.</div>}
             {pending && GEAR.includes(pending) && <button onClick={() => { toggleEquip(sim, pending); sfx.click(); publish(); }} className="pointer-events-auto mt-2 bg-ok px-3 py-2 text-[8px] text-background">{s.equip.includes(pending) ? "UNEQUIP" : "EQUIP"}</button>}
             {pending && CONSUMIBLES.includes(pending) && <button onClick={() => { if (consumeItem(sim, pending)) sfx.ok(); publish(); }} className="pointer-events-auto mt-2 bg-ok px-3 py-2 text-[8px] text-background">USE</button>}
+            {pending && (
+              <div className="mt-2 flex justify-center gap-2">
+                <button onClick={() => { dropItem(sim, pending, 1, sim.pos.x, sim.pos.y); sfx.click(); publish(); }} className="tr-btn px-3 py-2 text-[8px]">DROP 1</button>
+                <button onClick={() => { dropItem(sim, pending, 9999, sim.pos.x, sim.pos.y); setPending(null); sfx.click(); publish(); }} className="tr-btn !bg-[linear-gradient(180deg,#d63b3b,#9a2020)] px-3 py-2 text-[8px]">DROP ALL</button>
+              </div>
+            )}
           </div>
           <Hotbar editable pending={pending} onAssign={() => setPending(null)} />
         </div>
@@ -231,6 +238,13 @@ function fmtTime(sec: number) {
   return `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, "0")} min`;
 }
 
+const STATUS: Record<string, { text: string; cls: string; tip: string }> = {
+  ok: { text: "● Working", cls: "text-ok", tip: "Running normally" },
+  idle: { text: "● Idle", cls: "text-gold", tip: "Nothing to process (no water / gas / regolith) or no sunlight" },
+  nopower: { text: "● No power", cls: "text-destructive", tip: "Batteries empty: add solar panels or batteries" },
+  off: { text: "● Off", cls: "text-muted-foreground", tip: "Switched off or broken" },
+};
+
 function Base() {
   const s = useGame((g) => g.snap);
   const publish = useGame((g) => g.publish);
@@ -251,6 +265,7 @@ function Base() {
           return (
             <div key={m.uid} className="flex flex-wrap items-center gap-2 text-[8px]">
               <span className="w-36">{t.nombre} <span className="text-gold">Lv{m.level ?? 1}</span></span>
+              <span className={`w-20 text-[7px] ${STATUS[s.modStatus[m.uid] ?? "ok"]!.cls}`} title={STATUS[s.modStatus[m.uid] ?? "ok"]!.tip}>{STATUS[s.modStatus[m.uid] ?? "ok"]!.text}</span>
               <div className="h-2 w-24 bg-moon-0"><div className={`h-full ${m.durabilidad < 25 ? "bg-alert" : "bg-ok"}`} style={{ width: `${m.durabilidad}%` }} /></div>
               <span className="w-8">{m.durabilidad.toFixed(0)}%</span>
               <span className={`w-14 ${e > 0 ? "text-ok" : e < 0 ? "text-destructive" : "text-muted-foreground"}`}>{e > 0 ? "+" : ""}{e.toFixed(1)}/s</span>
@@ -362,6 +377,7 @@ function Pause() {
     <Panel title="PAUSED">
       <div className="flex flex-wrap gap-3">
         <PixelButton onClick={() => setOverlay(null)}>Continue</PixelButton>
+        <PixelButton tone="ghost" onClick={() => setOverlay("archivo")}>📚 Archive</PixelButton>
         <PixelButton tone="ghost" onClick={() => { saveGame(); sfx.ok(); }}>Save</PixelButton>
         <PixelButton tone="alert" onClick={() => { saveGame(); setOverlay(null); go("intro"); }}>Quit to title</PixelButton>
       </div>
@@ -373,7 +389,7 @@ export function Overlays() {
   const overlay = useGame((g) => g.overlay);
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      const map: Record<string, "inv" | "base" | "log" | "pausa" | "misiones" | "mapa"> = { Tab: "inv", b: "base", B: "base", l: "log", L: "log", j: "misiones", J: "misiones", m: "mapa", M: "mapa", Escape: "pausa" };
+      const map: Record<string, "inv" | "base" | "log" | "pausa" | "misiones" | "mapa" | "archivo"> = { Tab: "inv", b: "base", B: "base", l: "log", L: "log", j: "misiones", J: "misiones", m: "mapa", M: "mapa", k: "archivo", K: "archivo", Escape: "pausa" };
       const o = map[e.key];
       if (!o) return;
       if (e.key === "Escape" && sim.buildMode && !useGame.getState().overlay) { e.preventDefault(); sim.buildMode = null; useGame.getState().publish(); return; }
@@ -388,6 +404,6 @@ export function Overlays() {
   const panel =
     overlay === "inv" ? <Inventory /> : overlay === "base" ? <Base /> : overlay === "log" ? <Log /> : overlay === "pausa" ? <Pause /> :
     overlay === "cohete" ? <Rocket /> : overlay === "cubesat" ? <CubeSatDesigner /> : overlay === "misiones" ? <QuestLog /> :
-    overlay === "estacion" ? <StationPanel /> : overlay === "mapa" ? <MapPanel /> : null;
+    overlay === "estacion" ? <StationPanel /> : overlay === "mapa" ? <MapPanel /> : overlay === "cofre" ? <ChestPanel /> : overlay === "archivo" ? <ArchivePanel /> : null;
   return <>{panel}<NoticeToast /><DeathScreen /></>;
 }

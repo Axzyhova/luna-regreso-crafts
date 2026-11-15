@@ -1,4 +1,5 @@
 import data from "@/data/misiones.json";
+import archivo from "@/data/archivo.json";
 import { addLog, addItem, notify, isOn, UMBRAL_VERDE, SUBSISTEMAS, type Inv, type Sim } from "./sim";
 import { aliensEnabled } from "./aliens";
 import { nextWindow } from "./mission";
@@ -38,6 +39,25 @@ export const currentMain = (s: Sim): Quest | null => PRINCIPALES[s.quest.main] ?
 export const sideAvailable = (s: Sim) => SECUNDARIAS.filter((q) => !q.solo_aliens || aliensEnabled(s));
 
 /** Check objectives, queue story dialog, give rewards. Call every frame (cheap). */
+export type ArchiveEntry = (typeof archivo.misiones)[number];
+export const ARCHIVO = archivo.misiones as ArchiveEntry[];
+/** Is an archive entry's unlock condition met? ("inicio", "M3" = main mission 3 done, "zona_fire" = zone visited). */
+export function archiveReady(s: Sim, cond: string) {
+  if (cond === "inicio") return true;
+  if (cond.startsWith("M")) return s.quest.main >= Number(cond.slice(1));
+  if (cond.startsWith("zona_")) return s.visited.includes(cond.slice(5));
+  return false;
+}
+
+/** Unlock archive entries whose condition is now met (with a pop-up for story unlocks). */
+export function unlockArchive(s: Sim) {
+  for (const e of ARCHIVO) {
+    if (s.archive.includes(e.id) || !archiveReady(s, e.desbloqueo)) continue;
+    s.archive.push(e.id);
+    if (e.desbloqueo !== "inicio") notify(s, "mission", "New archive entry", `${e.nombre} (${e.anio})`);
+  }
+}
+
 export function stepQuests(s: Sim) {
   if (!s.quest.started) {
     s.quest.started = true;
@@ -62,4 +82,5 @@ export function stepQuests(s: Sim) {
     addLog(s, `✔ Side mission: ${q.titulo}`);
     notify(s, "mission", "Side mission complete", q.titulo);
   }
+  unlockArchive(s);
 }

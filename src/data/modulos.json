@@ -76,6 +76,14 @@
    "w": 6,
    "h": 16,
    "item": "torres_luz"
+  },
+  "cofre": {
+   "nombre": "Storage chest",
+   "energia": 0,
+   "desgaste": 0,
+   "w": 14,
+   "h": 11,
+   "item": "cofre"
   }
  },
  "iniciales": [

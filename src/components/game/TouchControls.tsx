@@ -105,7 +105,7 @@ export async function toggleFullscreen() {
   } catch { /* not supported (iOS Safari) */ }
 }
 
-type Menu = "base" | "log" | "pausa" | "misiones" | "mapa";
+type Menu = "base" | "log" | "pausa" | "misiones" | "mapa" | "archivo";
 
 /** Top-center row of small square buttons, like Minecraft's emote/chat/pause buttons. */
 export function MenuBar({ className = "" }: { className?: string }) {
@@ -117,6 +117,7 @@ export function MenuBar({ className = "" }: { className?: string }) {
     { label: "Missions", icon: "📜", act: () => go("misiones") },
     { label: "Base", icon: "🏠", act: () => go("base") },
     { label: "Log", icon: "📓", act: () => go("log") },
+    { label: "Archive", icon: "📚", act: () => go("archivo") },
     { label: "Fullscreen", icon: "⛶", act: () => void toggleFullscreen() },
     { label: "Pause", icon: "⏸", act: () => go("pausa") },
   ];

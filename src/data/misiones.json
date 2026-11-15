@@ -1,10 +1,14 @@
 {
  "personajes": {
   "ARIA": "Onboard AI of the Selene-7",
-  "CONTROL": "Mission Control, on Earth",
-  "TÚ": "Commander of the Selene-7"
+  "CONTROL": "Flight Director Ana Ortega, Mission Control (Houston)",
+  "TÚ": "Commander of the Selene-7, an Artemis-era mission (fiction)"
  },
  "intro": [
+  {
+   "quien": "ARIA",
+   "texto": "Selene-7 mission log, 2026. Our goal was a short survey of the south pole, where LCROSS found water ice in 2009."
+  },
   {
    "quien": "ARIA",
    "texto": "Commander… can you hear me? This is ARIA. The impact broke the antenna and emptied the tanks."
@@ -33,6 +37,10 @@
     {
      "quien": "ARIA",
      "texto": "Leak contained. The habitat is holding… for now. We need water: there's ice in the shadowed crater."
+    },
+    {
+     "quien": "ARIA",
+     "texto": "In 1970 Apollo 13 lost an oxygen tank too. Lovell, Swigert and Haise improvised and came home. So will we. (New entries in the Archive 📚)"
     }
    ]
   },
@@ -46,6 +54,10 @@
     {
      "quien": "ARIA",
      "texto": "Excellent. Take it to the habitat (E) to melt it. With electricity we'll split it into hydrogen and oxygen: our fuel."
+    },
+    {
+     "quien": "ARIA",
+     "texto": "Lunar Prospector (1998) and LCROSS (2009) showed there's water ice in these cold craters. You just held some."
     }
    ]
   },
@@ -63,6 +75,10 @@
     {
      "quien": "ARIA",
      "texto": "The rocket is badly damaged. Start with the Structure and the Power."
+    },
+    {
+     "quien": "ARIA",
+     "texto": "Making fuel from local resources is called ISRU: in-situ resource utilization. Real lunar programs plan to do exactly this."
     }
    ]
   },
@@ -80,6 +96,10 @@
     {
      "quien": "ARIA",
      "texto": "Idea: a CubeSat in orbit can relay our signal to Earth. Design it from the rocket."
+    },
+    {
+     "quien": "ARIA",
+     "texto": "Landers like Beresheet (2019) and Vikram (2019) were lost when one system failed during descent. That's why we repair every subsystem."
     }
    ]
   },
@@ -97,6 +117,10 @@
     {
      "quien": "CONTROL",
      "texto": "We're sending you the return windows. Fill the tanks, repair the ship and don't miss your date."
+    },
+    {
+     "quien": "ARIA",
+     "texto": "Chang'e 4 (2019) used the Queqiao relay satellite to talk to Earth from the far side. Our CubeSat does the same."
     }
    ]
   },
@@ -110,6 +134,10 @@
     {
      "quien": "ARIA",
      "texto": "All set. When the window opens, start the countdown from the rocket."
+    },
+    {
+     "quien": "ARIA",
+     "texto": "Chandrayaan-3 reached this south polar region in 2023. Luna 25 crashed the same year after a bad maneuver. Our window must be exact."
     }
    ]
   },
@@ -123,6 +151,10 @@
     {
      "quien": "CONTROL",
      "texto": "Liftoff confirmed, Selene-7. Welcome home, commander."
+    },
+    {
+     "quien": "CONTROL",
+     "texto": "The last Apollo crew left the Moon in 1972. You're part of a new generation of lunar explorers. Welcome home."
     }
    ]
   }

@@ -2,11 +2,10 @@ import { useState } from "react";
 import recetas from "@/data/recetas.json";
 import { useGame, sim } from "@/game/store";
 import { recipeBlock, craft, addLog, TIPOS, STACK, SLOTS, type Receta } from "@/game/sim";
-import { ITEMS } from "@/game/items";
+import { ITEMS, INV_ORDER } from "@/game/items";
 import { sfx } from "@/game/audio";
 import { PixelIcon } from "./PixelIcon";
 
-const INV_ORDER = ["hielo", "agua", "regolito", "chatarra", "metal", "kits", "baterias", "paneles", "taladro", "taller", "horno", "torres_luz", "pala_mejorada", "aislamiento", "planta_electrolisis", "criotanque", "pieza_motor", "traje_termico", "capa_reflectante", "escudo_radiacion", "botiquin", "estimulante"];
 const TITLE = { taller: "WORKSHOP", horno: "FURNACE" } as const;
 const NOTE = {
   taller: "Build tools, modules and gear here.",

@@ -32,7 +32,7 @@ export const CYCLE = DAY_LEN + NIGHT_LEN;
 export const LH2_CAP = balance.lh2_cap_kg;
 export const LOX_CAP = balance.lox_cap_kg;
 
-export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number }
+export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cofre: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number }
 
 export function createSim(mode: Mode, difficulty: Difficulty) {
   return {
@@ -42,11 +42,14 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     battery: 60, energyIn: 0, energyOut: 0,
     habitatO2: 80,
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
-    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0 } as Inv,
+    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cofre: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0 } as Inv,
     relay: false,
     // --- historia, efectos, eventos y botín ---
     effects: [] as string[],
     fatigue: 0,
+    chests: {} as Record<string, Record<string, number>>,
+    modStatus: {} as Record<number, "ok" | "nopower" | "idle" | "off">,
+    archive: [] as string[],
     // Exploration: fog-of-war cells (1 = seen), last position, zones visited, ravine bridge, hive creatures.
     explored: [] as number[],
     pos: { x: 110, y: 200 },
@@ -94,6 +97,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     near: { taller: false, horno: false, habitat: false },
     station: null as null | "taller" | "horno",
     stationUid: 0,
+    chestUid: 0,
     buildMode: null as string | null,
     nextUid: 100,
     hotbar: 1,
@@ -169,8 +173,65 @@ export function nightBatterySeconds(s: Sim) {
   const net = out - inp;
   return net <= 0 ? Infinity : s.battery / (net * BATTERY_RATE);
 }
+/** Items that live in base storage (tanks), not in your pockets. */
+export const NOT_CARRIED = new Set(["agua"]);
+export const WATER_TANK_KG = 400;
 export function usedSlots(inv: Inv) {
-  return Object.values(inv).reduce((n, v) => n + Math.ceil(Math.floor(v) / STACK), 0);
+  return Object.entries(inv).reduce((n, [k, v]) => (NOT_CARRIED.has(k) ? n : n + Math.ceil(Math.floor(v) / STACK)), 0);
+}
+
+// ---- Tools: what you hold decides how much each swing gathers and how fast ----
+export function toolInfo(s: Sim) {
+  if (s.inv.pala_titanio > 0) return { name: "Titanium shovel", yield: 3, cd: 0.22 };
+  if (s.inv.pala_mejorada > 0) return { name: "Better shovel", yield: 2, cd: 0.32 };
+  return { name: "Bare hands", yield: 1, cd: 0.5 };
+}
+
+/** Melt carried ice into the habitat water tank (only as much as fits). Returns kg added. */
+export function meltIce(s: Sim) {
+  const room = Math.max(0, WATER_TANK_KG - s.inv.agua);
+  const ice = Math.min(Math.floor(s.inv.hielo), Math.floor(room / balance.hielo_a_agua_kg));
+  if (ice <= 0) return 0;
+  s.inv.hielo -= ice;
+  const w = ice * balance.hielo_a_agua_kg;
+  s.inv.agua += w;
+  return w;
+}
+
+/** Drop items on the ground as a bag you can pick up later. */
+export function dropItem(s: Sim, key: string, n: number, x: number, y: number) {
+  const inv = s.inv as unknown as Record<string, number>;
+  const k = Math.min(Math.floor(inv[key] ?? 0), n);
+  if (k <= 0 || NOT_CARRIED.has(key)) return 0;
+  inv[key] = (inv[key] ?? 0) - k;
+  const bag = s.drops.find((d) => Math.hypot(d.x - x, d.y - y) < 12);
+  if (bag) bag.items[key] = (bag.items[key] ?? 0) + k;
+  else s.drops.push({ id: s.nextDropId++, x: Math.round(x), y: Math.round(y + 6), items: { [key]: k } });
+  return k;
+}
+
+// ---- Storage chests ----
+export const CHEST_SLOTS = 20;
+const chestSlots = (c: Record<string, number>) => Object.values(c).reduce((n, v) => n + Math.ceil(v / STACK), 0);
+export function chestOf(s: Sim, uid: number) { return (s.chests[String(uid)] ??= {}); }
+/** Move up to n of an item between your inventory and a chest. */
+export function moveToChest(s: Sim, uid: number, key: string, n: number) {
+  const inv = s.inv as unknown as Record<string, number>;
+  const c = chestOf(s, uid);
+  let moved = 0;
+  while (moved < n && Math.floor(inv[key] ?? 0) > 0) {
+    const next = { ...c, [key]: (c[key] ?? 0) + 1 };
+    if (chestSlots(next) > CHEST_SLOTS) break;
+    c[key] = next[key]!; inv[key]! -= 1; moved++;
+  }
+  return moved;
+}
+export function moveFromChest(s: Sim, uid: number, key: string, n: number) {
+  const c = chestOf(s, uid);
+  let moved = 0;
+  while (moved < n && (c[key] ?? 0) > 0 && addItem(s, key as keyof Inv, 1)) { c[key]! -= 1; moved++; }
+  if ((c[key] ?? 0) <= 0) delete c[key];
+  return moved;
 }
 /** Adds items if the 4x5 inventory (stacks of 50) has room. */
 export function addItem(s: Sim, key: keyof Inv, n = 1) {
@@ -313,6 +374,17 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   const liqOn = powered && working(s, "licuefactor") && (s.h2gas > 0 || s.o2gas > 0);
   const hornoOn = powered && working(s, "horno") && s.inv.regolito > 0;
   s.energyIn = eIn; s.energyOut = eOut;
+  // What each module is doing right now, so the player can see why things work or don't.
+  for (const m of s.modules) {
+    let st: "ok" | "nopower" | "idle" | "off" = "ok";
+    if (!m.activo || m.durabilidad <= 0) st = "off";
+    else if (m.tipo === "panel") st = day && ev !== "eclipse" ? "ok" : "idle";
+    else if (TIPOS[m.tipo].energia < 0 && !powered) st = "nopower";
+    else if (m.tipo === "electrolisis" && s.inv.agua <= 0) st = "idle";
+    else if (m.tipo === "licuefactor" && s.h2gas <= 0 && s.o2gas <= 0) st = "idle";
+    else if (m.tipo === "horno" && s.inv.regolito <= 0) st = "idle";
+    s.modStatus[m.uid] = st;
+  }
   s.battery = Math.min(batteryCap(s), Math.max(0, s.battery + (eIn - eOut) * dt * BATTERY_RATE));
   if (powered) for (const m of s.modules) if (m.tipo === "taladro" && isOn(m)) {
     s.drillAcc = (s.drillAcc ?? 0) + (TIPOS.taladro.produce_hielo ?? 0) * lvMult(m) * dt;
@@ -399,7 +471,7 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   s.health = Math.max(0, s.health);
 
   // alerts
-  s.alert = s.leaks.length ? `LEAK! ${s.leaks.map((l) => (l.target === "habitat" ? "HABITAT" : l.target.toUpperCase())).join(" · ")}` :
+  s.alert = s.battery <= 0 && eIn <= 0 && s.modules.some((m) => TIPOS[m.tipo].energia < 0 && isOn(m)) ? "NO POWER: production stopped — wait for sunlight or add panels/batteries" : s.leaks.length ? `LEAK! ${s.leaks.map((l) => (l.target === "habitat" ? "HABITAT" : l.target.toUpperCase())).join(" · ")}` :
     s.suitO2 < 20 ? "SUIT O2 LOW" : s.temp < 5 ? "HYPOTHERMIA" : s.battery < 5 ? "BATTERIES DEPLETED" : "";
 
   // acts
@@ -411,7 +483,7 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
 /** Remove depleted items from the hotbar and gear that is no longer owned. */
 export function cleanupInventory(s: Sim) {
   const inv = s.inv as unknown as Record<string, number>;
-  s.hotbarItems = s.hotbarItems.map((k) => (k && (inv[k] ?? 0) >= 1 ? k : null));
+  s.hotbarItems = s.hotbarItems.map((k) => (k && !NOT_CARRIED.has(k) && (inv[k] ?? 0) >= 1 ? k : null));
   s.equip = s.equip.filter((g) => (inv[g] ?? 0) >= 1);
   if (s.buildMode && (inv[s.buildMode] ?? 0) < 1) s.buildMode = null;
 }

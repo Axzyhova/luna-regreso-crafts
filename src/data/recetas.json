@@ -38,6 +38,19 @@
   "disponible": true
  },
  {
+  "id": "cofre",
+  "nombre": "Storage chest (module)",
+  "lugar": "mano",
+  "ingredientes": {
+   "metal": 3,
+   "chatarra": 4
+  },
+  "resultado": {
+   "cofre": 1
+  },
+  "disponible": true
+ },
+ {
   "id": "horno",
   "nombre": "Regolith furnace (module)",
   "lugar": "mano",
