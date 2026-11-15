@@ -72,7 +72,7 @@ export class LunarScene extends Phaser.Scene {
   playerShadow!: Phaser.GameObjects.Image;
   staticShadows: { spr: Phaser.GameObjects.Image; baseX: number; baseY: number; w: number; h: number }[] = [];
   vignetteFx?: Phaser.FX.Vignette;
-  aimRad = 0; fxT = 0;
+  aimRad = 0; fxT = 0; aimTarget = 0; pointerT = -1e9;
   preview!: Phaser.GameObjects.Graphics;
   modSprites = new Map<number, { img: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Image; warn: Phaser.GameObjects.BitmapText; up: Phaser.GameObjects.BitmapText; glow: Phaser.GameObjects.Image | undefined }>();
   buildValid = false;
@@ -164,7 +164,7 @@ export class LunarScene extends Phaser.Scene {
       }
       this.useTool();
     });
-    this.input.on("pointermove", (p: Phaser.Input.Pointer) => { if (!p.wasTouch) this.touchMode = false; });
+    this.input.on("pointermove", (p: Phaser.Input.Pointer) => { if (!p.wasTouch) { this.touchMode = false; this.pointerT = this.time.now; } });
     this.input.keyboard!.on("keydown-C", () => this.toggleBuild());
     this.input.keyboard!.on("keydown-Q", () => this.cycleBuild());
     this.input.keyboard!.on("keydown-SPACE", () => (sim.buildMode ? this.place() : this.useTool()));
@@ -454,7 +454,7 @@ export class LunarScene extends Phaser.Scene {
       sp.warn.setText(m.durabilidad < 25 ? "!" : st === "nopower" ? "🔌" : st === "idle" && m.tipo !== "panel" ? "💤" : "");
       sp.warn.setVisible(m.durabilidad < 25 ? Math.sin(this.time.now / 200) > 0 : st === "nopower" || (st === "idle" && m.tipo !== "panel"));
       sp.img.setTint(st === "ok" && TIPOS[m.tipo].energia !== 0 && Math.sin(this.time.now / 300 + m.uid) > 0.85 ? 0xfff3c0 : 0xffffff);
-      sp.glow?.setAlpha(on && sim.battery > 0 ? a * 1.4 : 0);
+      sp.glow?.setAlpha(on && sim.battery > 0 ? a * 0.3 : 0).setTint(m.tipo === "habitat" ? 0xffc27a : 0xfff0aa); // soft warm halo, the light pools do the rest
     }
   }
 
@@ -651,11 +651,13 @@ export class LunarScene extends Phaser.Scene {
     if (vx) { this.facing = Math.sign(vx); this.player.setFlipX(vx < 0); }
     if (vx || vy) {
       const l = Math.hypot(vx, vy); this.faceX = vx / l; this.faceY = vy / l;
-      this.aimRad = Math.atan2(vy, vx);
-    } else if (!this.touchMode) {
+      this.aimTarget = Math.atan2(vy, vx);
+    } else if (!this.touchMode && this.time.now - this.pointerT < 2500) { // the mouse aims only if you moved it recently
       const wp = this.input.activePointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
-      if (Math.hypot(wp.x - this.player.x, wp.y - this.player.y) > 4) this.aimRad = Math.atan2(wp.y - this.player.y, wp.x - this.player.x);
+      if (Math.hypot(wp.x - this.player.x, wp.y - this.player.y) > 4) this.aimTarget = Math.atan2(wp.y - this.player.y, wp.x - this.player.x);
     }
+    // Turn the flashlight smoothly instead of snapping.
+    this.aimRad += Phaser.Math.Angle.Wrap(this.aimTarget - this.aimRad) * Math.min(1, dt * 10);
     this.useCd = Math.max(0, this.useCd - dt);
     const mouseHeld = this.input.activePointer.isDown && !this.input.activePointer.wasTouch;
     if ((k.SPACE.isDown || touch.useHeld || mouseHeld) && !sim.buildMode) this.useTool();
@@ -737,6 +739,7 @@ export class LunarScene extends Phaser.Scene {
     if (t > CYCLE - 20) a = ((CYCLE - t) / 20) * dark;
 
     const sh = sunShadow(sim.time);
+    if (sim.event?.id === "eclipse" && sim.event.phase === "activo") sh.alpha *= 0.15; // no sun, no shadows
     this.playerShadow.setPosition(this.player.x + sh.ox * 0.7, this.player.y + PLAYER_FOOT_Y + sh.oy * 0.5).setDisplaySize(10 * sh.sx, 4 * sh.sy).setAlpha(sh.alpha);
     for (const st of this.staticShadows) updateSilhouetteShadow(st.spr, st.baseX, st.baseY, sh, HD);
     for (const m of sim.modules) {
@@ -745,9 +748,9 @@ export class LunarScene extends Phaser.Scene {
     }
 
     const lights: { x: number; y: number; r: number; color?: number; dayAlpha?: number }[] = [
-      { x: HAB.x, y: HAB.y, r: sim.battery > 0 ? 125 : 60, color: 0xffb85c, dayAlpha: 0.14 },
-      { x: ROCKET.x, y: ROCKET.y, r: 105, color: 0x66d9ff, dayAlpha: 0.14 },
-      { x: SHADOW.x, y: SHADOW.y, r: 95, color: 0x4fc2ff, dayAlpha: 0.08 },
+      { x: HAB.x, y: HAB.y, r: sim.battery > 0 ? 95 : 50, color: 0xffb85c, dayAlpha: 0.04 },
+      { x: ROCKET.x, y: ROCKET.y, r: 70, color: 0x66d9ff, dayAlpha: 0.04 },
+      { x: SHADOW.x, y: SHADOW.y, r: 40, color: 0x4fc2ff, dayAlpha: 0.03 },
     ];
     for (const m of sim.modules) if (m.tipo === "torre_luz" && m.activo && m.durabilidad > 0 && sim.battery > 0) lights.push({ x: m.x, y: m.y, r: 140, color: 0xfff0aa, dayAlpha: 0.12 });
     for (const c of sim.capsules) lights.push({ x: c.x, y: c.y, r: 46, color: 0xf2d24f, dayAlpha: 0.14 });

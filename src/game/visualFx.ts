@@ -30,17 +30,20 @@ export function sunShadow(time: number): ShadowVec {
   if (t < DAY_LEN) {
     const p = t / DAY_LEN; // 0 = dawn (east sun -> west shadow), 0.5 = noon, 1 = dusk
     const angle = (p - 0.5) * 2; // -1 .. +1
-    const len = 0.75 + Math.abs(angle) * 0.85;
+    const k = Math.abs(angle) ** 1.4;
+    const len = 0.85 + k * 1.5;            // short at noon, long at dawn/dusk
+    // Fade in at sunrise and out at sunset so shadows don't pop.
+    const edge = Math.min(1, t / 12, (DAY_LEN - t) / 12);
     return {
-      ox: -angle * 4.5,
-      oy: 1.5 + Math.abs(angle) * 1.2,
+      ox: -angle * 9,
+      oy: 1.5 + k * 1.5,
       sx: len,
-      sy: 0.7 + Math.abs(angle) * 0.25,
-      alpha: 0.42 - Math.abs(angle) * 0.1,
+      sy: 0.75 + k * 0.2,
+      alpha: (0.5 - k * 0.12) * edge,
     };
   }
-  // Faint cool moonlight shadow at night
-  return { ox: 2.2, oy: 2, sx: 0.95, sy: 0.8, alpha: 0.22 };
+  // Night: only a faint moonlight shadow.
+  return { ox: 1.5, oy: 1.5, sx: 0.95, sy: 0.8, alpha: 0.1 };
 }
 
 /** Generate soft radial light & directional flashlight cone textures procedurally. */
@@ -211,61 +214,56 @@ export class NightLighting {
     aimRad: number,
     lights: { x: number; y: number; r: number; color?: number; dayAlpha?: number }[],
   ) {
-    const effAlpha = Math.min(0.86, Math.max(darkAlpha, inShadow ? 0.44 : 0, s.event?.id === "eclipse" && s.event.phase === "activo" ? 0.72 : 0));
+    const eclipse = s.event?.id === "eclipse" && s.event.phase === "activo";
+    // Night is properly dark (a bit less on Realistic's softer setting); crater and eclipse darken day too.
+    const night = darkAlpha > 0 ? Math.min(1, darkAlpha / 0.55) : 0;
+    const effAlpha = Math.min(0.9, Math.max(night * 0.84, inShadow ? 0.55 : 0, eclipse ? 0.78 : 0));
     const v = scene.cameras.main.worldView;
-    const rx = Math.floor(v.x), ry = Math.floor(v.y);
+    const rx = Math.floor(v.x) - 2, ry = Math.floor(v.y) - 2;
+    const vw = Math.ceil(v.width) + 4, vh = Math.ceil(v.height) + 4;
+    if (this.rt.width !== vw || this.rt.height !== vh) this.rt.resize(vw, vh); // always cover the whole view
     this.rt.setPosition(rx, ry);
+    const inView = (x: number, y: number, pad: number) => x > rx - pad && x < rx + vw + pad && y > ry - pad && y < ry + vh + pad;
 
-    // Subtle daytime diagonal sunlight shafts ("God Rays")
+    // Daytime sun shafts: faint, only when it's bright.
     this.godRays.clear();
     const cycleT = s.time % CYCLE;
-    if (cycleT < DAY_LEN && effAlpha < 0.5) {
+    if (cycleT < DAY_LEN && effAlpha < 0.3) {
       const p = cycleT / DAY_LEN;
       const warm = p < 0.15 || p > 0.85;
-      const rayColor = warm ? 0xffb86b : 0xfff4d8;
-      const rayAlpha = (warm ? 0.09 : 0.055) * (1 - effAlpha);
+      this.godRays.fillStyle(warm ? 0xffb86b : 0xfff4d8, (warm ? 0.06 : 0.035) * (1 - effAlpha));
       const skew = (p - 0.5) * 180;
-      this.godRays.fillStyle(rayColor, rayAlpha);
-      for (let i = 0; i < 4; i++) {
-        const bx = rx + 60 + i * 165;
-        this.godRays.fillTriangle(bx, ry - 10, bx + 54, ry - 10, bx + 110 - skew, ry + 370);
-      }
+      for (let i = 0; i < 4; i++) { const bx = rx + 60 + i * (vw / 4); this.godRays.fillTriangle(bx, ry - 10, bx + 54, ry - 10, bx + 110 - skew, ry + vh + 10); }
     }
 
-    // Always-on colored additive shader glows (stronger at night, subtle & vibrant in daytime)
+    // Coloured light pools: barely there by day, warm/cold halos at night.
     let gi = 0;
     for (const l of lights) {
       if (gi >= this.glowPool.length) break;
-      if (l.x < rx - 120 || l.x > rx + 760 || l.y < ry - 120 || l.y > ry + 480) continue;
+      if (!inView(l.x, l.y, l.r)) continue;
       const spr = this.glowPool[gi++]!;
-      const ga = l.dayAlpha ?? (effAlpha > 0.1 ? 0.24 : 0.09);
-      spr.setPosition(l.x, l.y).setScale((l.r * 1.15) / 64).setTint(l.color ?? 0xffc878).setAlpha(ga).setVisible(true);
+      spr.setPosition(l.x, l.y).setScale((l.r * 0.9) / 64).setTint(l.color ?? 0xffc878)
+        .setAlpha(effAlpha > 0.05 ? 0.1 + effAlpha * 0.16 : Math.min(0.05, l.dayAlpha ?? 0.05)).setVisible(true);
     }
     for (; gi < this.glowPool.length; gi++) this.glowPool[gi]!.setVisible(false);
 
-    // Flashlight additive beam
-    this.flashlight.setPosition(playerX, playerY).setRotation(aimRad).setScale(0.7, 0.58).setAlpha(effAlpha > 0.08 ? Math.min(0.32, effAlpha * 0.5) : 0.04);
+    // Helmet flashlight: a visible pale-blue beam only when it's dark.
+    this.flashlight.setPosition(playerX, playerY).setRotation(aimRad).setScale(0.8, 0.55).setAlpha(effAlpha > 0.1 ? 0.06 + effAlpha * 0.12 : 0);
 
-    if (effAlpha <= 0.02) {
-      this.rt.setVisible(false);
-      return;
-    }
+    if (effAlpha <= 0.02) { this.rt.setVisible(false); return; }
     this.rt.setVisible(true);
     this.rt.clear();
-    this.rt.fill(0x050816, effAlpha);
-
-    // Cut soft radial glow around player
-    this.brush.setScale(0.78).setAlpha(0.95);
+    this.rt.fill(0x03050f, effAlpha);
+    // Small halo around the astronaut (you can always see your feet)…
+    this.brush.setScale(0.42).setAlpha(0.7);
     this.rt.erase(this.brush, playerX - rx, playerY - ry);
-
-    // Cut flashlight cone ahead of player
-    this.cone.setRotation(aimRad).setScale(0.76, 0.65).setAlpha(0.92);
+    // …and a long cone where the flashlight points.
+    this.cone.setRotation(aimRad).setScale(0.9, 0.62).setAlpha(0.95);
     this.rt.erase(this.cone, playerX - rx, playerY - ry);
-
-    // Cut base/tower/crystal point lights visible in camera view
+    // Base lights, towers, crystals, capsules: soft partial pools (night stays night).
     for (const l of lights) {
-      if (l.x < rx - 90 || l.x > rx + 730 || l.y < ry - 90 || l.y > ry + 450) continue;
-      this.brush.setScale(l.r / 64).setAlpha(0.92);
+      if (!inView(l.x, l.y, l.r)) continue;
+      this.brush.setScale((l.r * 0.62) / 64).setAlpha(0.78);
       this.rt.erase(this.brush, l.x - rx, l.y - ry);
     }
   }
