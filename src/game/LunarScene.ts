@@ -28,7 +28,7 @@ const WW = WORLD.w, WH = WORLD.h; // whole explorable world (2560x1440)
 const isStation = (m: Module) => m.tipo === "taller" || m.tipo === "horno";
 /** How far beyond an object's edge E still reaches (world px): practically touching it. */
 export const INTERACT_EDGE = 7;
-type TargetKind = "leak" | "special" | "cave" | "drop" | "bridge" | "poi" | "capsule" | "rocket" | "melt" | "chest" | "station" | "repair" | "upgrade" | "clean" | "farm";
+type TargetKind = "leak" | "special" | "cave" | "drop" | "bridge" | "poi" | "capsule" | "rocket" | "melt" | "chest" | "station" | "repair" | "upgrade" | "clean" | "farm" | "robert";
 interface Target { kind: TargetKind; x: number; y: number; ref?: unknown; label: string }
 type NodeType = "hielo" | "regolito" | "chatarra" | "cristal_hielo" | "titanio" | "aleacion" | "alga_lunar";
 const NODE_TEX: Record<NodeType, string> = { hielo: "ice", regolito: "reg", chatarra: "scrap", cristal_hielo: "n_cristal", titanio: "n_titanio", aleacion: "n_aleacion", alga_lunar: "n_aleacion" };
@@ -71,6 +71,7 @@ export class LunarScene extends Phaser.Scene {
   promptBg!: Phaser.GameObjects.Rectangle;
   animT = 0; dustT = 0; winded = false; wantsRun = false;
   faceX = 1; faceY = 0;
+  robert!: Phaser.GameObjects.Image;
   touchMode = false;
   pubT = 0; saveT = 0; repairT = 0; leakT = 0; useCd = 0; facing = 1;
   constructor() { super("lunar"); }
@@ -134,6 +135,10 @@ export class LunarScene extends Phaser.Scene {
 
     this.preview = this.add.graphics().setDepth(35);
     this.player = this.add.image(HAB.x, HAB.y + 30, "astro_idle0").setScale(1 / HD).setDepth(10);
+    // Mini Robert follows you everywhere; click / tap him for help.
+    this.robert = this.add.image(HAB.x - 14, HAB.y + 36, "robert").setScale(1 / HD).setDepth(10)
+      .setInteractive(new Phaser.Geom.Circle(14, 12, 20), Phaser.Geom.Circle.Contains);
+    this.robert.on("pointerdown", (_p: unknown, _x: number, _y: number, ev: { stopPropagation: () => void }) => { ev.stopPropagation(); this.openRobert(); });
     this.ring = this.add.graphics().setDepth(30);
     this.beam = this.add.graphics().setDepth(22);
     this.zone = this.add.graphics().setDepth(24);
@@ -546,8 +551,13 @@ export class LunarScene extends Phaser.Scene {
       else if (canUpgrade(sim, m)) consider({ kind: "upgrade", x: m.x, y: m.y, ref: m, label: `E: UPGRADE ${name} → LV${lvl(m) + 1}` }, half);
       else if (m.tipo === "panel" && !sim.eds && sim.dust > 0.15) consider({ kind: "clean", x: m.x, y: m.y, ref: m, label: `E: CLEAN DUST OFF PANELS (−${Math.round(sim.dust * 50)}% POWER)` }, half);
     }
+    // Mini Robert always rolls next to you, so he only answers E when nothing else is in reach.
+    if (!best && this.robert && Phaser.Math.Distance.Between(this.robert.x, this.robert.y, px, py) < 24) best = { kind: "robert", x: this.robert.x, y: this.robert.y, label: "E: ASK MINI ROBERT FOR HELP" };
     return best;
   }
+
+  /** Open Mini Robert's help menu (E next to him, or click / tap him). */
+  openRobert() { if (useGame.getState().overlay || sim.dead || !sim.robertMet) return; sfx.click(); useGame.getState().setOverlay("robert"); }
 
   interact() {
     if (useGame.getState().overlay || sim.dead) return;
@@ -572,6 +582,7 @@ export class LunarScene extends Phaser.Scene {
       case "chest": sim.chestUid = (tg.ref as Module).uid; sfx.click(); G.publish(); G.setOverlay("cofre"); return;
       case "station": { const st = tg.ref as Module; sim.station = st.tipo as "taller" | "horno"; sim.stationUid = st.uid; sfx.click(); G.publish(); G.setOverlay("estacion"); return; }
       case "upgrade": { const m = tg.ref as Module; upgradeModule(sim, m); sfx.ok(); toast(sim, `⬆ ${TIPOS[m.tipo].nombre} → level ${lvl(m)}`, 3); return; }
+      case "robert": this.openRobert(); return;
       case "farm": { const msg = tendFarm(sim, tg.ref as Module); sfx[msg.startsWith("🌱 Planted") || msg.startsWith("🌿") ? "ok" : "click"](); toast(sim, msg, 3); G.publish(); return; }
       case "clean": sim.dust = 0; sfx.ok(); toast(sim, "🧹 Panels cleaned: full solar power again. An EDS Dust Shield would do this for you.", 4); return;
     }
@@ -583,7 +594,16 @@ export class LunarScene extends Phaser.Scene {
     if (Math.abs(this.cameras.main.zoom - wantZoom) > 0.001) this.cameras.main.setZoom(wantZoom);
     const overlay = useGame.getState().overlay;
     if (sim.respawned) { sim.respawned = false; this.player.setPosition(HAB.x, HAB.y + 30); }
-    if (overlay || sim.dead) return;
+    if (overlay || sim.dead || !sim.robertMet) return;
+    {
+      // Mini Robert trails behind you (opposite your facing), with a little hover bob.
+      const rb = this.robert, p = this.player;
+      const tx = p.x - this.faceX * 14 - (this.faceY ? 8 : 0), ty = p.y - this.faceY * 12 + 6;
+      const d = Phaser.Math.Distance.Between(rb.x, rb.y, tx, ty);
+      if (d > 160) rb.setPosition(tx, ty); // after respawn / teleport
+      else if (d > 1.5) { const k = Math.min(1, dt * (d > 30 ? 6 : 3.5)); rb.x += (tx - rb.x) * k; rb.y += (ty - rb.y) * k; if (Math.abs(tx - rb.x) > 0.5) rb.setFlipX(tx < rb.x); }
+      rb.setDepth(rb.y + 6 > p.y ? p.depth + 0.01 : p.depth - 0.01).setY(rb.y + Math.sin(this.time.now / 260) * 0.04);
+    }
     const k = this.keys;
     let vx = 0, vy = 0;
     if (k.A.isDown || k.LEFT.isDown) vx -= 1; if (k.D.isDown || k.RIGHT.isDown) vx += 1;

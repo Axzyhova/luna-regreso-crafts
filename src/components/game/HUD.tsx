@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { RobertPanel, RobertIntro } from "./RobertPanel";
 import modos from "@/data/modos.json";
 import recetas from "@/data/recetas.json";
 import { useGame, sim, saveGame } from "@/game/store";
@@ -154,8 +155,9 @@ export function HUDBottom({ className = "", touch = false }: { className?: strin
           <Hotbar />
           {!touch && <button type="button" onClick={() => { sfx.click(); useGame.getState().setOverlay("mapa"); }} className="tr-btn pointer-events-auto ml-1 h-10 px-2 text-[10px]" title="Map (M)">🗺 MAP</button>}
           {!touch && <button type="button" onClick={() => { sfx.click(); useGame.getState().setOverlay("guia"); }} className="tr-btn pointer-events-auto h-10 px-2 text-[10px]" title="Field Guide (G)">📖 GUIDE</button>}
+          {!touch && <button type="button" onClick={() => { sfx.click(); useGame.getState().setOverlay("robert"); }} className="tr-btn pointer-events-auto h-10 px-2 text-[10px]" title="Ask Mini Robert (H)">🤖 HELP</button>}
         </div>
-        {!touch && <div className="text-[6px] text-muted-foreground">WASD move · SHIFT run · SPACE pick up/hit · E interact (hold to seal/repair) · TAB inventory · X drop · C build · B base · L log · M map · G guide · J missions · K archive · V suit · ESC pause · 1-5 or click: pick item</div>}
+        {!touch && <div className="mx-auto max-w-[78vw] px-2 text-center text-[6px] text-muted-foreground">WASD move · SHIFT run · SPACE pick up/hit · E interact (hold to seal/repair) · TAB inventory · X drop · C build · B base · L log · M map · G guide · J missions · K archive · V suit · H help (Mini Robert) · ESC pause · 1-5 or click: pick item</div>}
       </div>
   );
 }
@@ -339,6 +341,7 @@ function Pause() {
         <PixelButton onClick={() => setOverlay(null)}>Continue</PixelButton>
         <PixelButton tone="ghost" onClick={() => setOverlay("archivo")}>📚 Archive</PixelButton>
         <PixelButton tone="ghost" onClick={() => setOverlay("guia")}>📖 Field Guide</PixelButton>
+        <PixelButton tone="ghost" onClick={() => setOverlay("robert")}>🤖 Ask Mini Robert</PixelButton>
         <PixelButton tone="ghost" onClick={() => { saveGame(); sfx.ok(); }}>Save</PixelButton>
         <PixelButton tone="alert" onClick={() => { saveGame(); setOverlay(null); go("intro"); }}>Quit to title</PixelButton>
       </div>
@@ -350,7 +353,7 @@ export function Overlays() {
   const overlay = useGame((g) => g.overlay);
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      const map: Record<string, "inv" | "base" | "log" | "pausa" | "misiones" | "mapa" | "archivo" | "guia"> = { Tab: "inv", b: "base", B: "base", l: "log", L: "log", j: "misiones", J: "misiones", m: "mapa", M: "mapa", k: "archivo", K: "archivo", g: "guia", G: "guia", Escape: "pausa" };
+      const map: Record<string, "inv" | "base" | "log" | "pausa" | "misiones" | "mapa" | "archivo" | "guia" | "robert"> = { Tab: "inv", b: "base", B: "base", l: "log", L: "log", j: "misiones", J: "misiones", m: "mapa", M: "mapa", k: "archivo", K: "archivo", g: "guia", G: "guia", h: "robert", H: "robert", Escape: "pausa" };
       const o = map[e.key];
       if (!o) return;
       if (e.key === "Escape" && sim.buildMode && !useGame.getState().overlay) { e.preventDefault(); sim.buildMode = null; useGame.getState().publish(); return; }
@@ -365,6 +368,6 @@ export function Overlays() {
   const panel =
     overlay === "inv" ? <Inventory /> : overlay === "base" ? <Base /> : overlay === "log" ? <Log /> : overlay === "pausa" ? <Pause /> :
     overlay === "cohete" ? <Rocket /> : overlay === "cubesat" ? <CubeSatDesigner /> : overlay === "misiones" ? <QuestLog /> :
-    overlay === "estacion" ? <StationPanel /> : overlay === "mapa" ? <MapPanel /> : overlay === "cofre" ? <ChestPanel /> : overlay === "archivo" ? <ArchivePanel /> : overlay === "guia" ? <FieldGuidePanel /> : overlay === "cueva" ? <CavePanel /> : null;
-  return <>{panel}<NoticeToast /><DeathScreen /></>;
+    overlay === "estacion" ? <StationPanel /> : overlay === "mapa" ? <MapPanel /> : overlay === "cofre" ? <ChestPanel /> : overlay === "archivo" ? <ArchivePanel /> : overlay === "guia" ? <FieldGuidePanel /> : overlay === "cueva" ? <CavePanel /> : overlay === "robert" ? <RobertPanel /> : null;
+  return <>{panel}<RobertIntro /><NoticeToast /><DeathScreen /></>;
 }

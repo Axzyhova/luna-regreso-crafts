@@ -225,6 +225,17 @@ export function makeSprites(scene: Phaser.Scene) {
     r(3, 14, 26, 4, 0x2a5aa8); r(3, 14, 26, 1, 0x7fa8ff);
     r(2, 2, 2, 10, 0x45454f); r(28, 2, 2, 10, 0x45454f); r(2, 1, 28, 2, 0xc77dff); g.fillStyle(0xffffff, 0.7).fillRect(4, 3, 24, 1);
   });
+  // Mini Robert: round solar rover (black cells, gold rim, two wheels on top, blue eye).
+  tex(scene, "robert", 14, 12, (g, r) => {
+    for (const x of [4, 18]) { block(r, x, 0, 6, 5, 0x1b1b22, 0x6b6b75, 0x0b0b10); }
+    g.fillStyle(0x0b0b14).fillEllipse(14, 14, 28, 18);
+    g.fillStyle(0xc79a2e).fillEllipse(14, 13.5, 26, 16);
+    g.fillStyle(0x15151c).fillEllipse(14, 13.5, 22, 13);
+    for (const x of [6, 11, 16, 21]) for (const y of [9, 14]) r(x, y, 4, 4, 0x26304a);
+    r(7, 10, 1, 1, 0xe8ecff); r(17, 15, 1, 1, 0xe8ecff);
+    r(13, 12, 3, 3, 0x4fc3ff); r(13, 12, 1, 1, 0xd8f4ff);
+    r(1, 13, 2, 3, 0xf2d24f); r(25, 13, 2, 3, 0xf2d24f);
+  });
   // Historic sites.
   tex(scene, "poi_lcross", 14, 9, (g, r) => {
     g.fillStyle(OUT).fillPoints(toPts([2, 12, 10, 3, 22, 5, 27, 14, 14, 17], 1), true);

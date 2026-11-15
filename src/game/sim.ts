@@ -144,6 +144,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     leakFreeNight: true,
     drillAcc: 0,
     shed: false,
+    robertMet: false, // saw Mini Robert's mandatory intro
     machineFx: [] as { x: number; y: number; text: string }[],
     farms: {} as Record<string, { crop: number; growth: number }>,
   };
