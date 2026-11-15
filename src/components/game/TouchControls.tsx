@@ -41,14 +41,14 @@ export function DPad() {
       style={{ width: S, height: S, left: col * S, top: row * S }}>{glyph}</div>
   );
   return (
-    <div aria-label="D-pad: move" className="relative touch-none select-none" style={{ width: S * 3, height: S * 3 }}
+    <div aria-label="D-pad: move" className="no-callout relative touch-none select-none" style={{ width: S * 3, height: S * 3 }}
       onPointerDown={(e) => {
         const r = e.currentTarget.getBoundingClientRect();
         center.current = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
         id.current = e.pointerId; capture(e); move(e.clientX, e.clientY);
       }}
       onPointerMove={(e) => { if (id.current === e.pointerId) move(e.clientX, e.clientY); }}
-      onPointerUp={end} onPointerCancel={end}>
+      onPointerUp={end} onPointerCancel={end} onContextMenu={(e) => e.preventDefault()}>
       {cell(dir.y < 0, "▲", 1, 0)}
       {cell(dir.x < 0, "◀", 0, 1)}
       {cell(dir.x === 0 && dir.y === 0 && id.current !== null, "◆", 1, 1)}

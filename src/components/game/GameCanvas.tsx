@@ -46,5 +46,13 @@ export function GameCanvas() {
     })();
     return () => { dead = true; ro?.disconnect(); game?.destroy(true); };
   }, []);
+  // Tablets/phones: a long press (holding a move button) opens the browser's menu and cancels the touch,
+  // so the astronaut stops. While the game is mounted, the long-press menu is blocked everywhere.
+  useEffect(() => {
+    const block = (e: Event) => e.preventDefault();
+    window.addEventListener("contextmenu", block);
+    document.body.classList.add("no-callout");
+    return () => { window.removeEventListener("contextmenu", block); document.body.classList.remove("no-callout"); };
+  }, []);
   return <div ref={ref} className="pixelated absolute inset-0 touch-none" />;
 }
