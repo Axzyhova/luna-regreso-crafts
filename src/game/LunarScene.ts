@@ -87,6 +87,7 @@ export class LunarScene extends Phaser.Scene {
   faceX = 1; faceY = 0;
   robert!: Phaser.GameObjects.Image;
   robErr: { n: RNode; t: number } | null = null; robForageT = 0;
+  stumble = { vx: 0, vy: 0, t: 0, next: 2 }; shiverT = 0;
   touchMode = false;
   pubT = 0; saveT = 0; repairT = 0; leakT = 0; useCd = 0; facing = 1;
   constructor() { super("lunar"); }
@@ -299,7 +300,8 @@ export class LunarScene extends Phaser.Scene {
     return out;
   }
   suitToggle() {
-    if (useGame.getState().overlay || sim.dead) return;
+    const ov = useGame.getState().overlay;
+    if ((ov && ov !== "habitat") || sim.dead) return; // V also works inside the habitat
     const msg = toggleSuit(sim, this.nearHab());
     toast(sim, `🧑‍🚀 ${msg}`, 3); sfx.click(); useGame.getState().publish();
   }
@@ -427,7 +429,7 @@ export class LunarScene extends Phaser.Scene {
     const t = this.add.bitmapText(Math.round(x), Math.round(y), FONT_KEY, toFont(text)).setOrigin(0.5, 1).setTint(color).setDepth(45);
     this.tweens.add({ targets: t, y: y - 9, alpha: 0, duration: 800, ease: "Cubic.easeOut", onComplete: () => t.destroy() });
   }
-  nearHab() { return Phaser.Math.Distance.Between(HAB.x, HAB.y, this.player.x, this.player.y) < 36; }
+  nearHab() { return Phaser.Math.Distance.Between(HAB.x, HAB.y, this.player.x, this.player.y) < 44 || useGame.getState().overlay === "habitat"; }
   nearModule(pred: (m: Module) => boolean, r = 22) {
     let best: Module | undefined, bd = r;
     for (const m of sim.modules) { if (!pred(m)) continue; const d = Phaser.Math.Distance.Between(m.x, m.y, this.player.x, this.player.y) - Math.max(TIPOS[m.tipo].w, TIPOS[m.tipo].h) / 2; if (d < bd) { bd = d; best = m; } }
@@ -712,12 +714,28 @@ export class LunarScene extends Phaser.Scene {
     // Run: hold Shift (keyboard) or toggle RUN (touch). Costs stamina; when winded you can only walk.
     const wantsMove = !!(vx || vy);
     this.wantsRun = k.SHIFT.isDown || touch.run;
-    const rs = runState(sim.fatigue, wantsMove && this.wantsRun, this.winded);
+    // Psychological / physical effects you actually feel (see efectos.json "consecuencia").
+    const fx = sim.effects;
+    const noRun = fx.includes("miedo") || fx.includes("cansancio"); // fear & exhaustion: legs won't sprint
+    if (fx.includes("vertigo_gravedad") && wantsMove) { // low-G vertigo: your path drifts sideways
+      const a = Math.sin(this.time.now / 650) * 0.55, c = Math.cos(a), s2 = Math.sin(a);
+      [vx, vy] = [vx * c - vy * s2, vx * s2 + vy * c];
+    }
+    this.cameras.main.setRotation(fx.includes("vertigo_gravedad") ? Math.sin(this.time.now / 900) * 0.035 : 0);
+    if (fx.includes("panico")) { // panic: sudden stumbles in a random direction
+      this.stumble.next -= dt;
+      if (this.stumble.next <= 0) { const a = Math.random() * Math.PI * 2; this.stumble = { vx: Math.cos(a), vy: Math.sin(a), t: 0.35, next: 1.6 + Math.random() * 1.8 }; this.cameras.main.shake(120, 0.004); }
+    } else this.stumble.t = 0;
+    if (fx.includes("frio")) { this.shiverT -= dt; if (this.shiverT <= 0) { this.shiverT = 1.8; this.cameras.main.shake(140, 0.0025); } } // shivering
+    const rs = runState(sim.fatigue, wantsMove && this.wantsRun && !noRun, this.winded);
+    if (noRun && this.wantsRun && wantsMove && Math.random() < dt * 0.6) this.floatText(this.player.x, this.player.y - 10, fx.includes("miedo") ? "TOO SCARED TO RUN" : "TOO TIRED TO RUN", PAL.alert);
     this.winded = rs.winded;
     if (rs.running) sim.fatigue = Math.min(100, sim.fatigue + RUN_FATIGUE_S * dt);
     const sp = WALK_SPEED * effectMods(sim).speed * (rs.running ? RUN_MULT : 1);
     const ox = this.player.x, oy = this.player.y;
-    const moved = moveWithCollision(this.player.x, this.player.y, (vx / len) * sp * dt, (vy / len) * sp * dt, this.solids(), { minX: 5, minY: 6, maxX: WW - 5, maxY: WH - 7 });
+    let mx = (vx / len) * sp * dt, my = (vy / len) * sp * dt;
+    if (this.stumble.t > 0) { this.stumble.t -= dt; mx += this.stumble.vx * WALK_SPEED * 0.9 * dt; my += this.stumble.vy * WALK_SPEED * 0.9 * dt; }
+    const moved = moveWithCollision(this.player.x, this.player.y, mx, my, this.solids(), { minX: 5, minY: 6, maxX: WW - 5, maxY: WH - 7 });
     this.player.setPosition(moved.x, moved.y);
     this.checkZone(ox, oy, dt); // may push the astronaut back when a zone isn't open yet
     this.player.setDepth(sortDepth(this.player.y + PLAYER_FOOT_Y, H));
@@ -835,7 +853,7 @@ export class LunarScene extends Phaser.Scene {
     for (const cv of sim.caves) lights.push({ x: cv.x, y: cv.y, r: 48, color: 0x66e0ff, dayAlpha: 0.12 });
     if (sim.specialCase) lights.push({ x: sim.specialCase.x, y: sim.specialCase.y, r: 62, color: 0xff8844, dayAlpha: 0.15 });
 
-    this.nightFx.update(this, sim, a, inShadow, this.player.x, this.player.y, this.aimRad, lights);
+    this.nightFx.update(this, sim, a, inShadow, this.player.x, this.player.y, this.aimRad, lights, sim.effects.includes("miedo"));
     this.pixelfx.update(this, dt);
     this.terrainFx.update(this.cameras.main);
     this.stepPhasedNodes();

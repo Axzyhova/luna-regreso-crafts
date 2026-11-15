@@ -421,7 +421,7 @@ export const suitWorking = (s: Sim) => s.suit.owned && s.suit.worn && s.suit.int
 /** Put the suit on / take it off. Outside the habitat taking it off is deadly, so it's refused. */
 export function toggleSuit(s: Sim, inHabitat: boolean): string {
   if (!s.suit.owned) return "You have no space suit: craft one at the Workshop";
-  if (s.suit.worn && !inHabitat) return "Take the suit off only inside the habitat";
+  if (s.suit.worn && !inHabitat) return "Outside there is no air! Take it off inside the habitat (press E at the habitat, or V next to it)";
   s.suit.worn = !s.suit.worn;
   addLog(s, s.suit.worn ? "You put on the space suit." : "You took off the space suit. Drink and rest.");
   return s.suit.worn ? "Suit on" : "Suit off";

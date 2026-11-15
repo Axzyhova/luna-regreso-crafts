@@ -45,7 +45,7 @@ export class Phase3Fx {
 
     // Danger vignette, coloured by the worst condition, pulsing.
     const e = s.effects;
-    const col = s.suitO2 < 25 ? 0xff2a2a : e.includes("radiacion") ? 0x4fff6a : e.includes("frio") ? 0x5ab8ff : e.includes("calor") ? 0xff8a24 : e.includes("miedo") ? 0x9b4fd6 : null;
+    const col = s.suitO2 < 25 ? 0xff2a2a : e.includes("radiacion") ? 0x4fff6a : e.includes("frio") ? 0x5ab8ff : e.includes("calor") ? 0xff8a24 : e.includes("miedo") ? 0x9b4fd6 : e.includes("aislamiento") ? 0x8a8a99 : e.includes("vertigo_gravedad") ? 0x5fe0c8 : e.includes("panico") ? 0xff5a8a : null;
     const pulse = (Math.sin(sc.time.now / 380) + 1) / 2;
     this.vig.setPosition(v.centerX, v.centerY).setDisplaySize(v.width + 4, v.height + 4)
       .setTint(col ?? 0x000000).setAlpha(col === null ? 0 : 0.35 + pulse * 0.3);

@@ -49,3 +49,26 @@ describe("day-only and night-only resources", () => {
     expect(ROBERT.areas.some((a) => a.id === "daynight")).toBe(true);
   });
 });
+
+describe("suit and felt effects", () => {
+  it("the suit comes off inside the habitat and back on", async () => {
+    const { toggleSuit } = await import("@/game/sim");
+    const s = createSim("realista", "normal");
+    s.suit.owned = true; s.suit.worn = true;
+    expect(toggleSuit(s, false)).toMatch(/inside the habitat/);
+    expect(toggleSuit(s, true)).toBe("Suit off");
+    expect(toggleSuit(s, true)).toBe("Suit on");
+  });
+  it("every effect clearly slows you down and explains what it does", async () => {
+    const { EFECTOS, effectMods } = await import("@/game/effects");
+    for (const [id, c] of Object.entries(EFECTOS)) {
+      expect((c as { consecuencia?: string }).consecuencia, id).toBeTruthy();
+      expect(c.velocidad, id).toBeLessThan(1);
+    }
+    const s = createSim("realista", "normal");
+    s.effects = ["miedo"];
+    expect(effectMods(s).speed).toBeLessThanOrEqual(0.7);
+    s.effects = ["miedo", "cansancio"];
+    expect(effectMods(s).speed).toBeLessThan(0.5);
+  });
+});

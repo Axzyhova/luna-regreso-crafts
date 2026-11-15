@@ -125,7 +125,7 @@ export function GearRow() {
   if (!s.effects.length && !s.equip.length && !s.perks.length && s.fatigue < 40) return null;
   return (
     <div className="flex flex-wrap items-center justify-center gap-2 text-[7px]">
-      {(s.effects as EffectId[]).map((e) => <span key={e} title={EFECTOS[e]?.desc} className="animate-pulse text-alert">{EFECTOS[e]?.icono} {EFECTOS[e]?.nombre}</span>)}
+      {(s.effects as EffectId[]).map((e) => <span key={e} title={`${EFECTOS[e]?.desc ?? ""} ${(EFECTOS[e] as { consecuencia?: string } | undefined)?.consecuencia ?? ""}`} className="text-alert"><span className="animate-pulse">{EFECTOS[e]?.icono} {EFECTOS[e]?.nombre}</span>{(EFECTOS[e] as { consecuencia?: string } | undefined)?.consecuencia ? <span className="text-white/70"> ({(EFECTOS[e] as { consecuencia?: string }).consecuencia!.split(" · ")[0]})</span> : null}</span>)}
       {!s.effects.includes("cansancio") && s.fatigue >= 40 && <span className="text-muted-foreground">😮‍💨 Fatigue {Math.round(s.fatigue)}%</span>}
       {s.equip.map((g) => <span key={g} className="flex items-center gap-1 text-ok"><PixelIcon item={g} size={10} />{ITEMS[g]?.nombre}</span>)}
       {s.perks.map((p) => <span key={p} title={PERKS[p]?.desc} className="text-gold">{PERKS[p]?.icono} {PERKS[p]?.nombre}</span>)}

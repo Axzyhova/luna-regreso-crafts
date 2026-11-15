@@ -65,7 +65,7 @@ export function stepEffects(s: Sim, dt: number, w: World, inShadow: boolean) {
       if (over > 0) hurt(s, c.salud_s * (dc?.frio_dano ?? 1) * Math.min(3, 1 + over / 20) * dt, e === "frio" ? "froze to death" : "overheated");
     } else if (c.salud_s) hurt(s, c.salud_s * dt, e === "radiacion" ? "got radiation sickness from a solar flare" : "succumbed to the elements");
     if (c.o2_extra && !w.inHabitat) s.suitO2 = Math.max(0, s.suitO2 - c.o2_extra * dt);
-    if (!before.has(e)) addLog(s, `${c.icono} ${c.nombre}: ${c.remedio}`);
+    if (!before.has(e)) { addLog(s, `${c.icono} ${c.nombre}: ${c.remedio}`); s.toast = { text: `${c.icono} ${c.nombre}! ${(c as { consecuencia?: string }).consecuencia ?? ""} — ${c.remedio}`, t: 5 }; }
   }
   if (s.perks.includes("escudo_bio") && s.health > 0) s.health = Math.min(100, s.health + 0.4 * dt);
   s.effects = now;
@@ -85,7 +85,7 @@ export function stepPsychology(s: Sim, dt: number, w: World, rnd: () => number) 
     if (s.psychEffect) s.psychEffect.t = Math.max(0, s.psychEffect.t - 3 * dt);
   } else {
     const drain = ((far ? 0.38 : 0.08) + (dark ? 0.25 : 0) + (s.aliens.length ? 0.2 : 0) + (s.leaks.length ? 0.15 : 0) + (s.hydration < 30 ? 0.2 : 0)) * (s.perks.includes("mente_acero") ? 0.5 : 1);
-    s.sanity = Math.max(0, s.sanity - drain * dt);
+    s.sanity = Math.max(0, s.sanity - drain * (s.effects.includes("aislamiento") ? 1.8 : 1) * dt); // isolation feeds on itself
   }
   if (s.psychEffect) {
     s.psychEffect.t -= dt;

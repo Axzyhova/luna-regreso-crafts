@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import personal from "@/data/personal.json";
 import { useGame, sim } from "@/game/store";
-import { isDay, meltIce, addLog, sleepUntilDawn, personalUnlocked, WATER_TANK_KG } from "@/game/sim";
+import { isDay, meltIce, addLog, sleepUntilDawn, personalUnlocked, toggleSuit, drinkWater, WATER_TANK_KG } from "@/game/sim";
 import { sfx } from "@/game/audio";
 
 type View = "room" | "bed" | "diary" | "album";
@@ -76,6 +76,8 @@ export function HabitatPanel() {
     else { sfx.bad(); setMsg(sim.inv.hielo <= 0 ? "No ice to melt: bring some from the Shadowed Crater." : "Water tank full."); }
     publish();
   };
+  const suit = () => { const m = toggleSuit(sim, true); sfx.click(); setMsg(`🧑‍🚀 ${m}${!sim.suit.worn ? " — you can drink and rest now. Put it back on before going out!" : ""}`); publish(); };
+  const drink = () => { const r = drinkWater(sim); if (r.ok) sfx.ok(); else sfx.bad(); setMsg(`💧 ${r.msg}`); publish(); };
   const sleep = () => { const r = sleepUntilDawn(sim); if (r.ok) sfx.ok(); else sfx.bad(); setMsg(r.msg); publish(); if (r.ok) setView("room"); };
   const go = (v: View) => { sfx.click(); setMsg(null); setView(v); };
   const Spot = ({ x, y, w, h, label, onClick }: { x: number; y: number; w: number; h: number; label: string; onClick: () => void }) => (
@@ -129,6 +131,8 @@ export function HabitatPanel() {
                 <button type="button" onClick={() => { setPage(Math.max(0, pages.length - 1)); go("diary"); }} className="tr-btn px-2 py-2">📔 Diary ({pages.length}/{personal.diario.length})</button>
                 <button type="button" onClick={() => go("album")} className="tr-btn px-2 py-2">📷 Album</button>
                 <button type="button" onClick={melt} className={`tr-btn px-2 py-2 ${s.inv.hielo > 0 ? "tr-btn-primary" : ""}`}>💧 Melt ice ({Math.floor(s.inv.hielo)})</button>
+                {s.suit.owned && <button type="button" onClick={suit} className={`tr-btn px-2 py-2 ${s.suit.worn ? "" : "!border-alert !bg-alert/30"}`}>🧑‍🚀 {s.suit.worn ? "Take suit off" : "Put suit on"}</button>}
+                <button type="button" disabled={s.suit.worn} onClick={drink} title={s.suit.worn ? "Take the suit off first" : "Drink from the tank"} className="tr-btn px-2 py-2 disabled:opacity-40">🥤 Drink{s.suit.worn ? " (suit off first)" : ""}</button>
               </div>
               <p className="mt-1 text-[8px] text-white/60">Water tank {Math.round(s.inv.agua)}/{WATER_TANK_KG} kg · Inside, O2 refills and you rest.</p>
             </>
