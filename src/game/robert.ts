@@ -30,6 +30,8 @@ export function robertAdvice(s: Sim, touch = false): { now: string[]; tips: stri
   if (s.fatigue > 70) tips.push("😴 Very tired: rest inside the habitat.");
   if (s.sanity < 35) tips.push("🧠 Sanity is low: stay near light and eat something.");
   if (s.inv.kits < 1) tips.push("🧰 No Sealant kits: craft one (2 Scrap + 1 Metal) for the next leak.");
+  const broken = s.modules.filter((m) => m.durabilidad < 25);
+  if (broken.length) tips.push(`🔧 ${broken.length} module${broken.length > 1 ? "s are" : " is"} broken (faded on the map). Craft Sealant kits (2 Scrap + 1 Metal) and HOLD E on ${broken.length > 1 ? "them" : "it"}.`);
   if (s.leaks.length) tips.push("⚠ There's a leak: follow the GPS card and HOLD E on it with a kit.");
   if (s.inv.agua < 20 && s.inv.hielo > 0) tips.push(`💧 Melt your ice at the habitat (E): tank ${Math.round(s.inv.agua)}/${WATER_TANK_KG} kg.`);
   if (!isDay(s) && aliensEnabled(s)) tips.push("🌙 Night: aliens are out. Stay near the habitat and light towers.");

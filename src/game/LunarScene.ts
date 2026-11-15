@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { PAL } from "./palette";
 import { sim, useGame, saveGame } from "./store";
-import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, dropItem, TIPOS, PLACEABLE, leakAllowed, hurt, visitPoi, tendFarm, farmOf, stepRoversOnly, phaseOf, ROBERT_SKINS, robertForageEvery, CROPS, seedToPlant, FARM_WATER_KG, applyBridgeKit, type Leak, toolInfo, meltIce, WATER_TANK_KG, nextLeakDelay, pickUpDrop, toggleSuit, WORLD, ZONAS, zoneAt, zoneBlock, reveal, BRIDGE, buildBridge, canUpgrade, upgradeCost, upgradeModule, lvl, type Zona, type LeakTarget, type Module, type ModType } from "./sim";
+import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, dropItem, TIPOS, PLACEABLE, leakAllowed, hurt, visitPoi, tendFarm, farmOf, moduleInfo, stepRoversOnly, phaseOf, ROBERT_SKINS, robertForageEvery, CROPS, seedToPlant, FARM_WATER_KG, applyBridgeKit, type Leak, toolInfo, meltIce, WATER_TANK_KG, nextLeakDelay, pickUpDrop, toggleSuit, WORLD, ZONAS, zoneAt, zoneBlock, reveal, BRIDGE, buildBridge, canUpgrade, upgradeCost, upgradeModule, lvl, type Zona, type LeakTarget, type Module, type ModType } from "./sim";
 import { sfx } from "./audio";
 import { stepAliens, hitAlien, type World } from "./aliens";
 import { stepCountdown } from "./mission";
@@ -35,7 +35,7 @@ const isStation = (m: Module) => m.tipo === "taller" || m.tipo === "horno";
 export const INTERACT_EDGE = 2;
 /** Half-size of the astronaut's body (world px): reach is measured from its edge, not its centre. */
 const BODY_HW = 3, BODY_HH = 5;
-type TargetKind = "leak" | "special" | "cave" | "drop" | "bridge" | "poi" | "capsule" | "rocket" | "melt" | "chest" | "station" | "repair" | "upgrade" | "clean" | "farm" | "robert" | "rover" | "robotlab" | "home";
+type TargetKind = "leak" | "special" | "cave" | "drop" | "bridge" | "poi" | "capsule" | "rocket" | "melt" | "chest" | "station" | "repair" | "upgrade" | "clean" | "farm" | "robert" | "rover" | "robotlab" | "home" | "power" | "info";
 interface Target { kind: TargetKind; x: number; y: number; ref?: unknown; label: string }
 type NodeType = "hielo" | "regolito" | "chatarra" | "cristal_hielo" | "titanio" | "aleacion" | "alga_lunar" | "vidrio_solar" | "cristal_estelar";
 const NODE_TEX: Record<NodeType, string> = { hielo: "ice", regolito: "reg", chatarra: "scrap", cristal_hielo: "n_cristal", titanio: "n_titanio", aleacion: "n_aleacion", alga_lunar: "n_aleacion", vidrio_solar: "n_solar", cristal_estelar: "n_estelar" };
@@ -607,6 +607,7 @@ export class LunarScene extends Phaser.Scene {
       const name = TIPOS[m.tipo].nombre.toUpperCase();
       // A damaged habitat is repaired with HOLD E (if you carry a kit); otherwise E takes you inside.
       if (m.tipo === "habitat" && m.durabilidad < 60 && sim.inv.kits > 0) { consider({ kind: "repair", x: m.x, y: m.y, ref: m, label: "HOLD E: REPAIR HABITAT (1 KIT) · INSIDE: REPAIR BUTTON" }, half); continue; }
+      if (m.tipo === "habitat" && m.durabilidad < 60) { consider({ kind: "home", x: m.x, y: m.y, ref: m, label: "⚠ HABITAT DAMAGED: NEED 1 SEALANT KIT (2 SCRAP + 1 METAL) · E: ENTER" }, half); continue; }
       if (m.tipo === "habitat") { consider({ kind: "home", x: m.x, y: m.y, ref: m, label: sim.inv.hielo > 0 ? "E: ENTER HABITAT (MELT ICE · BED · DIARY)" : "E: ENTER HABITAT (BED · DIARY · ALBUM)" }, half); continue; }
       if (m.tipo === "hidroponia" && m.activo && m.durabilidad > 0) { const f = farmOf(sim, m.uid); const c = CROPS[f.crop]; const seed = seedToPlant(sim, sim.hotbarItems[sim.hotbar - 1]);
         consider({ kind: "farm", x: m.x, y: m.y, ref: m, label: !c ? (seed ? `E: PLANT ${CROPS[seed]!.nombre.toUpperCase()}` : "NEED SEEDS (CAPSULES / CHEST) OR LUNAR ALGAE") : f.growth >= 1 ? `E: HARVEST ${c.nombre.toUpperCase()}` : f.water < 0.5 ? `E: WATER CROP (${FARM_WATER_KG} KG FROM TANK)` : `GROWING ${Math.round(f.growth * 100)}% · WATER ${Math.round(f.water * 100)}%` }, half); continue; }
@@ -614,9 +615,11 @@ export class LunarScene extends Phaser.Scene {
       if (m.tipo === "robot_lab" && m.durabilidad >= 60) { consider({ kind: "robotlab", x: m.x, y: m.y, ref: m, label: `E: ROBERT STATION (LV ${sim.robert.level})` }, half); continue; }
       if (m.tipo === "cofre") consider({ kind: "chest", x: m.x, y: m.y, ref: m, label: "E: OPEN STORAGE CHEST" }, half);
       else if (isStation(m) && m.durabilidad > 0) consider({ kind: "station", x: m.x, y: m.y, ref: m, label: m.tipo === "taller" ? "E: OPEN WORKSHOP" : "E: OPEN FURNACE" }, half);
-      else if (m.durabilidad < 60) consider({ kind: "repair", x: m.x, y: m.y, ref: m, label: `HOLD E: REPAIR ${name} (1 KIT)` }, half);
+      else if (m.durabilidad < 60) consider({ kind: "repair", x: m.x, y: m.y, ref: m, label: sim.inv.kits > 0 ? `HOLD E: REPAIR ${name} (1 KIT · ${sim.inv.kits} LEFT)` : `${name} ${m.durabilidad <= 0 ? "BROKEN" : "DAMAGED"}: NEED 1 SEALANT KIT (2 SCRAP + 1 METAL)` }, half);
+      else if (!m.activo) consider({ kind: "power", x: m.x, y: m.y, ref: m, label: `E: TURN ON ${name}` }, half);
       else if (canUpgrade(sim, m)) consider({ kind: "upgrade", x: m.x, y: m.y, ref: m, label: `E: UPGRADE ${name} → LV${lvl(m) + 1}` }, half);
       else if (m.tipo === "panel" && !sim.eds && sim.dust > 0.15) consider({ kind: "clean", x: m.x, y: m.y, ref: m, label: `E: CLEAN DUST OFF PANELS (−${Math.round(sim.dust * 50)}% POWER)` }, half);
+      else consider({ kind: "info", x: m.x, y: m.y, ref: m, label: `E: ${name} — ${sim.modStatus[m.uid] === "nopower" ? "NO POWER" : sim.modStatus[m.uid] === "idle" ? "IDLE (WHY?)" : "INFO"}` }, half);
     }
     // Mini Robert always rolls next to you, so he only answers E when nothing else is in reach.
     if (!best && this.robert && Phaser.Math.Distance.Between(this.robert.x, this.robert.y, px, py) < 14) best = { kind: "robert", x: this.robert.x, y: this.robert.y, label: "E: ASK MINI ROBERT FOR HELP" };
@@ -680,6 +683,8 @@ export class LunarScene extends Phaser.Scene {
       case "station": { const st = tg.ref as Module; sim.station = st.tipo as "taller" | "horno"; sim.stationUid = st.uid; sfx.click(); G.publish(); G.setOverlay("estacion"); return; }
       case "upgrade": { const m = tg.ref as Module; upgradeModule(sim, m); sfx.ok(); toast(sim, `⬆ ${TIPOS[m.tipo].nombre} → level ${lvl(m)}`, 3); return; }
       case "robert": this.openRobert(); return;
+      case "power": { const m = tg.ref as Module; m.activo = true; sfx.ok(); toast(sim, `⚡ ${TIPOS[m.tipo].nombre} turned on.`, 3); G.publish(); return; }
+      case "info": sfx.click(); toast(sim, moduleInfo(sim, tg.ref as Module), 7); G.publish(); return;
       case "home": sfx.click(); G.publish(); G.setOverlay("habitat"); return;
       case "robotlab": sfx.click(); G.setOverlay("robotlab"); return;
       case "rover": sim.roverUid = (tg.ref as Module).uid; sfx.click(); G.publish(); G.setOverlay("rover"); return;

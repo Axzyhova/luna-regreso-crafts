@@ -50,3 +50,19 @@ describe("automation fixes", () => {
     expect(hurtAfter("facil")).toBeLessThan(hurtAfter("dificil") / 2);
   });
 });
+
+describe("machines explain themselves", () => {
+  it("E on a machine says what it does and why it is idle or broken", async () => {
+    const { moduleInfo, TIPOS } = await import("@/game/sim");
+    const s = createSim("realista", "normal");
+    const bio = add(s, "biorreactor");
+    s.inv.agua = 0; s.battery = 50;
+    stepBaseTech(s, 1, true);
+    expect(moduleInfo(s, bio)).toMatch(/water tank is empty/);
+    bio.durabilidad = 0;
+    expect(moduleInfo(s, bio)).toMatch(/BROKEN/);
+    bio.durabilidad = 100; bio.activo = false;
+    expect(moduleInfo(s, bio)).toMatch(/TURNED OFF/);
+    expect(TIPOS.taladro.produce_hielo).toBeGreaterThanOrEqual(0.12); // 1 ice every ~8 s
+  });
+});

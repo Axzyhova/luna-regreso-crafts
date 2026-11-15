@@ -845,6 +845,33 @@ export function setRoverMat(s: Sim, m: Module, mat: string) {
   return true;
 }
 
+// ---- What each machine does and why it is or isn't working (E on a module) ----
+const MODULE_DOES: Record<string, string> = {
+  habitat: "Your home: refills O2, keeps you warm, bed, diary and water tank inside.",
+  panel: "Makes power in daylight (dust lowers it: clean with E or build the EDS).",
+  bateria: "Stores power for the night.",
+  electrolisis: "Splits tank water into hydrogen + oxygen (needs power and water).",
+  licuefactor: "Turns H2/O2 gas into rocket fuel LH2 + LOX (needs power).",
+  horno: "Furnace: E to craft. With power it also turns regolith into O2 and metal.",
+  taller: "Workshop: E to craft tools, gear and modules.",
+  taladro: "Drills ice into the storage chest (must be inside the crater, needs power).",
+  torre_luz: "Lights the area at night: keeps fear and aliens away (needs battery).",
+  cofre: "Storage: 20 slots. Machines drop their output here.",
+  rover: "Drives to its material, mines it and brings it to the chest.",
+  biorreactor: "Uses tank water to add habitat O2 and grows a Space ration every 2 min (into the chest).",
+  hidroponia: "Farm: plant seeds, water them, harvest.",
+  robot_lab: "Upgrade Mini Robert and your rovers.",
+};
+export function moduleInfo(s: Sim, m: Module): string {
+  const st = s.modStatus[m.uid];
+  const why = m.durabilidad <= 0 ? "BROKEN — HOLD E with 1 Sealant kit to repair"
+    : !m.activo ? "TURNED OFF — press E to turn it on"
+    : st === "nopower" ? (s.shed ? "PAUSED: battery low at night (resumes at 50% or in daylight)" : "NO POWER: add solar panels / batteries or wait for daylight")
+    : st === "idle" ? ({ electrolisis: "IDLE: the water tank is empty (melt ice inside the habitat)", licuefactor: "IDLE: no gas yet (needs electrolysis running)", horno: "IDLE: no regolith in your pockets", biorreactor: "IDLE: the water tank is empty (melt ice inside the habitat)", panel: "Resting: it's night", taladro: "IDLE: chest and pockets full", rover: m.note ?? "Waiting" } as Record<string, string>)[m.tipo] ?? "Idle"
+    : "WORKING";
+  return `${TIPOS[m.tipo].nombre} (${Math.round(m.durabilidad)}%): ${MODULE_DOES[m.tipo] ?? ""} — ${why}`;
+}
+
 // ---- Day / night resources and the habitat bed ----
 /** Resources that only exist in one half of the lunar day (forces you to live through both). */
 export const DAY_ONLY = ["vidrio_solar"] as const;

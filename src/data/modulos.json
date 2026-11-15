@@ -66,7 +66,7 @@
    "w": 10,
    "h": 14,
    "item": "taladro",
-   "produce_hielo": 0.04,
+   "produce_hielo": 0.12,
    "en_crater": true
   },
   "torre_luz": {
