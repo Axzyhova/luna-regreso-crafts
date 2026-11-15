@@ -1,7 +1,7 @@
 import { useState } from "react";
 import recetas from "@/data/recetas.json";
 import { useGame, sim } from "@/game/store";
-import { SLOTS, STACK, WATER_TANK_KG, usedSlots, recipeBlock, craft, dropItem, pourWater } from "@/game/sim";
+import { SLOTS, STACK, WATER_TANK_KG, usedSlots, recipeBlock, craft, dropItem, pourWater, healInHabitat } from "@/game/sim";
 import { GEAR, CONSUMIBLES, toggleEquip, applyConsumable } from "@/game/effects";
 import { ITEMS } from "@/game/items";
 import { INV_ORDER } from "@/game/items";
@@ -105,6 +105,15 @@ export function Inventory() {
                 <button type="button" onClick={() => { const r = applyConsumable(sim, "agua"); sfx[r.ok ? "ok" : "bad"](); say(r.msg); publish(); }} className="tr-btn px-1.5 py-1 text-[6px]">DRINK</button>
                 <button type="button" onClick={() => throwAway("agua", 25)} className="tr-btn px-1.5 py-1 text-[6px]" title="Pour out 25 kg">POUR</button>
               </div>
+              {s.near.habitat && s.health < 100 && (
+                <button
+                  type="button"
+                  onClick={() => { const r = healInHabitat(sim); sfx[r.ok ? "ok" : "bad"](); say(r.msg); publish(); }}
+                  className="tr-btn tr-btn-primary px-2 py-1.5 text-[7px]"
+                >
+                  🏥 REST & HEAL (+35 HP · 5 kg Water)
+                </button>
+              )}
 
               {/* what you gather with */}
               <div className="tr-slot flex items-center gap-2 !rounded-[7px] px-2 py-1.5 text-[6px] leading-3 short:py-1">

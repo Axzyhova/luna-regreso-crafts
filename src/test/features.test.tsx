@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { createSim, step, addItem } from "@/game/sim";
+import { createSim, step, addItem, healInHabitat } from "@/game/sim";
 import { consumeItem, stepPsychology } from "@/game/effects";
 import { stepEvents, stepSpecialCases, resolveSpecialCase, spawnCave, strikeCaveAlien, openCaveChest, unlockCavePerk, hitAndroid, stepEmergingProblems } from "@/game/events";
 import { missionHelp } from "@/game/nav";
@@ -78,7 +78,7 @@ describe("Lunar survival & exploration expansions", () => {
   it("dedicated resource lands, far bosses and field guide work together", () => {
     const s = createSim("realista", "normal");
     expect(SUBZONAS.length).toBeGreaterThanOrEqual(9);
-    const sz = checkSubzoneVisit(s, 465, 90);
+    const sz = checkSubzoneVisit(s, 920, 160);
     expect(sz?.id).toBe("tierra_chatarra");
     expect(s.subzonesVisited).toContain("tierra_chatarra");
 
@@ -191,5 +191,32 @@ describe("Lunar survival & exploration expansions", () => {
     expect(screen.getByText(/\+40%/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Easy/i }));
     expect(screen.getByText(/\+2 Kits, \+1 Ration/i)).toBeInTheDocument();
+  });
+
+  it("O2 depletion causes suffocation damage and healInHabitat restores HP using water", () => {
+    const s = createSim("realista", "normal");
+    s.suitO2 = 0;
+    s.health = 80;
+    step(s, 2, { inHabitat: false, inShadow: false });
+    expect(s.health).toBeLessThan(70);
+    expect(s.alert).toMatch(/OXYGEN DEPLETED/i);
+
+    s.near.habitat = true;
+    s.inv.agua = 10;
+    const beforeHp = s.health;
+    const res = healInHabitat(s);
+    expect(res.ok).toBe(true);
+    expect(s.health).toBeGreaterThan(beforeHp);
+    expect(s.inv.agua).toBe(5);
+  });
+
+  it("unsealed leaks drain battery and crew morale", () => {
+    const s = createSim("realista", "normal");
+    s.battery = 50;
+    s.sanity = 80;
+    s.leaks.push({ id: 1, target: "habitat", x: 110, y: 170, size: 2, progress: 0, age: 0 });
+    step(s, 5, { inHabitat: false, inShadow: false });
+    expect(s.battery).toBeLessThan(50);
+    expect(s.sanity).toBeLessThan(80);
   });
 });

@@ -479,6 +479,10 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
     if (l.target === "habitat") s.habitatO2 = Math.max(0, s.habitatO2 - rate * balance.fuga_habitat_o2_s_por_tamano);
     if (l.target === "lh2") s.lh2 = Math.max(0, s.lh2 - rate * balance.fuga_lh2_kg_s_por_tamano);
     if (l.target === "lox") s.lox = Math.max(0, s.lox - rate * balance.fuga_lox_kg_s_por_tamano);
+    // Unsealed leaks drain base power and morale, and severe tank leaks degrade propulsion.
+    s.battery = Math.max(0, s.battery - 0.6 * l.size * dt);
+    s.sanity = Math.max(0, s.sanity - 0.35 * dt);
+    if (l.target !== "habitat" && l.size >= 2) s.rocket["Propulsion"] = Math.max(0, (s.rocket["Propulsion"] ?? 0) - 0.12 * dt);
   }
 
   // suit / body
@@ -531,12 +535,15 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
     if (s.equip.includes("capa_reflectante") && target > 30) target = Math.min(target, 30); // reflective cape caps ~30 °C
   } else if (s.battery <= 0) target = 0;
   s.temp += (target - s.temp) * Math.min(1, dt * 0.08);
-  if (s.suitO2 <= 0 && suitWorking(s) && !ctx.inHabitat) hurt(s, 3 * dt, "ran out of oxygen");
-  if (ctx.inHabitat && s.suitO2 > 50 && s.temp > 10) s.health = Math.min(100, s.health + 0.5 * dt);
+  if (s.suitO2 <= 0 && suitWorking(s) && !ctx.inHabitat) {
+    hurt(s, 7 * dt, "suffocated (O2 depleted)");
+    s.sanity = Math.max(0, s.sanity - 3 * dt);
+  }
+  if (ctx.inHabitat && s.suitO2 > 40 && s.temp > 10) s.health = Math.min(100, s.health + 1.8 * dt);
   s.health = Math.max(0, s.health);
 
   // alerts
-  s.alert = s.battery <= 0 && eIn <= 0 && s.modules.some((m) => TIPOS[m.tipo].energia < 0 && isOn(m)) ? "NO POWER: production stopped — wait for sunlight or add panels/batteries" : s.leaks.length ? `LEAK! ${s.leaks.map((l) => (l.target === "habitat" ? "HABITAT" : l.target.toUpperCase())).join(" · ")} — Need 1 Sealant kit (2 Scrap + 1 Metal) · Hold E` :
+  s.alert = s.suitO2 <= 0 && !ctx.inHabitat ? "OXYGEN DEPLETED! SUFFOCATING — RETURN TO HABITAT!" : s.battery <= 0 && eIn <= 0 && s.modules.some((m) => TIPOS[m.tipo].energia < 0 && isOn(m)) ? "NO POWER: production stopped — wait for sunlight or add panels/batteries" : s.leaks.length ? `LEAK! ${s.leaks.map((l) => (l.target === "habitat" ? "HABITAT" : l.target.toUpperCase())).join(" · ")} — Need 1 Sealant kit (2 Scrap + 1 Metal) · Hold E` :
     s.suitO2 < 20 ? "SUIT O2 LOW" : s.temp < 5 ? "HYPOTHERMIA" : s.battery < 5 ? "BATTERIES DEPLETED" : s.sanity < 25 ? "CREW MORALE CRITICAL: return to habitat or eat food" : "";
 
   // acts
@@ -554,12 +561,43 @@ export function cleanupInventory(s: Sim) {
   if (s.buildMode && (inv[s.buildMode] ?? 0) < 1) s.buildMode = null;
 }
 
+export type DeathSacrifice = "agua" | "chatarra" | "metal";
+
+/** How much of a reserve is lost to pay for an emergency rescue respawn. */
+export function sacrificeCost(s: Sim, kind: DeathSacrifice): number {
+  const cur = s.inv[kind] ?? 0;
+  if (cur < 1) return 0;
+  if (kind === "agua") return Math.min(Math.round(cur), Math.max(15, Math.ceil(cur * 0.6)));
+  if (kind === "chatarra") return Math.min(Math.floor(cur), Math.max(4, Math.ceil(cur * 0.6)));
+  return Math.min(Math.floor(cur), Math.max(3, Math.ceil(cur * 0.6)));
+}
+
+/** Emergency medical rest inside the habitat using 5 kg of water to restore +35 HP. */
+export function healInHabitat(s: Sim): { ok: boolean; msg: string } {
+  if (!s.near.habitat) return { ok: false, msg: "Return to the Habitat to use the medical bay." };
+  if (s.health >= 100) return { ok: false, msg: "Health is already full." };
+  if (s.inv.agua < 5) return { ok: false, msg: "Need 5 kg Water to run medical hydration." };
+  s.inv.agua -= 5;
+  s.health = Math.min(100, s.health + 35);
+  s.hydration = Math.min(100, s.hydration + 25);
+  addLog(s, "Medical rest in Habitat: -5 kg Water, +35 HP.");
+  return { ok: true, msg: "+35 HP restored (-5 kg Water)" };
+}
+
 /** Respawn after death: everything you carried stays in a bag where you died; you wake in the habitat with the spare suit. */
-export function respawn(s: Sim, hab: { x: number; y: number }) {
+export function respawn(s: Sim, hab: { x: number; y: number }, sacrifice?: DeathSacrifice) {
   const d = s.dead ?? { cause: "", x: hab.x, y: hab.y };
+  if (sacrifice) {
+    const cost = sacrificeCost(s, sacrifice);
+    if (cost > 0) {
+      s.inv[sacrifice] = Math.max(0, (s.inv[sacrifice] ?? 0) - cost);
+      const label = sacrifice === "agua" ? `${cost} kg Water` : sacrifice === "chatarra" ? `${cost} Scrap` : `${cost} Metal`;
+      addLog(s, `Emergency rescue cost: sacrificed ${label}.`);
+    }
+  }
   const inv = s.inv as unknown as Record<string, number>;
   const items: Record<string, number> = {};
-  for (const [k, v] of Object.entries(inv)) { const n = Math.floor(v); if (n > 0) { items[k] = n; inv[k] = v - n; } }
+  for (const [k, v] of Object.entries(inv)) { if (NOT_CARRIED.has(k)) continue; const n = Math.floor(v); if (n > 0) { items[k] = n; inv[k] = v - n; } }
   if (Object.keys(items).length) s.drops.push({ id: s.nextDropId++, x: Math.round(d.x), y: Math.round(d.y), items });
   s.equip = [];
   s.hotbarItems = s.hotbarItems.map(() => null);

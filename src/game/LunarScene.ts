@@ -21,11 +21,11 @@ import { twinkle, bobOffset, beamStrips, ringPhase, edgeMarker } from "./pickups
 import { canMine } from "./tools";
 import { view } from "./view";
 
-const W = 640, H = 360; // landing site (night aliens, events and capsules stay here)
-const WW = WORLD.w, WH = WORLD.h; // whole explorable world
+const W = 1280, H = 720; // landing site (night aliens, events and capsules stay here)
+const WW = WORLD.w, WH = WORLD.h; // whole explorable world (2560x1440)
 const isStation = (m: Module) => m.tipo === "taller" || m.tipo === "horno";
-const HAB = { x: 110, y: 170 } /* matches habitat in modulos.json */, ROCKET = { x: 540, y: 150 };
-const SHADOW = { x: 330, y: 270, rx: 120, ry: 60 };
+const HAB = { x: 110, y: 170 } /* matches habitat in modulos.json */, ROCKET = { x: 760, y: 220 };
+const SHADOW = { x: 640, y: 520, rx: 180, ry: 90 };
 type NodeType = "hielo" | "regolito" | "chatarra" | "cristal_hielo" | "titanio" | "aleacion" | "alga_lunar";
 const NODE_TEX: Record<NodeType, string> = { hielo: "ice", regolito: "reg", chatarra: "scrap", cristal_hielo: "n_cristal", titanio: "n_titanio", aleacion: "n_aleacion", alga_lunar: "n_aleacion" };
 interface RNode { type: NodeType; amount: number; spr: Phaser.GameObjects.Image; zone?: string | undefined }
@@ -112,11 +112,12 @@ export class LunarScene extends Phaser.Scene {
 
     // resources
     const k = modeCfg(sim).recursos;
-    for (let i = 0; i < Math.round(12 * k); i++) this.spawnNode("hielo");
-    for (let i = 0; i < Math.round(10 * k); i++) this.spawnNode("regolito");
-    for (let i = 0; i < Math.round(8 * k); i++) this.spawnNode("chatarra");
-    for (let i = 0; i < 10; i++) { this.spawnNode("cristal_hielo"); this.spawnNode("titanio"); }
-    for (let i = 0; i < 8; i++) { this.spawnNode("hielo", "ice"); this.spawnNode("aleacion"); this.spawnNode("regolito", "fire"); }
+    for (let i = 0; i < Math.round(16 * k); i++) this.spawnNode("hielo");
+    for (let i = 0; i < Math.round(14 * k); i++) this.spawnNode("regolito");
+    for (let i = 0; i < Math.round(18 * k); i++) this.spawnNode("chatarra");
+    for (let i = 0; i < 4; i++) { this.spawnNode("chatarra", "ice"); this.spawnNode("chatarra", "fire"); this.spawnNode("chatarra", "hive"); }
+    for (let i = 0; i < 12; i++) { this.spawnNode("cristal_hielo"); this.spawnNode("titanio"); }
+    for (let i = 0; i < 10; i++) { this.spawnNode("hielo", "ice"); this.spawnNode("aleacion"); this.spawnNode("regolito", "fire"); }
     // Dedicated resource lands ("Tierras de recursos dedicados") & far boss caches
     for (const sz of SUBZONAS) {
       const count = sz.tipo === "jefe" ? 5 : 4;
@@ -132,8 +133,8 @@ export class LunarScene extends Phaser.Scene {
     this.beam = this.add.graphics().setDepth(22);
     this.zone = this.add.graphics().setDepth(24);
     this.pickFx = this.add.graphics().setDepth(11); // glow, light shafts and pointers for things on the ground
-    this.tint = this.add.rectangle(0, 0, W, H, PAL.red, 0).setOrigin(0).setScrollFactor(0).setDepth(26);
-    this.night = this.add.rectangle(0, 0, W, H, PAL.black, 0).setOrigin(0).setScrollFactor(0).setDepth(20);
+    this.tint = this.add.rectangle(0, 0, 640, 360, PAL.red, 0).setOrigin(0).setScrollFactor(0).setDepth(26);
+    this.night = this.add.rectangle(0, 0, 640, 360, PAL.black, 0).setOrigin(0).setScrollFactor(0).setDepth(20);
     // World text uses the pixel font at HD density (1 font pixel = 1 HD pixel), matching the sprites.
     this.promptBg = this.add.rectangle(0, 0, 4, 5, 0x0b1230, 0.88).setOrigin(0).setDepth(39).setStrokeStyle(0.5, 0x6f86d6, 0.8).setVisible(false);
     this.prompt = this.add.bitmapText(0, 0, FONT_KEY, "").setScale(1 / HD).setTint(PAL.gold).setDepth(40).setVisible(false);
@@ -493,7 +494,7 @@ export class LunarScene extends Phaser.Scene {
     n.amount -= got; sfx.pick();
     this.floatText(n.spr.x, n.spr.y - 4, `+${got}`, got > 1 ? PAL.gold : PAL.white);
     this.tweens.add({ targets: n.spr, y: n.spr.y - 2, yoyo: true, duration: 60 });
-    if (n.amount <= 0) { n.spr.destroy(); this.nodes = this.nodes.filter((x) => x !== n); this.time.delayedCall(40000, () => this.spawnNode(n.type, n.zone)); }
+    if (n.amount <= 0) { n.spr.destroy(); this.nodes = this.nodes.filter((x) => x !== n); this.time.delayedCall(n.type === "chatarra" ? 25000 : 40000, () => this.spawnNode(n.type, n.zone)); }
   }
 
   interact() {
