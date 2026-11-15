@@ -4,11 +4,13 @@ import { StoryScene, STORY_GIFS } from "@/components/game/StoryGif";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+const SCENES = ["briefing", "launch", "coast", "orbit", "fail", "fall", "land", "stranded"] as const;
+
 afterEach(() => { cleanup(); delete (window as { matchMedia?: unknown }).matchMedia; });
 
 describe("intro scenes as GIFs", () => {
   it("shows each scene as a looping GIF image", () => {
-    for (const scene of ["launch", "fail", "fall", "land"] as const) {
+    for (const scene of SCENES) {
       const { unmount } = render(<StoryScene scene={scene} />);
       const img = screen.getByAltText(`Animated scene: ${scene}`) as HTMLImageElement;
       expect(img.getAttribute("src")).toMatch(/\.gif/);
@@ -32,7 +34,7 @@ describe("intro scenes as GIFs", () => {
   });
 
   it("the baked files are real, looping, 320×160 GIF89a animations", () => {
-    for (const scene of ["launch", "fail", "fall", "land"]) {
+    for (const scene of SCENES) {
       const b = readFileSync(resolve(__dirname, `../assets/story/${scene}.gif`));
       expect(b.toString("latin1", 0, 6)).toBe("GIF89a");
       expect([b.readUInt16LE(6), b.readUInt16LE(8)]).toEqual([320, 160]);
@@ -40,6 +42,7 @@ describe("intro scenes as GIFs", () => {
       expect(b[b.length - 1]).toBe(0x3b); // trailer
       expect(b.length).toBeGreaterThan(50_000);
       expect(b.length).toBeLessThan(2_000_000); // keep the intro light
+      expect(b.readUInt16LE(b.indexOf(Buffer.from([0x21, 0xf9, 0x04])) + 4)).toBe(8); // 8/100 s per frame = 12.5 fps
     }
   });
 });

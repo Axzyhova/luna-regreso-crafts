@@ -2,7 +2,7 @@ import { useState } from "react";
 import recetas from "@/data/recetas.json";
 import { useGame, sim } from "@/game/store";
 import { SLOTS, STACK, WATER_CAP, usedSlots, recipeBlock, craft } from "@/game/sim";
-import { GEAR, CONSUMIBLES, toggleEquip, useConsumable } from "@/game/effects";
+import { GEAR, CONSUMIBLES, toggleEquip, applyConsumable } from "@/game/effects";
 import { ITEMS } from "@/game/items";
 import { INV_ORDER, ITEM_GUIDE } from "@/game/itemGuide";
 import { bestTool, HANDS, TOOLS } from "@/game/tools";
@@ -37,7 +37,7 @@ export function Inventory() {
 
   const throwAway = (key: string, n: number) => {
     const r = dropItem(sim, key, n, dropPoint(sim));
-    r.dropped > 0 ? sfx.click() : sfx.bad();
+    sfx[r.dropped > 0 ? "click" : "bad"]();
     say(r.dropped > 0 ? (key === "agua" ? r.msg : `Dropped ${r.dropped} ${ITEMS[key]?.nombre ?? key} on the ground`) : r.msg);
     if (!(have(sim, key) > 0)) setSel((c) => (c === key ? null : c));
     publish();
@@ -100,7 +100,7 @@ export function Inventory() {
                   <div className="flex justify-between text-[6px]"><span className="text-white/80">WATER TANK</span><span className="tr-text tabular-nums">{Math.round(s.inv.agua)}/{WATER_CAP} kg</span></div>
                   <div className="tr-bar mt-0.5 !h-1.5"><div className="bg-suit-light" style={{ width: `${waterPct}%` }} /></div>
                 </div>
-                <button type="button" onClick={() => { const r = useConsumable(sim, "agua"); r.ok ? sfx.ok() : sfx.bad(); say(r.msg); publish(); }} className="tr-btn px-1.5 py-1 text-[6px]">DRINK</button>
+                <button type="button" onClick={() => { const r = applyConsumable(sim, "agua"); sfx[r.ok ? "ok" : "bad"](); say(r.msg); publish(); }} className="tr-btn px-1.5 py-1 text-[6px]">DRINK</button>
                 <button type="button" onClick={() => throwAway("agua", 25)} className="tr-btn px-1.5 py-1 text-[6px]" title="Pour out 25 kg">POUR</button>
               </div>
 
@@ -121,7 +121,7 @@ export function Inventory() {
                   <div className="text-white/85">{info.desc}</div>
                   {guide && <div className="mt-0.5 text-white/70 short:hidden"><span className="text-ok">USED FOR</span> {guide.uso} <span className="text-suit-light">FROM</span> {guide.origen}</div>}
                   <div className="mt-1 flex flex-wrap gap-1">
-                    {CONSUMIBLES.includes(sel) && <button type="button" onClick={() => { const r = useConsumable(sim, sel); r.ok ? sfx.ok() : sfx.bad(); say(r.msg); publish(); }} className="tr-btn tr-btn-primary px-2 py-1 text-[7px]">USE</button>}
+                    {CONSUMIBLES.includes(sel) && <button type="button" onClick={() => { const r = applyConsumable(sim, sel); sfx[r.ok ? "ok" : "bad"](); say(r.msg); publish(); }} className="tr-btn tr-btn-primary px-2 py-1 text-[7px]">USE</button>}
                     {GEAR.includes(sel) && <button type="button" onClick={() => { say(toggleEquip(sim, sel)); sfx.click(); publish(); }} className="tr-btn tr-btn-primary px-2 py-1 text-[7px]">{s.equip.includes(sel) ? "TAKE OFF" : "EQUIP"}</button>}
                     <button type="button" onClick={() => throwAway(sel, 1)} className="tr-btn px-2 py-1 text-[7px]">DROP 1</button>
                     {selCount > 1 && <button type="button" onClick={() => throwAway(sel, selCount)} className="tr-btn px-2 py-1 text-[7px]">DROP ALL</button>}

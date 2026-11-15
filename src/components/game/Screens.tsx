@@ -98,11 +98,16 @@ export function ModeSelect() {
   );
 }
 
+/** How you got to the Moon, one animated GIF per panel. Names and the mission are fiction; the history in the Archive is real. */
 const PANELS = [
-  { text: "Year 2026. You lift off on a routine mission beyond Earth orbit.", art: "launch" },
-  { text: "An alarm. A tank failure: the fuel is venting into space.", art: "fail" },
+  { text: "Mission SELENE-7. Commander Alex Rivera, pilot Jonas Weber (ESA) and Dr. Aiko Tanaka (JAXA) will test whether a crew can live off the Moon's water ice. Flight Director Priya Raman leads the team in Houston.", art: "briefing" },
+  { text: "Liftoff! A giant rocket, like the ones of the Apollo and Artemis programs, pushes Selene-7 away from Earth.", art: "launch" },
+  { text: "Three days of coasting to the Moon, the same route Apollo 8 and Apollo 11 flew. The Earth shrinks behind you.", art: "coast" },
+  { text: "In lunar orbit the lander separates. Weber and Tanaka stay on the mothership while you descend to the south pole, where the ice is.", art: "orbit" },
+  { text: "An alarm. A tank failure: the fuel is venting into space. Like Apollo 13, you will have to improvise.", art: "fail" },
   { text: "Out of options, you aim for the Moon's south pole and make an emergency descent.", art: "fall" },
-  { text: "You survived. But you're STRANDED. To get home you'll have to make your own fuel.", art: "land" },
+  { text: "Touchdown. Hard, and with almost no fuel left.", art: "land" },
+  { text: "You survived. But you're STRANDED: no fuel, no antenna, no contact. To get home you'll have to make your own fuel.", art: "stranded" },
 ];
 export function Cinematic() {
   const go = useGame((s) => s.go);
@@ -117,10 +122,10 @@ export function Cinematic() {
       </div>
       <div className="flex w-full max-w-lg flex-col gap-4 short:max-w-[42vw] short:gap-3">
         <p className="min-h-16 text-[10px] leading-5 short:min-h-0 short:text-[9px]">{typed}<span className="animate-blink">▌</span></p>
-        <div className="text-[8px] text-muted-foreground">{i + 1}/4</div>
+        <div className="text-[8px] text-muted-foreground">{i + 1}/{PANELS.length}</div>
         <div className="flex gap-3">
           <PixelButton tone="ghost" onClick={() => go("juego")}>Skip</PixelButton>
-          <PixelButton onClick={() => (i < 3 ? setI(i + 1) : go("juego"))}>{i < 3 ? "Next" : "Start"}</PixelButton>
+          <PixelButton onClick={() => (i < PANELS.length - 1 ? setI(i + 1) : go("juego"))}>{i < PANELS.length - 1 ? "Next" : "Start"}</PixelButton>
         </div>
       </div>
     </div>

@@ -1,17 +1,21 @@
 import { useEffect, useState } from "react";
+import briefing from "@/assets/story/briefing.gif";
 import launch from "@/assets/story/launch.gif";
+import coast from "@/assets/story/coast.gif";
+import orbit from "@/assets/story/orbit.gif";
 import fail from "@/assets/story/fail.gif";
 import fall from "@/assets/story/fall.gif";
 import land from "@/assets/story/land.gif";
+import stranded from "@/assets/story/stranded.gif";
 import { StoryAnimation, type SceneId } from "./StoryAnimation";
 
 /**
- * The four intro scenes as real looping GIF files (320×160, 12.5 fps, ~2.4 MB in total).
- * They were rendered frame by frame from `drawScene` in StoryAnimation.tsx, so they look the
- * same as the live canvas version. If a scene's drawing code changes, re-bake its GIF; until
- * then the canvas version below still works as the fallback.
+ * The eight intro scenes as real looping GIF files (320×160, 12.5 fps, about 3.3 MB in total).
+ * They are rendered frame by frame from `drawScene` in StoryAnimation.tsx by tools/bake-story-gifs.tsx,
+ * so they look the same as the live canvas version. If a scene's drawing code changes, bake its GIF again
+ * (see tools/README.md); until then the canvas version below still works as the fallback.
  */
-export const STORY_GIFS: Record<SceneId, string> = { launch, fail, fall, land };
+export const STORY_GIFS: Record<SceneId, string> = { briefing, launch, coast, orbit, fail, fall, land, stranded };
 
 const reducedMotion = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
@@ -19,7 +23,7 @@ const reducedMotion = () => typeof window !== "undefined" && !!window.matchMedia
  *  players who asked their system for reduced motion (the canvas then shows a single still frame). */
 export function StoryScene({ scene }: { scene: SceneId }) {
   const [broken, setBroken] = useState<SceneId | null>(null);
-  // Fetch all four up front so moving to the next panel never shows a blank frame.
+  // Fetch every scene up front so moving to the next panel never shows a blank frame.
   useEffect(() => { for (const url of Object.values(STORY_GIFS)) new Image().src = url; }, []);
   if (broken === scene || reducedMotion()) return <StoryAnimation scene={scene} />;
   return (

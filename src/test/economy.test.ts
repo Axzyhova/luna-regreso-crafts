@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import recetas from "@/data/recetas.json";
 import modulos from "@/data/modulos.json";
 import { createSim, usedSlots, addItem, meltIce, drinkWater, craft, WATER_CAP, SLOTS, STACK, TIPOS, type Inv } from "@/game/sim";
-import { useConsumable, CONSUMIBLES } from "@/game/effects";
+import { applyConsumable, CONSUMIBLES } from "@/game/effects";
 import { dropItem, nearestGround, pickUpGround, deposit, withdraw, depositAll, withdrawAll, chestRoom, chestUsed, CHEST_SLOTS, CHEST_STACK, chestByUid } from "@/game/storage";
 import { bestTool, canMine, mineHit, NODE_TIER } from "@/game/tools";
 import { footprint, overlaps } from "@/game/solids";
@@ -47,9 +47,9 @@ describe("water no longer fills the inventory", () => {
     const s = fresh(); s.inv.agua = 20; s.inv.metal = 1; s.inv.regolito = 2; s.near.taller = true;
     expect(craft(s, recetas.find((x) => x.id === "botiquin")!)).toBe(true); expect(s.inv.botiquin).toBe(1); expect(s.inv.agua).toBe(10);
     expect(craft(s, recetas.find((x) => x.id === "estimulante")!)).toBe(true); expect(s.inv.agua).toBe(4);
-    s.health = 50; expect(useConsumable(s, "botiquin")).toMatchObject({ ok: true }); expect(s.health).toBe(90);
-    expect(useConsumable(s, "botiquin").ok).toBe(false); // none left
-    s.health = 100; s.inv.botiquin = 1; expect(useConsumable(s, "botiquin").ok).toBe(false); expect(s.inv.botiquin).toBe(1); // already healthy: not wasted
+    s.health = 50; expect(applyConsumable(s, "botiquin")).toMatchObject({ ok: true }); expect(s.health).toBe(90);
+    expect(applyConsumable(s, "botiquin").ok).toBe(false); // none left
+    s.health = 100; s.inv.botiquin = 1; expect(applyConsumable(s, "botiquin").ok).toBe(false); expect(s.inv.botiquin).toBe(1); // already healthy: not wasted
   });
 });
 

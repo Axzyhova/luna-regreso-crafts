@@ -74,8 +74,8 @@ export function ChestPanel() {
           <button type="button" onClick={() => move(sel.side, sel.key, selCount)} className="tr-btn tr-btn-primary px-2 py-1 text-[7px]">{sel.side === "inv" ? "STORE ALL" : "TAKE ALL"}</button>
         </>) : <span className="text-[7px] text-white/55">Tap an item (or drag it across) to move it.</span>}
         <span className="ml-auto flex gap-1.5">
-          <button type="button" onClick={() => { const n = depositAll(sim, uid); n > 0 ? sfx.ok() : sfx.bad(); say(n > 0 ? `Stored ${n} items (tools and gear stay with you)` : "Nothing to store"); publish(); }} className="tr-btn px-2 py-1 text-[7px]">STORE EVERYTHING</button>
-          <button type="button" onClick={() => { const n = withdrawAll(sim, uid); n > 0 ? sfx.ok() : sfx.bad(); say(n > 0 ? `Took ${n} items` : "Nothing to take"); publish(); }} className="tr-btn px-2 py-1 text-[7px]">TAKE EVERYTHING</button>
+          <button type="button" onClick={() => { const n = depositAll(sim, uid); sfx[n > 0 ? "ok" : "bad"](); say(n > 0 ? `Stored ${n} items (tools and gear stay with you)` : "Nothing to store"); publish(); }} className="tr-btn px-2 py-1 text-[7px]">STORE EVERYTHING</button>
+          <button type="button" onClick={() => { const n = withdrawAll(sim, uid); sfx[n > 0 ? "ok" : "bad"](); say(n > 0 ? `Took ${n} items` : "Nothing to take"); publish(); }} className="tr-btn px-2 py-1 text-[7px]">TAKE EVERYTHING</button>
         </span>
       </div>
       <div className="mt-1 min-h-3 text-[7px] text-ok">{note}</div>

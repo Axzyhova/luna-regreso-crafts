@@ -1,6 +1,6 @@
 import { useGame, sim } from "@/game/store";
 import { PLACEABLE } from "@/game/sim";
-import { GEAR, CONSUMIBLES, toggleEquip, useConsumable } from "@/game/effects";
+import { GEAR, CONSUMIBLES, toggleEquip, applyConsumable } from "@/game/effects";
 import { toast } from "@/game/events";
 import { ITEMS } from "@/game/items";
 import { PixelIcon } from "./PixelIcon";
@@ -22,7 +22,7 @@ export function Hotbar({ editable = false, pending = null, onAssign }: { editabl
     }
     sim.hotbar = i + 1;
     if (key && GEAR.includes(key)) { toggleEquip(sim, key); sfx.click(); publish(); return; }
-    if (key && CONSUMIBLES.includes(key)) { const r = useConsumable(sim, key); r.ok ? sfx.ok() : sfx.bad(); toast(sim, r.msg, 2); publish(); return; }
+    if (key && CONSUMIBLES.includes(key)) { const r = applyConsumable(sim, key); sfx[r.ok ? "ok" : "bad"](); toast(sim, r.msg, 2); publish(); return; }
     if (key && PLACEABLE[key] && (inv[key] ?? 0) >= 1) sim.buildMode = sim.buildMode === key ? null : key;
     else if (sim.buildMode) sim.buildMode = null;
     sfx.click(); publish();

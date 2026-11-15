@@ -82,7 +82,7 @@ export function toggleEquip(s: Sim, item: string): string {
 }
 
 /** Use a consumable. Returns whether it worked and a short message for the player. */
-export function useConsumable(s: Sim, item: string): { ok: boolean; msg: string } {
+export function applyConsumable(s: Sim, item: string): { ok: boolean; msg: string } {
   const inv = s.inv as unknown as Record<string, number>;
   if (!CONSUMIBLES.includes(item)) return { ok: false, msg: "You can't use that" };
   if (item === "agua") return drinkWater(s);
@@ -93,4 +93,4 @@ export function useConsumable(s: Sim, item: string): { ok: boolean; msg: string 
   }
   inv[item]! -= 1; s.fatigue = 0; addLog(s, "You used a stimulant: fatigue is gone."); return { ok: true, msg: "Fatigue gone" };
 }
-export const consumeItem = (s: Sim, item: string): boolean => useConsumable(s, item).ok;
+export const consumeItem = (s: Sim, item: string): boolean => applyConsumable(s, item).ok;
