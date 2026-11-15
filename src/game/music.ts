@@ -31,7 +31,8 @@ function load() {
   try { const v = JSON.parse(localStorage.getItem(KEY) ?? "null"); if (v) { music.on = !!v.on; music.volume = Math.min(1, Math.max(0, Number(v.volume) || 0)); } } catch { /* storage unavailable */ }
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify({ on: music.on, volume: music.volume })); } catch { /* storage unavailable */ } }
-const level = () => (music.on ? 0.09 * music.volume : 0);
+// At 50 % the loudest voices peak around the UI click level (~0.05): present but still calm.
+const level = () => (music.on ? 0.62 * music.volume : 0);
 
 function graph() {
   if (ctx || typeof window === "undefined" || !("AudioContext" in window)) return;
@@ -73,9 +74,9 @@ function schedule() {
     // arpeggio: gentle, filtered square, with soft gaps so it never feels busy
     const pattern = night ? [0, -1, 2, -1, 1, -1, 3, -1] : [0, 2, 1, 3, 4, 3, 1, 2];
     const idx = pattern[s % 8]!;
-    if (idx >= 0 && Math.random() < (night ? 0.55 : 0.75)) note(t, hz(chord[idx % chord.length]! + 24), STEP_S * 1.6, "square", night ? 0.022 : 0.028, 0.01);
+    if (idx >= 0 && Math.random() < (night ? 0.55 : 0.75)) note(t, hz(chord[idx % chord.length]! + 24), STEP_S * 1.6, "square", night ? 0.05 : 0.06, 0.01);
     // bell: a rare, calm melody note
-    if (s % 4 === 2 && Math.random() < (night ? 0.12 : 0.18)) note(t, hz(PENTA[Math.floor(Math.random() * PENTA.length)]! + 36), 1.8, "sine", 0.05, 0.005);
+    if (s % 4 === 2 && Math.random() < (night ? 0.12 : 0.18)) note(t, hz(PENTA[Math.floor(Math.random() * PENTA.length)]! + 36), 1.8, "sine", 0.1, 0.005);
     step++; nextT += night ? STEP_S * 1.12 : STEP_S; // night is a touch slower
   }
 }
