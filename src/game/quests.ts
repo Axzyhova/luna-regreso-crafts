@@ -3,6 +3,7 @@ import archivo from "@/data/archivo.json";
 import { addLog, addItem, notify, isOn, UMBRAL_VERDE, SUBSISTEMAS, type Inv, type Sim } from "./sim";
 import { aliensEnabled } from "./aliens";
 import { nextWindow } from "./mission";
+import { expedicion } from "./history";
 
 export type Quest = (typeof data.principales)[number];
 export type SideQuest = (typeof data.secundarias)[number] & { solo_aliens?: boolean };
@@ -69,6 +70,7 @@ export function stepQuests(s: Sim) {
     s.dialog.push(...q.fin);
     addLog(s, `✔ Mission complete: ${q.titulo}`);
     notify(s, "mission", "Mission complete", q.titulo);
+    nasaFile(s, q.inspirado);
     s.quest.main++;
     const next = currentMain(s);
     if (next) { s.dialog.push(...next.inicio); addLog(s, `MISSION: ${next.titulo} — ${next.objetivo}`); }
@@ -81,6 +83,15 @@ export function stepQuests(s: Sim) {
     s.dialog.push({ quien: rest.length ? quien! : "ARIA", texto: rest.length ? rest.join(": ") : q.fin });
     addLog(s, `✔ Side mission: ${q.titulo}`);
     notify(s, "mission", "Side mission complete", q.titulo);
+    nasaFile(s, (q as { inspirado?: string }).inspirado);
   }
   unlockArchive(s);
+}
+
+/** Real NASA history tied to what the player just did: a pop-up and a log line, with the full story in the Archive. */
+export function nasaFile(s: Sim, id: string | undefined) {
+  const e = expedicion(id);
+  if (!e) return;
+  addLog(s, `📚 NASA file · ${e.nombre}: ${e.dato}`);
+  notify(s, "mission", `NASA file: ${e.nombre}`, e.dato);
 }

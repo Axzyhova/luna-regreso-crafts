@@ -1,5 +1,6 @@
 import type Phaser from "phaser";
 import { PAL } from "./palette";
+import { ITEMS } from "./items";
 
 /**
  * High-definition pixel art: every texture is drawn at HD× the world resolution and
@@ -32,20 +33,10 @@ function block(r: (x: number, y: number, w: number, h: number, c: number, a?: nu
 export function makeSprites(scene: Phaser.Scene) {
   const T = PAL;
 
-  // Astronaut (10x12 world px): outlined helmet with reflective visor, backpack, suit shading.
-  tex(scene, "astro", 10, 12, (g, r) => {
-    r(4, 10, 12, 10, OUT); r(2, 11, 3, 8, OUT);                     // body + backpack outline
-    g.fillStyle(OUT).fillCircle(10, 7, 6.5);
-    r(3, 12, 2, 6, 0x8a8a96); r(3, 12, 1, 6, 0xb0b0ba);             // backpack
-    r(5, 11, 10, 8, 0xf2f2f2); r(12, 11, 3, 8, 0xc9c9d2);           // torso + shade
-    r(9, 13, 3, 2, T.alert);                                         // mission patch
-    r(6, 18, 3, 5, OUT); r(11, 18, 3, 5, OUT);
-    r(6, 18, 3, 4, 0xe6e6ec); r(11, 18, 3, 4, 0xd0d0d8); r(6, 22, 3, 1, 0x55555f); r(11, 22, 3, 1, 0x55555f);
-    g.fillStyle(0xf2f2f2).fillCircle(10, 7, 5.5);
-    g.fillStyle(0xc9c9d2).fillCircle(11.5, 8, 4);
-    g.fillStyle(0xf2f2f2).fillCircle(9.5, 6.5, 4.2);
-    r(6, 5, 8, 4, 0x1d3f8a); r(6, 5, 8, 1, 0x3b6fd6); r(7, 6, 2, 1, 0xbfd8ff); r(12, 7, 1, 1, 0x7fa8ff); // visor
-  });
+  // Astronaut (10x12 world px): idle, 8-frame walk and 8-frame run, all from one parametric drawing.
+  makeAstronaut(scene);
+  makeStructures(scene);
+  makeItemTextures(scene);
 
   // Astronaut without the space suit (same size): head and hair visible, blue undersuit.
   tex(scene, "astro_plain", 10, 12, (g, r) => {
@@ -228,6 +219,140 @@ export function makeSprites(scene: Phaser.Scene) {
     r(5, 8, 2, 22, OUT); r(5, 8, 1, 22, 0xc9c9cf);
     block(r, 2, 28, 8, 3, 0x6b6b75, 0x9a9aa3, 0x45454f);
   });
+}
+
+type R = (x: number, y: number, w: number, h: number, c: number, a?: number) => void;
+
+/** One astronaut pose, in HD pixels. Legs swing from a shared hip; the body can dip (knees bend) and lean. */
+export interface AstroPose { nearDx: number; nearLift: number; farDx: number; farLift: number; dip: number; lean: number; arm: number; bent: boolean }
+
+/** Walk/run cycles: 8 frames each, legs on a sine so contact, passing and lift land on the right frames. */
+export const ASTRO_FRAMES = 8;
+export function astroPose(kind: "idle" | "walk" | "run", i: number): AstroPose {
+  if (kind === "idle") return { nearDx: 0, nearLift: 0, farDx: 0, farLift: 0, dip: i % 2, lean: 0, arm: 0, bent: false };
+  const run = kind === "run";
+  const p = (i / ASTRO_FRAMES) * Math.PI * 2, s = Math.sin(p), c = Math.cos(p);
+  const amp = run ? 4 : 3, lift = run ? 3 : 2;
+  const nearDx = Math.round(amp * s);
+  return {
+    nearDx, farDx: -nearDx,
+    nearLift: Math.round(Math.max(0, c) * lift), farLift: Math.round(Math.max(0, -c) * lift), // the leg swinging forward is lifted
+    dip: Math.abs(s) > 0.9 ? 1 : 0, // weight lands on the front foot at full stride
+    lean: run ? 1 : 0, arm: -Math.round(nearDx * (run ? 0.8 : 0.6)), bent: run,
+  };
+}
+
+/** "suit" = EVA suit with helmet; "plain" = blue undersuit with face and hair (shown while the suit is off). */
+export type AstroSkin = "suit" | "plain";
+
+function drawAstro(g: G, r: R, p: AstroPose, skin: AstroSkin = "suit") {
+  const L = p.lean, D = p.dip, suit = skin === "suit";
+  const leg = (dx: number, lift: number, fill: number, boot: number) => {
+    const hip = 8, top = 18 + D, foot = 22 - lift;
+    const thighX = hip + Math.round(dx / 2), shinX = hip + dx;
+    const parts: [number, number, number, number][] = [[thighX, top, 3, 2], [shinX, top + 2, 3, Math.max(1, foot - top - 2)], [shinX, foot, 4, 1]];
+    for (const [x, y, w, h] of parts) r(x - 1, y - 1, w + 2, h + 2, OUT);
+    r(thighX, top, 3, 2, fill); r(shinX, top + 2, 3, Math.max(1, foot - top - 2), fill); r(shinX, foot, 4, 1, boot);
+  };
+  leg(p.farDx, p.farLift, suit ? 0xb4b4be : 0x223f88, suit ? 0x45454f : 0x2a2a36); // far leg, in shade
+  if (suit) {
+    // body (same design as the HD art: backpack, torso with shade and mission patch, round helmet with visor)
+    r(4 + L, 10 + D, 12, 10, OUT); r(2 + L, 11 + D, 3, 8, OUT);
+    g.fillStyle(OUT).fillCircle(10 + L, 7 + D, 6.5);
+    r(3 + L, 12 + D, 2, 6, 0x8a8a96); r(3 + L, 12 + D, 1, 6, 0xb0b0ba);
+    r(5 + L, 11 + D, 10, 8, 0xf2f2f2); r(12 + L, 11 + D, 3, 8, 0xc9c9d2);
+    r(9 + L, 13 + D, 3, 2, PAL.alert);
+  } else {
+    r(5 + L, 10 + D, 10, 10, OUT); g.fillStyle(OUT).fillCircle(10 + L, 6 + D, 4.8);
+    r(6 + L, 11 + D, 8, 8, 0x3b6fd6); r(11 + L, 11 + D, 3, 8, 0x2a4fa8); r(6 + L, 11 + D, 8, 1, 0x7fa8ff); // undersuit
+    r(9 + L, 13 + D, 2, 2, PAL.alert); // patch
+  }
+  leg(p.nearDx, p.nearLift, suit ? 0xeeeef2 : 0x2a4fa8, suit ? 0x55555f : 0x2a2a36); // near leg, lit
+  if (suit) {
+    g.fillStyle(0xf2f2f2).fillCircle(10 + L, 7 + D, 5.5);
+    g.fillStyle(0xc9c9d2).fillCircle(11.5 + L, 8 + D, 4);
+    g.fillStyle(0xf2f2f2).fillCircle(9.5 + L, 6.5 + D, 4.2);
+    r(6 + L, 5 + D, 8, 4, 0x1d3f8a); r(6 + L, 5 + D, 8, 1, 0x3b6fd6); r(7 + L, 6 + D, 2, 1, 0xbfd8ff); r(12 + L, 7 + D, 1, 1, 0x7fa8ff);
+  } else {
+    g.fillStyle(0xf0c8a0).fillCircle(10 + L, 6.5 + D, 3.8); // face
+    r(6 + L, 2 + D, 8, 3, 0x4a2e1a); r(6 + L, 4 + D, 2, 3, 0x4a2e1a); // hair
+    r(8 + L, 6 + D, 1, 1, 0x14141c); r(11 + L, 6 + D, 1, 1, 0x14141c); // eyes
+  }
+  // near arm in two segments from a fixed shoulder: the forearm swings against the near leg
+  // (bent and raised when running). Soft edge instead of a black box so it reads as a limb.
+  const sx = 10 + L, sy = 12 + D, fx = sx + p.arm, fy = sy + 2, fh = p.bent ? 2 : 3;
+  const EDGE = suit ? 0x8a8a96 : 0x223f88;
+  r(sx - 1, sy - 1, 4, 4, EDGE); r(fx - 1, fy - 1, 4, fh + 3, EDGE);
+  r(sx, sy, 2, 3, suit ? 0xe6e6ec : 0x3b6fd6); r(fx, fy, 2, fh + 1, suit ? 0xf2f2f2 : 0x3b6fd6); r(fx, fy, 1, fh + 1, suit ? 0xffffff : 0x7fa8ff);
+  r(fx, fy + fh + 1, 2, 1, suit ? 0x6b6b75 : 0xf0c8a0); // glove / hand
+}
+
+/** Texture prefix per skin: suit → "astro_…", plain → "plain_…" (idle0-1, walk0-7, run0-7 each). */
+export const ASTRO_PREFIX: Record<AstroSkin, string> = { suit: "astro", plain: "plain" };
+
+function makeAstronaut(scene: Phaser.Scene) {
+  for (const skin of ["suit", "plain"] as const) {
+    const pre = ASTRO_PREFIX[skin];
+    for (let i = 0; i < 2; i++) tex(scene, `${pre}_idle${i}`, 10, 12, (g, r) => drawAstro(g, r, astroPose("idle", i), skin));
+    for (const kind of ["walk", "run"] as const)
+      for (let i = 0; i < ASTRO_FRAMES; i++) tex(scene, `${pre}_${kind}${i}`, 10, 12, (g, r) => drawAstro(g, r, astroPose(kind, i), skin));
+  }
+  tex(scene, "astro", 10, 12, (g, r) => drawAstro(g, r, astroPose("idle", 0))); // default frame
+}
+
+/** Rocket, tanks, ground shadow and dust puff — separate sprites so the astronaut can walk behind them. */
+function makeStructures(scene: Phaser.Scene) {
+  const T = PAL;
+  // Rocket: 40x78 world px (80x156 HD). Body x 25..55, nose to y 0, fins and nozzle at the bottom.
+  tex(scene, "rocket", 40, 78, (g, r) => {
+    for (const s of [1, -1]) { // fins behind the body
+      const fx = (x: number) => 40 + s * (x - 40);
+      g.fillStyle(OUT).fillPoints(toPts([fx(26), 108, fx(26), 148, fx(4), 152, fx(8), 128], 1.2), true);
+      g.fillStyle(T.red).fillPoints(toPts([fx(26), 108, fx(26), 148, fx(4), 152, fx(8), 128], 0), true);
+      g.fillStyle(0xff7a6a).fillPoints(toPts([fx(25), 112, fx(25), 124, fx(12), 130], 0), true);
+    }
+    block(r, 32, 146, 16, 8, 0x6b6b75, 0x9a9aa3, 0x45454f); // nozzle
+    block(r, 25, 32, 30, 115, 0xe6e6ec, 0xffffff, 0xa9a9b3); // body
+    r(46, 33, 8, 113, 0xc9c9d2); r(27, 33, 2, 113, 0xffffff);
+    g.fillStyle(OUT).fillTriangle(40, 0, 23, 33, 57, 33); // nose cone
+    g.fillStyle(0xf2f2f2).fillTriangle(40, 2, 25, 32, 55, 32);
+    g.fillStyle(0xc9c9d2).fillTriangle(40, 2, 40, 32, 55, 32);
+    g.fillStyle(T.red).fillTriangle(40, 2, 35, 13, 45, 13);
+    g.fillStyle(OUT).fillCircle(40, 58, 7.5); g.fillStyle(0x1d3f8a).fillCircle(40, 58, 6); g.fillStyle(0x3b6fd6).fillCircle(39, 57, 4); r(36, 54, 3, 2, 0xbfd8ff); // porthole
+    r(25, 80, 30, 6, T.red); r(25, 80, 30, 1, 0xff7a6a); r(46, 80, 8, 6, 0xa02a2a); // band
+    for (const y of [96, 110, 124, 138]) r(26, y, 28, 1, 0xa9a9b3); // panel seams
+    r(38, 90, 4, 3, T.gold); // flag decal
+  });
+  for (const [key, band] of [["tank_lh2", T.suitL], ["tank_lox", T.ice]] as const) {
+    tex(scene, key, 10, 30, (_g, r) => {
+      block(r, 6, 1, 8, 5, 0x9a9aa3, 0xc9c9cf, 0x6b6b75); // valve cap
+      block(r, 1, 5, 18, 51, 0x6b6b75, 0x9a9aa3, 0x45454f);
+      r(14, 6, 4, 49, 0x55555f); r(3, 6, 1, 49, 0xb0b0ba);
+      r(2, 16, 16, 6, band); r(3, 16, 6, 1, 0xffffff); r(13, 16, 5, 6, 0x5a8fd0, 0.5); // frost band
+      r(2, 38, 16, 1, 0x45454f); // weld seam
+      r(2, 56, 4, 4, OUT); r(14, 56, 4, 4, OUT); r(3, 56, 2, 3, 0x6b6b75); r(15, 56, 2, 3, 0x6b6b75); // legs
+    });
+  }
+  tex(scene, "shadow", 32, 8, (g) => { g.fillStyle(0x000000, 0.32).fillEllipse(32, 8, 64, 16); g.fillStyle(0x000000, 0.18).fillEllipse(32, 8, 44, 10); });
+  tex(scene, "dust", 4, 3, (g) => { g.fillStyle(0x9a9aa3, 0.85).fillEllipse(4, 3, 8, 5); g.fillStyle(0xc9c9cf, 0.7).fillEllipse(3, 2, 4, 2); });
+}
+
+/**
+ * One small texture per inventory item ("item_<key>"), for stacks thrown on the ground.
+ * Each 8×8 icon pixel is one world pixel, with a dark outline so it reads on any floor.
+ */
+export function makeItemTextures(scene: Phaser.Scene) {
+  for (const [key, it] of Object.entries(ITEMS)) {
+    const opaque = (x: number, y: number) => it.colors[it.icon[y]?.[x] ?? "."] !== undefined;
+    tex(scene, `item_${key}`, 10, 10, (_g, r) => {
+      const px = (x: number, y: number, c: number) => r(2 + x * HD, 2 + y * HD, HD, HD, c);
+      for (let y = -1; y <= 8; y++) for (let x = -1; x <= 8; x++) {
+        if (opaque(x, y)) continue;
+        if (opaque(x - 1, y) || opaque(x + 1, y) || opaque(x, y - 1) || opaque(x, y + 1)) r(2 + x * HD, 2 + y * HD, HD, HD, OUT);
+      }
+      for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if (opaque(x, y)) px(x, y, it.colors[it.icon[y]![x]!]!);
+    });
+  }
 }
 
 /** Flat [x0,y0,x1,y1,...] → points, optionally grown by `grow` px from the centroid (for outlines). */

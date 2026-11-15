@@ -102,6 +102,54 @@
   "nota": "Used in the in-game Archive and ARIA's dialogs. Summaries simplified; check NASA and each agency for details. To do: cite exact pages."
  },
  {
+  "titulo": "NASA Mercury, Gemini and Apollo mission records (Friendship 7, Gemini 8, Apollo 1, 8, 11, 13 and 17)",
+  "tipo": "EXTERNAL",
+  "url": "",
+  "nota": "Dates, crews and what happened, from NASA's history office and mission pages. Used in the NASA Mission Archive."
+ },
+ {
+  "titulo": "NASA Skylab and Hubble Space Telescope servicing history",
+  "tipo": "EXTERNAL",
+  "url": "",
+  "nota": "Skylab's launch damage and repair (1973) and Hubble's mirror flaw and its 1993 correction."
+ },
+ {
+  "titulo": "Space Shuttle accident investigation reports: Challenger (STS-51-L, 1986) and Columbia (STS-107, 2003)",
+  "tipo": "EXTERNAL",
+  "url": "",
+  "nota": "Causes, crew lists and lessons learned, from the Rogers Commission and the Columbia Accident Investigation Board."
+ },
+ {
+  "titulo": "Mars Climate Orbiter Mishap Investigation Board report (1999)",
+  "tipo": "EXTERNAL",
+  "url": "",
+  "nota": "The units mix-up (pound-force seconds vs newton-seconds)."
+ },
+ {
+  "titulo": "NASA LCROSS and Lunar Reconnaissance Orbiter (2009)",
+  "tipo": "EXTERNAL",
+  "url": "",
+  "nota": "Water ice detected in Cabeus crater near the lunar south pole."
+ },
+ {
+  "titulo": "NASA Perseverance, MOXIE and Ingenuity (Mars 2020)",
+  "tipo": "EXTERNAL",
+  "url": "",
+  "nota": "Oxygen made from Martian air and the first powered flight on another planet."
+ },
+ {
+  "titulo": "NASA Artemis I (2022) and the International Space Station",
+  "tipo": "EXTERNAL",
+  "url": "",
+  "nota": "Artemis I test flight and the ISS water recycling system."
+ },
+ {
+  "titulo": "Mission SELENE-7 and its crew: Commander Alex Rivera, Jonas Weber, Dr. Aiko Tanaka, Flight Director Ana Ortega",
+  "tipo": "FICTION",
+  "url": "",
+  "nota": "Made up for the game. Any resemblance to real people is a coincidence; the real astronauts are in the Archive."
+ },
+ {
   "titulo": "Aliens, ARIA and the story, crafting recipes, capsules, scrap and compressed time",
   "tipo": "FICTION",
   "url": "",

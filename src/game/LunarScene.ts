@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { PAL } from "./palette";
 import { sim, useGame, saveGame } from "./store";
-import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, TIPOS, PLACEABLE, leakAllowed, toolInfo, meltIce, WATER_TANK_KG, nextLeakDelay, pickUpDrop, toggleSuit, WORLD, ZONAS, zoneAt, zoneBlock, reveal, BRIDGE, buildBridge, canUpgrade, upgradeCost, upgradeModule, lvl, type Zona, type LeakTarget, type Module, type ModType } from "./sim";
+import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, dropItem, TIPOS, PLACEABLE, leakAllowed, toolInfo, meltIce, WATER_TANK_KG, nextLeakDelay, pickUpDrop, toggleSuit, WORLD, ZONAS, zoneAt, zoneBlock, reveal, BRIDGE, buildBridge, canUpgrade, upgradeCost, upgradeModule, lvl, type Zona, type LeakTarget, type Module, type ModType } from "./sim";
 import { sfx } from "./audio";
 import { stepAliens, hitAlien, type World } from "./aliens";
 import { stepCountdown } from "./mission";
@@ -12,27 +12,44 @@ import { initCapsules, nearestCapsule, openCapsule } from "./loot";
 import { stepQuests } from "./quests";
 import { stepTutorial, tutorialWantsLeak, TUTORIAL } from "./tutorial";
 import { ITEMS } from "./items";
+import { feetBox, footprint, groundLine, moveWithCollision, overlaps, sortDepth, PLAYER_FOOT_Y, type Box } from "./solids";
+import { FONT_KEY, registerPixelFont, toFont } from "./pixelfont";
+import { WALK_SPEED, RUN_MULT, RUN_FATIGUE_S, runState, strideFrame } from "./movement";
 import { makeSprites, HD } from "./sprites";
 import { SUBZONAS, stepHive, hitHive, stepBosses, hitBoss, checkSubzoneVisit } from "./zones";
+import { twinkle, bobOffset, beamStrips, ringPhase, edgeMarker } from "./pickups";
+import { canMine } from "./tools";
+import { view } from "./view";
 
 const W = 640, H = 360; // landing site (night aliens, events and capsules stay here)
 const WW = WORLD.w, WH = WORLD.h; // whole explorable world
+const isStation = (m: Module) => m.tipo === "taller" || m.tipo === "horno";
 const HAB = { x: 110, y: 170 } /* matches habitat in modulos.json */, ROCKET = { x: 540, y: 150 };
 const SHADOW = { x: 330, y: 270, rx: 120, ry: 60 };
 type NodeType = "hielo" | "regolito" | "chatarra" | "cristal_hielo" | "titanio" | "aleacion" | "alga_lunar";
 const NODE_TEX: Record<NodeType, string> = { hielo: "ice", regolito: "reg", chatarra: "scrap", cristal_hielo: "n_cristal", titanio: "n_titanio", aleacion: "n_aleacion", alga_lunar: "n_aleacion" };
 interface RNode { type: NodeType; amount: number; spr: Phaser.GameObjects.Image; zone?: string | undefined }
+/** Glow colour under each kind of resource lying on the ground. */
+const NODE_GLOW: Record<NodeType, number> = { hielo: PAL.ice, cristal_hielo: PAL.ice, regolito: PAL.moon4, chatarra: PAL.alert, titanio: 0xd8e0ea, aleacion: PAL.ok, alga_lunar: PAL.ok };
 
-const isStation = (m: Module) => m.tipo === "taller" || m.tipo === "horno";
+/** Static solids that are not modules: the rocket and its two tanks (sprite size + centre). */
+const STATIC_SPRITES = [
+  { key: "rocket", x: ROCKET.x, y: ROCKET.y - 13, w: 40, h: 78, foot: { x: ROCKET.x - 10, y: ROCKET.y + 6, w: 20, h: 16 } },
+  { key: "tank_lh2", x: ROCKET.x - 25, y: ROCKET.y + 5, w: 10, h: 30 },
+  { key: "tank_lox", x: ROCKET.x + 25, y: ROCKET.y + 5, w: 10, h: 30 },
+] as const;
 
 export class LunarScene extends Phaser.Scene {
   player!: Phaser.GameObjects.Image;
-  keys!: Record<"W" | "A" | "S" | "D" | "UP" | "DOWN" | "LEFT" | "RIGHT" | "E", Phaser.Input.Keyboard.Key>;
+  keys!: Record<"W" | "A" | "S" | "D" | "UP" | "DOWN" | "LEFT" | "RIGHT" | "E" | "SHIFT" | "SPACE" | "G", Phaser.Input.Keyboard.Key>;
   nodes: RNode[] = [];
   leakSprites = new Map<number, Phaser.GameObjects.Image>();
   alienSprites = new Map<number, Phaser.GameObjects.Image>();
   capSprites = new Map<number, Phaser.GameObjects.Image>();
   dropSprites = new Map<number, Phaser.GameObjects.Image>();
+  dropLabels = new Map<number, Phaser.GameObjects.BitmapText>();
+  dropText0 = new Map<number, string>();
+  pickFx!: Phaser.GameObjects.Graphics;
   hiveSprites = new Map<number, Phaser.GameObjects.Image>();
   bossSprites = new Map<string, Phaser.GameObjects.Image>();
   androidSprites = new Map<number, Phaser.GameObjects.Image>();
@@ -44,25 +61,29 @@ export class LunarScene extends Phaser.Scene {
   ring!: Phaser.GameObjects.Graphics;
   night!: Phaser.GameObjects.Rectangle;
   preview!: Phaser.GameObjects.Graphics;
-  modSprites = new Map<number, { img: Phaser.GameObjects.Image; warn: Phaser.GameObjects.Text; up: Phaser.GameObjects.Text; glow: Phaser.GameObjects.Image | undefined }>();
+  modSprites = new Map<number, { img: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Image; warn: Phaser.GameObjects.BitmapText; up: Phaser.GameObjects.BitmapText; glow: Phaser.GameObjects.Image | undefined }>();
   buildValid = false;
-  prompt!: Phaser.GameObjects.Text;
+  prompt!: Phaser.GameObjects.BitmapText;
+  promptBg!: Phaser.GameObjects.Rectangle;
+  animT = 0; dustT = 0; winded = false; wantsRun = false;
   touchMode = false;
   pubT = 0; saveT = 0; repairT = 0; leakT = 0; useCd = 0; facing = 1;
   constructor() { super("lunar"); }
 
   create() {
     const T = PAL;
+    // HD pixel art (sprites.ts): every texture is drawn at HD× and shown at 1/HD scale; the camera zooms HD×.
     makeSprites(this);
+    registerPixelFont(Phaser, this);
     const lg = this.add.graphics();
     for (let r = 48; r > 0; r -= 4) { lg.fillStyle(0xffffff, 0.08); lg.fillCircle(48, 48, r); }
     lg.generateTexture("glow", 96, 96); lg.destroy();
 
-    // terrain
+    // terrain: fine grain, pebbles with a lit top, craters with lit rims and inner shadow
     const g = this.add.graphics();
     g.fillStyle(T.moon1).fillRect(0, 0, W, H);
     for (let i = 0; i < 1400; i++) { g.fillStyle(Phaser.Math.RND.pick([T.moon0, T.moon2, 0x55555f, 0x3a3a44])); g.fillRect(Phaser.Math.Between(0, W * 2) / 2, Phaser.Math.Between(0, H * 2) / 2, Phaser.Math.RND.pick([0.5, 1, 1.5]), 0.5); }
-    for (let i = 0; i < 70; i++) { // pebbles with a lit top
+    for (let i = 0; i < 70; i++) {
       const x = Phaser.Math.Between(4, W - 4), y = Phaser.Math.Between(4, H - 4), s = Phaser.Math.RND.pick([1, 1.5, 2]);
       g.fillStyle(0x14141c).fillEllipse(x, y + 0.5, s * 2 + 1, s + 1); g.fillStyle(T.moon2).fillEllipse(x, y, s * 2, s); g.fillStyle(T.moon3).fillRect(x - s / 2, y - s / 2, s / 2, 0.5);
     }
@@ -78,23 +99,16 @@ export class LunarScene extends Phaser.Scene {
     g.fillStyle(0x0b0b18).fillEllipse(SHADOW.x + 6, SHADOW.y + 4, SHADOW.rx * 1.6, SHADOW.ry * 1.5);
     g.lineStyle(1, T.moon3, 0.5).strokeEllipse(SHADOW.x, SHADOW.y - 1, SHADOW.rx * 2 + 14, SHADOW.ry * 2 + 8);
     this.drawZones(g);
-    this.add.text(SHADOW.x - 46, SHADOW.y - 8, "SHADOWED CRATER", { fontFamily: '"Press Start 2P"', resolution: HD * 2, fontSize: "6px", color: "#45454f" });
+    this.label(SHADOW.x, SHADOW.y - 3, "SHADOWED CRATER", PAL.moon2, 1);
 
-    // rocket
-    g.fillStyle(T.moon4).fillRect(ROCKET.x - 8, ROCKET.y - 36, 16, 56); g.fillStyle(T.white).fillTriangle(ROCKET.x - 8, ROCKET.y - 36, ROCKET.x + 8, ROCKET.y - 36, ROCKET.x, ROCKET.y - 52);
-    g.fillStyle(T.suit).fillCircle(ROCKET.x, ROCKET.y - 22, 4); g.fillStyle(T.red).fillTriangle(ROCKET.x - 8, ROCKET.y + 4, ROCKET.x - 8, ROCKET.y + 20, ROCKET.x - 18, ROCKET.y + 22);
-    g.fillStyle(T.red).fillTriangle(ROCKET.x + 8, ROCKET.y + 4, ROCKET.x + 8, ROCKET.y + 20, ROCKET.x + 18, ROCKET.y + 22);
-    g.fillStyle(T.moon2).fillRect(ROCKET.x - 4, ROCKET.y + 20, 8, 4); g.fillStyle(T.moon0).fillRect(ROCKET.x - 6, ROCKET.y - 6, 12, 3);
-    g.fillStyle(T.moon0).fillRect(ROCKET.x + 20, ROCKET.y - 10, 10, 30); g.fillStyle(T.moon0).fillRect(ROCKET.x - 30, ROCKET.y - 10, 10, 30);
-    g.lineStyle(1, 0x14141c).strokeRect(ROCKET.x - 8, ROCKET.y - 36, 16, 56);
-    g.fillStyle(0xa9a9b3).fillRect(ROCKET.x + 3, ROCKET.y - 36, 5, 56);        // body shading
-    g.fillStyle(0xffffff, 0.8).fillRect(ROCKET.x - 7, ROCKET.y - 35, 1.5, 54);  // highlight
-    for (const dy of [-28, -12, 8]) g.fillStyle(0x6b6b75).fillRect(ROCKET.x - 8, ROCKET.y + dy, 16, 0.5); // panel lines
-    g.lineStyle(1, 0x14141c).strokeCircle(ROCKET.x, ROCKET.y - 22, 4); g.fillStyle(0xbfd8ff).fillRect(ROCKET.x - 2, ROCKET.y - 24, 1.5, 1.5);
-    for (const sx of [-30, 20]) { g.lineStyle(1, 0x14141c).strokeRect(ROCKET.x + sx, ROCKET.y - 10, 10, 30); g.fillStyle(0x45454f).fillRect(ROCKET.x + sx + 1, ROCKET.y - 9, 2, 28); g.fillStyle(T.ice, 0.5).fillRect(ROCKET.x + sx + 4, ROCKET.y - 6, 3, 1); }
-    const lbl = { fontFamily: '"Press Start 2P"', resolution: HD * 2, fontSize: "5px", color: "#c9c9cf", stroke: "#14141c", strokeThickness: 1 };
-    this.add.text(ROCKET.x - 16, ROCKET.y + 28, "ROCKET", lbl);
-    this.add.text(ROCKET.x + 18, ROCKET.y + 22, "LOX", lbl); this.add.text(ROCKET.x - 32, ROCKET.y + 22, "LH2", lbl);
+    // rocket and tanks: separate sprites so the astronaut can walk behind them (depth sorted by their base)
+    for (const s of STATIC_SPRITES) {
+      this.add.image(s.x, s.y + s.h / 2, "shadow").setDisplaySize(s.w + 6, 8).setDepth(5.5);
+      this.add.image(s.x, s.y, s.key).setScale(1 / HD).setDepth(sortDepth(groundLine(s.y, s.h), H));
+    }
+    this.label(ROCKET.x, ROCKET.y + 29, "ROCKET", PAL.moon4);
+    this.label(ROCKET.x - 25, ROCKET.y + 23, "LH2", PAL.suitL); this.label(ROCKET.x + 25, ROCKET.y + 23, "LOX", PAL.ice);
+    this.label(HAB.x, HAB.y + 17, "HABITAT", PAL.moon4);
 
     // resources
     const k = modeCfg(sim).recursos;
@@ -113,16 +127,19 @@ export class LunarScene extends Phaser.Scene {
     }
 
     this.preview = this.add.graphics().setDepth(35);
-    this.player = this.add.image(HAB.x, HAB.y + 30, "astro").setDepth(10).setScale(1 / HD);
+    this.player = this.add.image(HAB.x, HAB.y + 30, "astro_idle0").setScale(1 / HD).setDepth(10);
     this.ring = this.add.graphics().setDepth(30);
     this.beam = this.add.graphics().setDepth(22);
     this.zone = this.add.graphics().setDepth(24);
+    this.pickFx = this.add.graphics().setDepth(11); // glow, light shafts and pointers for things on the ground
     this.tint = this.add.rectangle(0, 0, W, H, PAL.red, 0).setOrigin(0).setScrollFactor(0).setDepth(26);
     this.night = this.add.rectangle(0, 0, W, H, PAL.black, 0).setOrigin(0).setScrollFactor(0).setDepth(20);
-    this.prompt = this.add.text(0, 0, "", { fontFamily: '"Press Start 2P"', resolution: HD * 2, fontSize: "5px", color: "#f2d24f", backgroundColor: "#0b0b14" }).setDepth(40).setPadding(2);
+    // World text uses the pixel font at HD density (1 font pixel = 1 HD pixel), matching the sprites.
+    this.promptBg = this.add.rectangle(0, 0, 4, 5, 0x0b1230, 0.88).setOrigin(0).setDepth(39).setStrokeStyle(0.5, 0x6f86d6, 0.8).setVisible(false);
+    this.prompt = this.add.bitmapText(0, 0, FONT_KEY, "").setScale(1 / HD).setTint(PAL.gold).setDepth(40).setVisible(false);
 
-    this.cameras.main.setBounds(0, 0, WW, WH).startFollow(this.player, true, 0.15, 0.15).setRoundPixels(true).setZoom(HD);
-    this.keys = this.input.keyboard!.addKeys("W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE,ONE,TWO,THREE,FOUR,FIVE,C,Q") as LunarScene["keys"];
+    this.cameras.main.setBounds(0, 0, WW, WH).startFollow(this.player, true, 0.15, 0.15).setRoundPixels(true).setZoom(HD * view.zoom);
+    this.keys = this.input.keyboard!.addKeys("W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SHIFT,SPACE,ONE,TWO,THREE,FOUR,FIVE,C,Q,G") as LunarScene["keys"];
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
       const w = p.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
       if (sim.buildMode) { this.place(p.wasTouch ? { x: w.x, y: w.y } : undefined); return; }
@@ -138,6 +155,7 @@ export class LunarScene extends Phaser.Scene {
     this.input.keyboard!.on("keydown-SPACE", () => (sim.buildMode ? this.place() : this.useTool()));
     this.input.keyboard!.on("keydown-E", () => this.interact());
     this.input.keyboard!.on("keydown-V", () => this.suitToggle());
+    this.input.keyboard!.on("keydown-G", (e: KeyboardEvent) => this.dropHeld(e.shiftKey)); // G: drop 1 · Shift+G: drop the stack
     const t = (f: () => void) => () => { this.touchMode = true; f(); };
     touch.act = { use: t(() => (sim.buildMode ? this.place() : this.useTool())), interact: t(() => this.interact()), build: t(() => this.toggleBuild()), cycle: t(() => this.cycleBuild()), suit: t(() => this.suitToggle()) };
     this.events.once("shutdown", () => { touch.act = { use: () => {}, interact: () => {}, build: () => {}, cycle: () => {}, suit: () => {} }; });
@@ -203,7 +221,7 @@ export class LunarScene extends Phaser.Scene {
         g.fillStyle(0x14141c).fillEllipse(px, py, 9, 11); g.fillStyle(0x6a3a7a).fillEllipse(px, py, 7, 9); g.fillStyle(0x4fc26a, 0.6).fillEllipse(px - 1, py - 1, 3, 4);
       }
       g.lineStyle(1, 0x000000, 0.35).strokeRect(x, y, w, h);
-      this.add.text(x + 10, y + 8, z.nombre.toUpperCase(), { fontFamily: '"Press Start 2P"', resolution: HD * 2, fontSize: "7px", color: z.id === "ice" ? "#cfe9ff" : z.id === "fire" ? "#ffd0a0" : "#d8b0ff", stroke: "#14141c", strokeThickness: 2 }).setDepth(3);
+      this.add.bitmapText(x + 10, y + 8, FONT_KEY, toFont(z.nombre)).setScale(1.5).setTint(z.id === "ice" ? 0xcfe9ff : z.id === "fire" ? 0xffd0a0 : 0xd8b0ff).setDepth(3);
     }
     // Ravine around the Hive (the bridge crosses it at BRIDGE).
     g.fillStyle(0x07070c).fillRect(640, 356, 640, 8).fillRect(636, 360, 8, 360);
@@ -217,7 +235,8 @@ export class LunarScene extends Phaser.Scene {
 
   spawnLeak(forced?: LeakTarget) {
     const target: LeakTarget = forced ?? Phaser.Math.RND.pick(["habitat", "habitat", "lh2", "lox"]);
-    const base = target === "habitat" ? { x: HAB.x + Phaser.Math.Between(-20, 20), y: HAB.y - 10 } : target === "lh2" ? { x: ROCKET.x - 25, y: ROCKET.y } : { x: ROCKET.x + 25, y: ROCKET.y };
+    // Leaks sit on the front wall of solid structures so they can be reached from the front or the back.
+    const base = target === "habitat" ? { x: HAB.x + Phaser.Math.Between(-20, 20), y: HAB.y + 8 } : target === "lh2" ? { x: ROCKET.x - 25, y: ROCKET.y + 10 } : { x: ROCKET.x + 25, y: ROCKET.y + 10 };
     const l = { id: sim.nextLeakId++, target, x: base.x, y: base.y, size: 1, progress: 0, age: 0 };
     sim.leaks.push(l); this.addLeakSprite(l.id, l.x, l.y);
     sim.leakFreeNight = isDay(sim) ? sim.leakFreeNight : false;
@@ -233,16 +252,140 @@ export class LunarScene extends Phaser.Scene {
   nearestLeak() {
     return sim.leaks.find((l) => Phaser.Math.Distance.Between(l.x, l.y, this.player.x, this.player.y) < 16);
   }
+  /** Everything the astronaut bumps into: the rocket, its tanks and every built module. */
+  solids(): Box[] {
+    const out: Box[] = STATIC_SPRITES.map((s) => ("foot" in s ? s.foot : footprint(s.x, s.y, s.w, s.h)));
+    for (const m of sim.modules) { const t = TIPOS[m.tipo]; out.push(footprint(m.x, m.y, t.w, t.h)); }
+    return out;
+  }
   suitToggle() {
     if (useGame.getState().overlay || sim.dead) return;
     const msg = toggleSuit(sim, this.nearHab());
     toast(sim, `🧑‍🚀 ${msg}`, 3); sfx.click(); useGame.getState().publish();
   }
   nearestDrop() { return sim.drops.find((d) => Phaser.Math.Distance.Between(d.x, d.y, this.player.x, this.player.y) < 18); }
+  /** Thrown stacks name their contents; the bag you leave when you die is a big "LOST ITEMS" beacon. */
+  dropText(d: { items: Record<string, number>; kind?: "thrown" }) {
+    if (d.kind !== "thrown") return "LOST ITEMS";
+    return Object.entries(d.items).map(([k, n]) => `${n > 1 ? n + " " : ""}${ITEMS[k]?.nombre ?? k}`).join(", ").toUpperCase().slice(0, 28);
+  }
   syncDrops() {
     const alive = new Set(sim.drops.map((d) => d.id));
-    for (const [id, spr] of this.dropSprites) if (!alive.has(id)) { spr.destroy(); this.dropSprites.delete(id); }
-    for (const d of sim.drops) if (!this.dropSprites.has(d.id)) this.dropSprites.set(d.id, this.add.image(d.x, d.y, "bag").setDepth(5).setScale(1 / HD));
+    for (const [id, spr] of this.dropSprites) if (!alive.has(id)) { spr.destroy(); this.dropSprites.delete(id); this.dropLabels.get(id)?.destroy(); this.dropLabels.delete(id); this.dropText0.delete(id); }
+    const now = this.time.now;
+    for (const d of sim.drops) {
+      let spr = this.dropSprites.get(d.id);
+      const thrown = d.kind === "thrown", txt = this.dropText(d);
+      if (!spr) {
+        spr = this.add.image(d.x, d.y, "bag").setDepth(9).setScale(1 / HD); this.dropSprites.set(d.id, spr);
+        this.dropLabels.set(d.id, this.label(d.x, d.y + 7, txt, thrown ? PAL.white : PAL.gold, 11)); this.dropText0.set(d.id, txt);
+      } else if (this.dropText0.get(d.id) !== txt) { this.dropLabels.get(d.id)?.setText(toFont(txt)); this.dropText0.set(d.id, txt); }
+      const only = Object.keys(d.items);
+      if (thrown && only.length === 1 && this.textures.exists(`item_${only[0]}`)) spr.setTexture(`item_${only[0]}`);
+      else if (thrown) spr.setTexture("bag");
+      const sc = thrown ? 0.8 : 1 + Math.sin(now / 260) * 0.05;
+      spr.setPosition(d.x, d.y + bobOffset(now, d.id, thrown ? 1 : 1.5, 1 / HD)).setScale(sc / HD);
+    }
+  }
+
+  /**
+   * Extra emphasis for everything lying on the ground, drawn on one overlay that is cleared every frame:
+   *  - resources: soft ground glow + a twinkle; the one in reach gets gold brackets and a bouncing arrow
+   *  - supply capsules: a tall pulsing light shaft and a bigger twinkle
+   *  - the bag of lost items: shaft, expanding rings, arrow, and an edge-of-screen pointer when it is off screen
+   */
+  emphasizePickups() {
+    const g = this.pickFx.clear(), now = this.time.now, v = this.cameras.main.worldView;
+    const inView = (x: number, y: number, m = 10) => x > v.x - m && x < v.right + m && y > v.y - m && y < v.bottom + m;
+    const q = 1 / HD; // one HD pixel in world units
+    const star = (x: number, y: number, arm: number, color: number, a: number) => {
+      g.fillStyle(color, a).fillRect(x - arm, y - q / 2, arm * 2, q).fillRect(x - q / 2, y - arm, q, arm * 2);
+      g.fillStyle(0xffffff, a).fillRect(x - q / 2, y - q / 2, q, q);
+    };
+    const arrow = (x: number, y: number, color: number, size: number) => { // downward-pointing marker
+      g.fillStyle(0x0b0b14, 0.9).fillTriangle(x - size - q, y - q, x + size + q, y - q, x, y + size + q * 2);
+      g.fillStyle(color, 1).fillTriangle(x - size, y, x + size, y, x, y + size);
+    };
+    // resources on the ground
+    const reach = this.nearestNode();
+    for (const n of this.nodes) {
+      const { x, y } = n.spr;
+      if (!inView(x, y)) continue;
+      const pulse = 0.5 + 0.5 * Math.sin(now / 520 + x);
+      g.fillStyle(NODE_GLOW[n.type], 0.1 + 0.08 * pulse).fillEllipse(x, y + 1.5, 10, 4.5); // soft glow on the ground
+      const tw = twinkle(now, x * 31 + y);
+      if (tw > 0) star(x + 2.5, y - 2.5, 1 + tw * 1.5, NODE_GLOW[n.type], tw);
+    }
+    const mark = (x: number, y: number) => { // gold corner brackets + a bouncing arrow on whatever you can pick up right now
+      const a = 0.65 + 0.35 * Math.sin(now / 180), r = 4.5, L = 2;
+      g.fillStyle(PAL.gold, a);
+      for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
+        g.fillRect(x + sx * r - (sx > 0 ? L : 0), y + sy * r - (sy > 0 ? q : 0), L, q);
+        g.fillRect(x + sx * r - (sx > 0 ? q : 0), y + sy * r - (sy > 0 ? L : 0), q, L);
+      }
+      arrow(x, y - 9 + bobOffset(now, 0, 1.5, q), PAL.gold, 2);
+    };
+    if (reach) mark(reach.spr.x, reach.spr.y);
+    // stacks you threw on the ground
+    const reachDrop = this.nearestDrop();
+    for (const gi of sim.drops) {
+      if (gi.kind !== "thrown" || !inView(gi.x, gi.y)) continue;
+      g.fillStyle(PAL.gold, 0.1 + 0.08 * (0.5 + 0.5 * Math.sin(now / 480 + gi.id))).fillEllipse(gi.x, gi.y + 3, 11, 4.5);
+      const tw = twinkle(now, gi.id * 7 + 3, 2200, 360);
+      if (tw > 0) star(gi.x + 3.5, gi.y - 3, 1 + tw * 1.4, 0xffffff, tw);
+      if (reachDrop?.id === gi.id) mark(gi.x, gi.y);
+    }
+    // supply capsules
+    for (const c of sim.capsules) {
+      if (!inView(c.x, c.y, 24)) continue;
+      const pulse = 0.5 + 0.5 * Math.sin(now / 340 + c.id);
+      for (const s of beamStrips(c.x, c.y - 6, 26, 7, 0.16 + 0.12 * pulse, 4)) g.fillStyle(PAL.gold, s.a).fillRect(s.x, s.y, s.w, s.h);
+      for (const s of beamStrips(c.x, c.y - 6, 26, 7, 0.32 + 0.2 * pulse, 1.5)) g.fillStyle(0xffffff, s.a).fillRect(s.x, s.y, s.w, s.h);
+      const tw = twinkle(now, c.id * 17 + 5, 2000, 420);
+      if (tw > 0) star(c.x + 4, c.y - 8, 1.5 + tw * 2.5, PAL.gold, tw);
+    }
+    // the bag of lost items
+    for (const d of sim.drops) {
+      if (d.kind === "thrown") { const l = this.dropLabels.get(d.id); if (l) l.setPosition(Math.round(d.x), Math.round(d.y + 7)); continue; }
+      const bx = d.x, by = d.y + 4; // ground contact
+      const m = edgeMarker(v, d, 7);
+      if (m) { // off screen: pulsing pointer on the edge of the view
+        const a = 0.7 + 0.3 * Math.sin(now / 200), ux = Math.cos(m.angle), uy = Math.sin(m.angle), px = -uy, py = ux;
+        g.fillStyle(0x0b0b14, 0.9).fillTriangle(m.x + ux * 6, m.y + uy * 6, m.x - ux * 3 + px * 4.5, m.y - uy * 3 + py * 4.5, m.x - ux * 3 - px * 4.5, m.y - uy * 3 - py * 4.5);
+        g.fillStyle(PAL.gold, a).fillTriangle(m.x + ux * 5, m.y + uy * 5, m.x - ux * 2 + px * 3.5, m.y - uy * 2 + py * 3.5, m.x - ux * 2 - px * 3.5, m.y - uy * 2 - py * 3.5);
+        continue;
+      }
+      for (let i = 0; i < 2; i++) { // rings spreading out on the ground
+        const p = ringPhase(now, i), r = 4 + p * 13;
+        g.lineStyle(q, i ? PAL.gold : PAL.red, (1 - p) * 0.85).strokeEllipse(bx, by, r * 2, r);
+      }
+      g.fillStyle(PAL.red, 0.22).fillEllipse(bx, by, 11, 5); // warm pool under it
+      const pulse = 0.5 + 0.5 * Math.sin(now / 240);
+      for (const s of beamStrips(bx, by - 4, 36, 9, 0.2 + 0.1 * pulse, 6)) g.fillStyle(PAL.red, s.a).fillRect(s.x, s.y, s.w, s.h);
+      for (const s of beamStrips(bx, by - 4, 36, 9, 0.5 + 0.2 * pulse, 2)) g.fillStyle(PAL.gold, s.a).fillRect(s.x, s.y, s.w, s.h);
+      arrow(bx, by - 44 + bobOffset(now, d.id, 2, q), PAL.gold, 3);
+      const tw = twinkle(now, d.id * 13, 1300, 400);
+      if (tw > 0) star(bx + 5, by - 7, 1.5 + tw * 2, PAL.gold, tw);
+      const lbl = this.dropLabels.get(d.id); if (lbl) lbl.setPosition(Math.round(bx), Math.round(by + 3));
+    }
+  }
+  /** Where something you throw lands: just in front of the astronaut. */
+  dropSpot() { return { x: this.player.x + this.facing * 11, y: this.player.y + 3 }; }
+  /** X drops one of the selected hotbar item, Shift+X the whole stack. */
+  dropHeld(all: boolean) {
+    if (useGame.getState().overlay || sim.dead) return;
+    const key = sim.hotbarItems[sim.hotbar - 1];
+    if (!key) { toast(sim, "Select an item on the hotbar (1-5) to drop it", 2.5); return; }
+    if (key === "agua") { toast(sim, "Water lives in the habitat tank: pour it out from the inventory (TAB)", 3); sfx.bad(); return; }
+    const have = (sim.inv as unknown as Record<string, number>)[key] ?? 0;
+    const n = dropItem(sim, key, all ? have : 1, this.dropSpot().x, this.dropSpot().y);
+    if (n > 0) { sfx.click(); toast(sim, `Dropped ${n} ${ITEMS[key]?.nombre ?? key}`, 2); } else sfx.bad();
+    useGame.getState().publish();
+  }
+  /** A small floating number/word that rises and fades (+2 when a tool gives a bonus, etc.). */
+  floatText(x: number, y: number, text: string, color: number) {
+    const t = this.add.bitmapText(Math.round(x), Math.round(y), FONT_KEY, toFont(text)).setOrigin(0.5, 1).setTint(color).setDepth(45);
+    this.tweens.add({ targets: t, y: y - 9, alpha: 0, duration: 800, ease: "Cubic.easeOut", onComplete: () => t.destroy() });
   }
   nearHab() { return Phaser.Math.Distance.Between(HAB.x, HAB.y, this.player.x, this.player.y) < 36; }
   nearModule(pred: (m: Module) => boolean, r = 22) {
@@ -253,15 +396,17 @@ export class LunarScene extends Phaser.Scene {
 
   syncModules(a: number) {
     const alive = new Set(sim.modules.map((m) => m.uid));
-    for (const [uid, sp] of this.modSprites) if (!alive.has(uid)) { sp.img.destroy(); sp.warn.destroy(); sp.up.destroy(); sp.glow?.destroy(); this.modSprites.delete(uid); }
+    for (const [uid, sp] of this.modSprites) if (!alive.has(uid)) { sp.img.destroy(); sp.shadow.destroy(); sp.warn.destroy(); sp.up.destroy(); sp.glow?.destroy(); this.modSprites.delete(uid); }
     for (const m of sim.modules) {
       let sp = this.modSprites.get(m.uid);
       if (!sp) {
-        const img = this.add.image(m.x, m.y, `m_${m.tipo}`).setDepth(6).setScale(1 / HD);
-        const warn = this.add.text(m.x - 3, m.y - TIPOS[m.tipo].h / 2 - 9, "!", { fontFamily: '"Press Start 2P"', resolution: HD * 2, fontSize: "6px", color: "#f08a24" }).setDepth(36);
+        const t = TIPOS[m.tipo];
+        const shadow = this.add.image(m.x, groundLine(m.y, t.h), "shadow").setDisplaySize(t.w + 4, 6).setDepth(5.5);
+        const img = this.add.image(m.x, m.y, `m_${m.tipo}`).setScale(1 / HD).setDepth(sortDepth(groundLine(m.y, t.h), H));
+        const warn = this.add.bitmapText(m.x - 1, m.y - TIPOS[m.tipo].h / 2 - 8, FONT_KEY, "!").setTint(PAL.alert).setDepth(36);
         const glow = m.tipo === "habitat" || m.tipo === "torre_luz" ? this.add.image(m.x, m.y, "glow").setScale(m.tipo === "habitat" ? 1.6 : 1.3).setDepth(21).setBlendMode(Phaser.BlendModes.ADD) : undefined;
-        const up = this.add.text(m.x + TIPOS[m.tipo].w / 2 - 4, m.y - TIPOS[m.tipo].h / 2 - 10, "⬆", { fontFamily: "sans-serif", resolution: HD * 2, fontSize: "9px", color: "#4fc26a", stroke: "#14141c", strokeThickness: 2 }).setDepth(36);
-        sp = { img, warn, up, glow }; this.modSprites.set(m.uid, sp);
+        const up = this.add.bitmapText(m.x + TIPOS[m.tipo].w / 2 - 3, m.y - TIPOS[m.tipo].h / 2 - 9, FONT_KEY, "^").setScale(1.5).setTint(PAL.ok).setDepth(36);
+        sp = { img, shadow, warn, up, glow }; this.modSprites.set(m.uid, sp);
       }
       const on = m.activo && m.durabilidad > 0;
       sp.img.setAlpha(on ? 1 : 0.45);
@@ -295,6 +440,7 @@ export class LunarScene extends Phaser.Scene {
     if (x - t.w / 2 < 2 || y - t.h / 2 < 2 || x + t.w / 2 > W - 2 || y + t.h / 2 > H - 2) return false;
     if (Math.abs(x - ROCKET.x) < 36 && Math.abs(y - ROCKET.y) < 60) return false;
     if (!!t.en_crater !== this.inShadowAt(x, y)) return false;
+    if (overlaps(footprint(x, y, t.w, t.h), feetBox(this.player.x, this.player.y))) return false; // never build on the astronaut
     return sim.modules.every((m) => { const o = TIPOS[m.tipo]; return Math.abs(m.x - x) * 2 >= o.w + t.w + 4 || Math.abs(m.y - y) * 2 >= o.h + t.h + 4; });
   }
   /** Where a module would go: under the mouse, or in front of the astronaut on touch screens. */
@@ -327,18 +473,25 @@ export class LunarScene extends Phaser.Scene {
     }
     const n = this.nearestNode();
     if (!n) return;
+    // Tool tiers: some resources can only be mined with a shovel (Better shovel → Titanium shovel).
+    const gate = canMine(sim.inv, n.type);
+    if (!gate.ok) {
+      this.useCd = 0.8; sfx.bad();
+      toast(sim, `⛏ ${ITEMS[n.type]?.nombre ?? n.type} needs a ${gate.need}: craft one at the Workshop`, 3.5);
+      return;
+    }
     const tool = toolInfo(sim);
     this.useCd = tool.cd * effectMods(sim).gather;
     let got = 0;
     for (let i = 0; i < Math.min(tool.yield, n.amount); i++) { if (!addItem(sim, n.type, 1)) break; got++; }
-    if (!got) { this.say("INVENTORY FULL: DROP ITEMS OR USE A CHEST"); sfx.bad(); return; }
+    if (!got) { this.say("INVENTORY FULL: DROP ITEMS OR USE A CHEST"); sfx.bad(); this.useCd = 0.6; return; }
     if (n.type === "hielo") {
       sim.stats.hielo += got;
       if (sim.inv.agua < 5 && sim.stats.hielo <= 3) toast(sim, "🧊 Ice gathered! Take it to the Habitat and press E to melt it into Water.", 5);
     }
     sim.fatigue = Math.min(100, sim.fatigue + 0.6);
     n.amount -= got; sfx.pick();
-    this.floatText(n.spr.x, n.spr.y - 6, `+${got} ${ITEMS[n.type]?.nombre ?? n.type}`, "rgba(255,255,255,0.78)");
+    this.floatText(n.spr.x, n.spr.y - 4, `+${got}`, got > 1 ? PAL.gold : PAL.white);
     this.tweens.add({ targets: n.spr, y: n.spr.y - 2, yoyo: true, duration: 60 });
     if (n.amount <= 0) { n.spr.destroy(); this.nodes = this.nodes.filter((x) => x !== n); this.time.delayedCall(40000, () => this.spawnNode(n.type, n.zone)); }
   }
@@ -362,7 +515,7 @@ export class LunarScene extends Phaser.Scene {
     const upg = this.nearModule((m) => !isStation(m) && canUpgrade(sim, m), 20);
     if (upg && !(upg.tipo === "habitat" && sim.inv.hielo > 0)) { upgradeModule(sim, upg); sfx.ok(); toast(sim, `⬆ ${TIPOS[upg.tipo].nombre} → level ${lvl(upg)}`, 3); return; }
     const bag = this.nearestDrop();
-    if (bag) { pickUpDrop(sim, bag.id); sfx.ok(); toast(sim, "🎒 You picked up your lost items", 3); return; }
+    if (bag) { const ok = pickUpDrop(sim, bag.id); if (ok) sfx.ok(); else sfx.bad(); toast(sim, ok ? (bag.kind === "thrown" ? "🎒 Picked up" : "🎒 You picked up your lost items") : "Inventory full: some items are still on the ground", 3); useGame.getState().publish(); return; }
     const cap = nearestCapsule(sim, this.player.x, this.player.y);
     if (cap) {
       const found = openCapsule(sim, cap.id, () => Math.random());
@@ -371,11 +524,14 @@ export class LunarScene extends Phaser.Scene {
       return;
     }
     if (this.nearHab() && sim.inv.hielo > 0) {
-      const w = meltIce(sim);
-      if (w > 0) { addLog(sim, `You melted ice: +${w} kg into the habitat water tank (${Math.round(sim.inv.agua)}/${WATER_TANK_KG} kg).`); sfx.ok(); }
-      else { toast(sim, "💧 The water tank is full: run the electrolysis plant to use it", 4); sfx.bad(); }
+      const w = meltIce(sim); // water goes to the habitat tank, which has a cap
+      if (w > 0) { addLog(sim, `You melted ice: +${w} kg into the habitat water tank (${Math.round(sim.inv.agua)}/${WATER_TANK_KG} kg).`); sfx.ok(); toast(sim, `💧 +${w} kg water (tank ${Math.round(sim.inv.agua)}/${WATER_TANK_KG})`, 3); }
+      else { toast(sim, "💧 Water tank full: drink, make medkits, run electrolysis, or pour some out (TAB)", 5); sfx.bad(); }
     } else if (Phaser.Math.Distance.Between(ROCKET.x, ROCKET.y, this.player.x, this.player.y) < 36) {
       useGame.getState().setOverlay("cohete");
+    } else if (this.nearModule((m) => m.tipo === "cofre", 24)) {
+      const chest = this.nearModule((m) => m.tipo === "cofre", 24)!;
+      sim.chestUid = chest.uid; sfx.click(); useGame.getState().publish(); useGame.getState().setOverlay("cofre");
     } else {
       // Crafting stations open their own interface (unless they need a repair: hold E for that).
       const chest = this.nearModule((m) => m.tipo === "cofre", 20);
@@ -387,23 +543,35 @@ export class LunarScene extends Phaser.Scene {
 
   override update(_t: number, ms: number) {
     const dt = Math.min(0.1, ms / 1000);
+    const wantZoom = HD * view.zoom; // the player can zoom in or out from the pause menu
+    if (Math.abs(this.cameras.main.zoom - wantZoom) > 0.001) this.cameras.main.setZoom(wantZoom);
     const overlay = useGame.getState().overlay;
     if (sim.respawned) { sim.respawned = false; this.player.setPosition(HAB.x, HAB.y + 30); }
     if (overlay || sim.dead) return;
     const k = this.keys;
-    const sp = 60 * effectMods(sim).speed;
     let vx = 0, vy = 0;
     if (k.A.isDown || k.LEFT.isDown) vx -= 1; if (k.D.isDown || k.RIGHT.isDown) vx += 1;
     if (k.W.isDown || k.UP.isDown) vy -= 1; if (k.S.isDown || k.DOWN.isDown) vy += 1;
     let len = Math.hypot(vx, vy) || 1;
     if (!vx && !vy && (touch.vx || touch.vy)) { vx = touch.vx; vy = touch.vy; len = 1; } // analog joystick
+    // Run: hold Shift (keyboard) or toggle RUN (touch). Costs stamina; when winded you can only walk.
+    const wantsMove = !!(vx || vy);
+    this.wantsRun = k.SHIFT.isDown || touch.run;
+    const rs = runState(sim.fatigue, wantsMove && this.wantsRun, this.winded);
+    this.winded = rs.winded;
+    if (rs.running) sim.fatigue = Math.min(100, sim.fatigue + RUN_FATIGUE_S * dt);
+    const sp = WALK_SPEED * effectMods(sim).speed * (rs.running ? RUN_MULT : 1);
     const ox = this.player.x, oy = this.player.y;
-    this.player.x = Phaser.Math.Clamp(this.player.x + (vx / len) * sp * dt, 4, WW - 4);
-    this.player.y = Phaser.Math.Clamp(this.player.y + (vy / len) * sp * dt, 4, WH - 4);
-    this.checkZone(ox, oy, dt);
+    const moved = moveWithCollision(this.player.x, this.player.y, (vx / len) * sp * dt, (vy / len) * sp * dt, this.solids(), { minX: 5, minY: 6, maxX: WW - 5, maxY: WH - 7 });
+    this.player.setPosition(moved.x, moved.y);
+    this.checkZone(ox, oy, dt); // may push the astronaut back when a zone isn't open yet
+    this.player.setDepth(sortDepth(this.player.y + PLAYER_FOOT_Y, H));
+    this.animatePlayer(dt, this.player.x !== ox || this.player.y !== oy, rs.running);
     sim.tut.moved += Math.hypot(this.player.x - ox, this.player.y - oy);
     if (vx) { this.facing = Math.sign(vx); this.player.setFlipX(vx < 0); }
     this.useCd = Math.max(0, this.useCd - dt);
+    const mouseHeld = this.input.activePointer.isDown && !this.input.activePointer.wasTouch;
+    if ((k.SPACE.isDown || touch.useHeld || mouseHeld) && !sim.buildMode) this.useTool();
 
     const inShadow = ((this.player.x - SHADOW.x) / SHADOW.rx) ** 2 + ((this.player.y - SHADOW.y) / SHADOW.ry) ** 2 < 1;
     const zone = zoneAt(this.player.x, this.player.y);
@@ -470,19 +638,21 @@ export class LunarScene extends Phaser.Scene {
     if (leak) this.say(sim.inv.kits > 0 ? `HOLD E: SEAL LEAK (1 KIT · ${sim.inv.kits} LEFT)` : "NEED 1 SEALANT KIT (CRAFT IN TAB: 2 SCRAP + 1 METAL)");
     else if (sim.specialCase && Phaser.Math.Distance.Between(sim.specialCase.x, sim.specialCase.y, this.player.x, this.player.y) < 28) this.say(`E: RESOLVE ${sim.specialCase.title.toUpperCase()}`);
     else if (sim.caves.some((c) => Phaser.Math.Distance.Between(c.x, c.y, this.player.x, this.player.y) < 24)) this.say("E or CLICK: ENTER METEOR CAVE");
-    else if (this.nearestDrop()) this.say("E: PICK UP YOUR LOST ITEMS");
+    else if (this.nearestDrop()) this.say(this.nearestDrop()!.kind === "thrown" ? "E: PICK UP " + this.dropText(this.nearestDrop()!) : "E: PICK UP YOUR LOST ITEMS");
     else if (!sim.bridge && Phaser.Math.Distance.Between(BRIDGE.x, BRIDGE.y, this.player.x, this.player.y) < 30) this.say("E: BUILD BRIDGE (10 METAL, 6 REGOLITH, 2 TITANIUM)");
     else if (this.upgradeHint()) this.say(this.upgradeHint()!);
     else if (nearestCapsule(sim, this.player.x, this.player.y)) this.say("E: OPEN SUPPLY CAPSULE");
-    else if (n) this.say(`ACTION: PICK UP ${(ITEMS[n.type]?.nombre ?? n.type).toUpperCase()}`);
+    else if (n) this.say(canMine(sim.inv, n.type).ok ? `HOLD ACTION: MINE ${(ITEMS[n.type]?.nombre ?? n.type).toUpperCase()}` : `NEEDS A ${canMine(sim.inv, n.type).need!.toUpperCase()} (WORKSHOP)`);
     else if (broken && broken.durabilidad < 60 && !(this.nearHab() && sim.inv.hielo > 0)) this.say(`HOLD E: REPAIR ${TIPOS[broken.tipo].nombre.toUpperCase()} (1 KIT)`);
-    else if (this.nearHab() && sim.inv.hielo > 0) this.say("E: MELT ICE");
+    else if (this.nearHab() && sim.inv.hielo > 0) this.say(sim.inv.agua >= WATER_TANK_KG ? "WATER TANK FULL" : "E: MELT ICE INTO WATER");
+    else if (this.nearModule((m) => m.tipo === "cofre", 24)) this.say("E: OPEN STORAGE CHEST");
     else if (this.nearHab()) this.say("HABITAT: REFILLING O2");
     else if (Phaser.Math.Distance.Between(ROCKET.x, ROCKET.y, this.player.x, this.player.y) < 36) this.say("E: CHECK ROCKET");
     else if (this.nearModule((m) => m.tipo === "cofre", 20)) this.say("E: OPEN STORAGE CHEST");
     else if (sim.near.taller) this.say("E: OPEN WORKSHOP");
     else if (sim.near.horno) this.say("E: OPEN FURNACE");
-    else this.prompt.setVisible(false);
+    else if (this.winded && this.wantsRun) this.say("TOO TIRED TO RUN");
+    else { this.prompt.setVisible(false); this.promptBg.setVisible(false); }
 
     // day/night lighting
     const t = sim.time % CYCLE;
@@ -505,9 +675,8 @@ export class LunarScene extends Phaser.Scene {
       sim.dead = { cause: sim.lastHurt || "didn't make it", x: this.player.x, y: this.player.y };
       sfx.bad(); saveGame(); useGame.getState().publish(); return;
     }
-    // Skin: helmet and suit only while wearing it.
-    this.player.setTexture(sim.suit.owned && sim.suit.worn ? "astro" : "astro_plain");
     this.syncDrops();
+    this.emphasizePickups();
 
     this.pubT += dt; this.saveT += dt;
     if (this.pubT > 0.15) { this.pubT = 0; this.publishRadar(); useGame.getState().publish(); }
@@ -673,17 +842,39 @@ export class LunarScene extends Phaser.Scene {
     }
   }
 
-  /** Small rising number (e.g. +3 when a better tool gathers more). */
-  floatText(x: number, y: number, s: string, color = "rgba(255,255,255,0.78)") {
-    const t = this.add.text(x, y, s, { fontFamily: '"Press Start 2P"', resolution: HD * 2, fontSize: "5px", color, stroke: "#14141c", strokeThickness: 2 }).setDepth(41).setAlpha(0.8);
-    this.tweens.add({ targets: t, y: y - 10, alpha: 0, duration: 850, onComplete: () => t.destroy() });
+  /** Hint above the astronaut (crisp bitmap font on a dark plate), kept inside the visible part of the map. */
+  say(s: string) {
+    this.prompt.setText(toFont(s)).setVisible(true);
+    // Snap to the HD pixel grid (0.5 world px) so every glyph pixel lands on a whole screen pixel.
+    const snap = (n: number) => Math.round(n * HD) / HD;
+    const v = this.cameras.main.worldView, w = this.prompt.getTextBounds().global.width;
+    const x = snap(Phaser.Math.Clamp(this.player.x - w / 2, v.x + 2, Math.max(v.x + 2, v.right - w - 2)));
+    const y = snap(Math.max(v.y + 2, this.player.y - 12));
+    this.prompt.setPosition(x, y);
+    this.promptBg.setPosition(x - 1.5, y - 1).setSize(w + 2.5, 4.5).setVisible(true);
   }
 
-  /** Hint above the astronaut, kept inside the visible part of the map. */
-  say(s: string) {
-    this.prompt.setText(s).setVisible(true);
-    const v = this.cameras.main.worldView, pw = this.prompt.displayWidth;
-    const x = Phaser.Math.Clamp(this.player.x - pw / 2, v.x + 2, Math.max(v.x + 2, v.right - pw - 2));
-    this.prompt.setPosition(Math.round(x), Math.round(Math.max(v.y + 2, this.player.y - 18)));
+  /** Crisp world label (bitmap font at HD density), centred on x. */
+  label(x: number, y: number, text: string, color: number, depth = 5.6) {
+    return this.add.bitmapText(Math.round(x), Math.round(y), FONT_KEY, toFont(text)).setScale(1 / HD).setOrigin(0.5, 0).setTint(color).setDepth(depth);
+  }
+
+  /** Walk/run cycle, idle breathing and dust puffs while running. */
+  animatePlayer(dt: number, moving: boolean, running: boolean) {
+    // Two skins with identical animation sets: with the space suit ("astro_…") and without it ("plain_…").
+    const skin = sim.suit.owned && sim.suit.worn ? "astro" : "plain";
+    if (!moving) {
+      this.animT = 0;
+      this.player.setTexture(`${skin}_idle${Math.floor(this.time.now / 650) % 2}`);
+      return;
+    }
+    this.animT += dt;
+    this.player.setTexture(`${skin}_${running ? "run" : "walk"}${strideFrame(this.animT, running)}`);
+    if (!running) return;
+    this.dustT -= dt;
+    if (this.dustT > 0) return;
+    this.dustT = 0.11;
+    const d = this.add.image(this.player.x - this.facing * 3, this.player.y + PLAYER_FOOT_Y - 0.5, "dust").setScale(1 / HD).setDepth(this.player.depth - 0.01).setAlpha(0.85);
+    this.tweens.add({ targets: d, alpha: 0, scale: 2 / HD, x: d.x - this.facing * 4, y: d.y - 1.5, duration: 380, ease: "Quad.easeOut", onComplete: () => d.destroy() });
   }
 }

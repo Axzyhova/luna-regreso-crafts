@@ -284,5 +284,31 @@
    "comida_caliente": 1
   },
   "disponible": true
+ },
+ {
+  "id": "botiquin",
+  "nombre": "Medkit",
+  "lugar": "taller",
+  "ingredientes": {
+   "agua": 10,
+   "metal": 1
+  },
+  "resultado": {
+   "botiquin": 1
+  },
+  "disponible": true
+ },
+ {
+  "id": "estimulante",
+  "nombre": "Stimulant",
+  "lugar": "taller",
+  "ingredientes": {
+   "agua": 6,
+   "regolito": 2
+  },
+  "resultado": {
+   "estimulante": 1
+  },
+  "disponible": true
  }
 ]

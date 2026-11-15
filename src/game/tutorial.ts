@@ -13,7 +13,7 @@ export const TUTORIAL: TutStep[] = [
   { id: "craft", title: "Craft a Sealant kit", text: "In the inventory, open the Crafting tab and craft a Sealant kit (2 Scrap + 1 Metal). If you have no Metal, first craft 'Smelt scrap into metal'.", touch: "In the inventory, open Crafting and craft a Sealant kit (2 Scrap + 1 Metal). No Metal? Craft 'Smelt scrap into metal' first.", done: (s) => s.tut.kitCrafted },
   { id: "seal", title: "Seal a leak", text: "A leak is spraying (flashing orange). Stand next to it and HOLD E until the green ring fills.", touch: "A leak is spraying (flashing orange). Stand next to it and HOLD the E button until the green ring fills.", done: (s) => s.actFlags.leakFixed },
   { id: "ice", title: "Collect ice", text: "Go to the dark shadowed crater (follow the GPS card) and pick up 2 blue ice crystals.", touch: "Go to the dark shadowed crater (follow the GPS card) and pick up 2 blue ice crystals.", done: (s) => s.stats.hielo >= 2 },
-  { id: "melt", title: "Make water", text: "Bring the ice to the habitat and press E to melt it. Water becomes fuel and oxygen.", touch: "Bring the ice to the habitat and tap E to melt it. Water becomes fuel and oxygen.", done: (s) => s.inv.agua > 0 || s.lh2 > 0 },
+  { id: "melt", title: "Make water", text: "Bring the ice to the habitat and press E to melt it. The water goes to the habitat tank (it takes no inventory space) and later becomes fuel and oxygen.", touch: "Bring the ice to the habitat and tap E to melt it. The water goes to the habitat tank (no inventory space) and later becomes fuel and oxygen.", done: (s) => s.inv.agua > 0 || s.lh2 > 0 },
 ];
 
 export const tutorialStep = (s: Sim): TutStep | null => (s.tut.skipped ? null : TUTORIAL[s.tut.step] ?? null);

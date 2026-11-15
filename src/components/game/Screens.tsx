@@ -5,7 +5,8 @@ import { useGame } from "@/game/store";
 import type { Mode, Difficulty } from "@/game/sim";
 import { sfx } from "@/game/audio";
 import { GAME_TITLE } from "@/game/title";
-import { StoryAnimation, type SceneId } from "./StoryAnimation";
+import type { SceneId } from "./StoryAnimation";
+import { StoryScene } from "./StoryGif";
 
 /** Reveals text letter by letter, like an old console. */
 function useTypewriter(text: string, cps = 38) {
@@ -44,7 +45,7 @@ export function Intro() {
         <PixelButton onClick={() => go("modo")}>Accept</PixelButton>
         <PixelButton tone="ghost" onClick={() => go("rechazo")}>Decline</PixelButton>
       </div>
-      <button className="text-[8px] text-muted-foreground underline" onClick={() => go("fuentes")}>Sources & credits</button>
+      <div className="flex items-center gap-4"><button className="tr-btn px-3 py-2 text-[8px]" onClick={() => { sfx.click(); go("archivo"); }}>📚 NASA ARCHIVE</button><button className="text-[8px] text-muted-foreground underline" onClick={() => go("fuentes")}>Sources & credits</button></div>
     </div>
   );
 }
@@ -84,7 +85,7 @@ export function ModeSelect() {
       <div className="flex gap-2">
         {(Object.keys(modos.dificultades) as Difficulty[]).map((d) => (
           <button key={d} onClick={() => { sfx.click(); setDiff(d); }}
-            className={`px-3 py-2 text-[9px] short:py-1.5 ${diff === d ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
+            className={`tr-btn px-3 py-2 text-[9px] short:py-1.5 ${diff === d ? "tr-btn-primary" : "opacity-80"}`}>
             {modos.dificultades[d].nombre}
           </button>
         ))}
@@ -101,27 +102,16 @@ export function ModeSelect() {
   );
 }
 
+/** How you got to the Moon, one animated GIF per panel. Names and the mission are fiction; the history in the Archive is real. */
 const PANELS = [
-  {
-    text: "En el año 2034, la humanidad desplegó a la Selene Crew en la base Selene-IV (cráter Shackleton, polo sur lunar) para perforar permafrost, extraer oxígeno e hidrógeno del regolito y validar el lanzamiento reutilizable.",
-    art: "launch",
-  },
-  {
-    text: "Durante 42 días todo funcionó como un reloj orbital. Pero a 72 horas del relevo, una eyección de masa coronal de clase X amenazó con radiación letal en menos de 90 minutos: Houston activó el Protocolo Ícaro de evacuación inmediata.",
-    art: "fail",
-  },
-  {
-    text: "El polvo lunar provocó un cortocircuito en la refrigeración del reactor. Como especialista de sistemas, regresaste a purgarlo manualmente; salvaste la plataforma, pero la onda térmica dañó la ignición secundaria y Houston abortó tu rescate.",
-    art: "fall",
-  },
-  {
-    text: "El vehículo de ascenso despegó sin ti. Ahora estás solo a 384,400 km de casa: los paneles están cubiertos de polvo, hay fugas en la esclusa y tu única salida es un módulo experimental de carga a 300 metros.",
-    art: "land",
-  },
-  {
-    text: "Convierte los restos de Selene-IV en tu astillero: raciona energía, derrite hielo en el hábitat para hacer agua y combustible líquido (LH2/LOX), fabrica piezas en el taller y calcula tu Delta-V. La verdadera historia de Selene Crew empieza ahora.",
-    art: "land",
-  },
+  { text: "Mission SELENE-7. Commander Alex Rivera, pilot Jonas Weber (ESA) and Dr. Aiko Tanaka (JAXA) will test whether a crew can live off the Moon's water ice. Flight Director Ana Ortega leads the team in Houston.", art: "briefing" },
+  { text: "Liftoff! A giant rocket, like the ones of the Apollo and Artemis programs, pushes Selene-7 away from Earth.", art: "launch" },
+  { text: "Three days of coasting to the Moon, the same route Apollo 8 and Apollo 11 flew. The Earth shrinks behind you.", art: "coast" },
+  { text: "In lunar orbit the lander separates. Weber and Tanaka stay on the mothership while you descend to the south pole, where the ice is.", art: "orbit" },
+  { text: "An alarm. A tank failure: the fuel is venting into space. Like Apollo 13, you will have to improvise.", art: "fail" },
+  { text: "Out of options, you aim for the Moon's south pole and make an emergency descent.", art: "fall" },
+  { text: "Touchdown. Hard, and with almost no fuel left.", art: "land" },
+  { text: "You survived. But you're STRANDED: no fuel, no antenna, no contact. To get home you'll have to make your own fuel.", art: "stranded" },
 ];
 export function Cinematic() {
   const go = useGame((s) => s.go);
@@ -133,7 +123,7 @@ export function Cinematic() {
     // Tall screens: scene on top, text and buttons below. Short (landscape phone): side by side.
     <div className="flex h-full flex-col items-center justify-center-safe gap-6 overflow-y-auto p-6 short:flex-row short:gap-5 short:p-3">
       <div key={i} className="w-full max-w-lg animate-in fade-in duration-500 short:w-[min(48vw,calc((100dvh-24px)*2))] short:max-w-none short:shrink-0">
-        <StoryAnimation scene={p.art as SceneId} />
+        <StoryScene scene={p.art as SceneId} />
       </div>
       <div className="flex w-full max-w-lg flex-col gap-4 short:max-w-[42vw] short:gap-3">
         <p className="min-h-20 text-[9px] leading-5 short:min-h-0 short:text-[8px]">{typed}<span className="animate-blink">▌</span></p>

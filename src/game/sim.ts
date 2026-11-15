@@ -85,7 +85,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     lastHurt: "" as string,
     dead: null as null | { cause: string; x: number; y: number },
     respawned: false,
-    drops: [] as { id: number; x: number; y: number; items: Record<string, number> }[],
+    drops: [] as { id: number; x: number; y: number; items: Record<string, number>; /** set on bags the player threw down on purpose */ kind?: "thrown" }[],
     nextDropId: 1,
     notices: [] as { id: number; kind: "achievement" | "mission"; title: string; text: string }[],
     nextNoticeId: 1,
@@ -230,7 +230,26 @@ export function dropItem(s: Sim, key: string, n: number, x: number, y: number) {
   inv[key] = (inv[key] ?? 0) - k;
   const bag = s.drops.find((d) => Math.hypot(d.x - x, d.y - y) < 12);
   if (bag) bag.items[key] = (bag.items[key] ?? 0) + k;
-  else s.drops.push({ id: s.nextDropId++, x: Math.round(x), y: Math.round(y + 6), items: { [key]: k } });
+  else s.drops.push({ id: s.nextDropId++, x: Math.round(x), y: Math.round(y + 6), items: { [key]: k }, kind: "thrown" });
+  return k;
+}
+
+/** Real suits carry an in-suit drink bag (~0.9 L). Here: 4 kg of water from the tank restores 25 hydration. */
+export const DRINK_KG = 4, DRINK_GAIN = 25;
+export function drinkWater(s: Sim): { ok: boolean; msg: string } {
+  if (s.inv.agua < DRINK_KG) return { ok: false, msg: `Not enough water (a drink takes ${DRINK_KG} kg)` };
+  if (s.hydration >= 92) return { ok: false, msg: "You're not thirsty yet" };
+  s.inv.agua -= DRINK_KG; s.hydration = Math.min(100, s.hydration + DRINK_GAIN);
+  addLog(s, `You drank from the suit's drink bag: hydration ${Math.round(s.hydration)}%.`);
+  return { ok: true, msg: `Hydration +${DRINK_GAIN}` };
+}
+
+/** Pour water out of the habitat tank (it can't be thrown on the ground). Returns the kg poured. */
+export function pourWater(s: Sim, kg: number): number {
+  const k = Math.min(Math.max(0, kg), s.inv.agua);
+  if (k <= 0) return 0;
+  s.inv.agua -= k;
+  addLog(s, `You poured out ${Math.round(k)} kg of water.`);
   return k;
 }
 

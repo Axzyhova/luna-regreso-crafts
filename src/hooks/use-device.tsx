@@ -14,5 +14,7 @@ function useMedia(query: string) {
 
 /** Phones and tablets (touch as the main pointer). */
 export const useTouchDevice = () => useMedia("(pointer: coarse)");
+/** Short screens (phones held sideways): compact layouts. */
+export const useShortScreen = () => useMedia("(max-height: 520px)");
 /** Taller than wide: stacked layout with controls below the game. */
 export const usePortrait = () => useMedia("(orientation: portrait)");

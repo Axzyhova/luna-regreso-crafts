@@ -140,6 +140,12 @@
    "x": 66,
    "y": 172,
    "durabilidad": 60
+  },
+  {
+   "tipo": "cofre",
+   "x": 70,
+   "y": 204,
+   "durabilidad": 100
   }
  ]
 }

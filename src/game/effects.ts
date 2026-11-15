@@ -1,5 +1,5 @@
 import cfg from "@/data/efectos.json";
-import { addLog, isDay, hurt, type Sim } from "./sim";
+import { addLog, isDay, hurt, type Sim, drinkWater } from "./sim";
 import { inLight, type World } from "./aliens";
 
 export type EffectId = keyof typeof cfg.efectos;
@@ -7,7 +7,8 @@ export const EFECTOS = cfg.efectos as Record<EffectId, { nombre: string; icono: 
 export const UMBRALES = cfg.umbrales;
 export const EQUIPO_MAX = cfg.equipo_max;
 export const GEAR = ["traje_termico", "capa_reflectante", "escudo_radiacion", "armadura_lunar", "botas_gravedad"];
-export const CONSUMIBLES = ["botiquin", "estimulante", "racion", "comida_caliente"];
+/** Items you use up from the inventory or the hotbar. Water is drunk from the suit's drink bag. */
+export const CONSUMIBLES = ["botiquin", "estimulante", "racion", "comida_caliente", "agua"];
 const PSYCH_EFFECTS: EffectId[] = ["vertigo_gravedad", "aislamiento", "panico"];
 
 export const PERKS: Record<string, { nombre: string; icono: string; desc: string }> = {
@@ -130,6 +131,7 @@ export function toggleEquip(s: Sim, item: string): string {
 
 /** Use a consumable from the inventory. */
 export function consumeItem(s: Sim, item: string): boolean {
+  if (item === "agua") return drinkWater(s).ok;
   const inv = s.inv as unknown as Record<string, number>;
   if (!CONSUMIBLES.includes(item) || (inv[item] ?? 0) < 1) return false;
   inv[item]! -= 1;
@@ -150,4 +152,13 @@ export function consumeItem(s: Sim, item: string): boolean {
     addLog(s, "🍲 You ate a Hot meal: +45 health, +25 sanity, Cold & Vertigo cleared.");
   }
   return true;
+}
+
+const CONSUME_MSG: Record<string, string> = { botiquin: "Health +40", estimulante: "Fatigue gone", racion: "Health +25 · sanity +15", comida_caliente: "Health +45 · sanity +25 · warm again" };
+/** Use a consumable and say what happened, for the on-screen message. */
+export function applyConsumable(s: Sim, item: string): { ok: boolean; msg: string } {
+  if (item === "agua") return drinkWater(s);
+  if (!CONSUMIBLES.includes(item)) return { ok: false, msg: "You can't use that" };
+  const ok = consumeItem(s, item);
+  return ok ? { ok, msg: CONSUME_MSG[item] ?? "Used" } : { ok, msg: "You have none" };
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { loadZoom, view } from "@/game/view";
 
 /**
  * Internal pixel resolution that matches the container's shape, so a vertical phone
@@ -28,6 +29,7 @@ export function GameCanvas() {
       const el = ref.current;
       if (dead || !el) return;
       const { w, h } = gameSize(el.clientWidth, el.clientHeight);
+      view.zoom = loadZoom(matchMedia("(pointer: coarse)").matches, matchMedia("(max-height: 520px)").matches);
       game = new Phaser.Game({
         type: Phaser.AUTO, parent: el, width: w, height: h, pixelArt: true, backgroundColor: "#141428",
         scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },

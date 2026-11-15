@@ -42,7 +42,8 @@
      "quien": "ARIA",
      "texto": "In 1970 Apollo 13 lost an oxygen tank too. Lovell, Swigert and Haise improvised and came home. So will we. (New entries in the Archive 📚)"
     }
-   ]
+   ],
+   "inspirado": "apollo13"
   },
   {
    "id": "M2",
@@ -59,7 +60,8 @@
      "quien": "ARIA",
      "texto": "Lunar Prospector (1998) and LCROSS (2009) showed there's water ice in these cold craters. You just held some."
     }
-   ]
+   ],
+   "inspirado": "lcross"
   },
   {
    "id": "M3",
@@ -80,7 +82,8 @@
      "quien": "ARIA",
      "texto": "Making fuel from local resources is called ISRU: in-situ resource utilization. Real lunar programs plan to do exactly this."
     }
-   ]
+   ],
+   "inspirado": "moxie"
   },
   {
    "id": "M4",
@@ -101,7 +104,8 @@
      "quien": "ARIA",
      "texto": "Landers like Beresheet (2019) and Vikram (2019) were lost when one system failed during descent. That's why we repair every subsystem."
     }
-   ]
+   ],
+   "inspirado": "skylab"
   },
   {
    "id": "M5",
@@ -122,7 +126,8 @@
      "quien": "ARIA",
      "texto": "Chang'e 4 (2019) used the Queqiao relay satellite to talk to Earth from the far side. Our CubeSat does the same."
     }
-   ]
+   ],
+   "inspirado": "apollo8"
   },
   {
    "id": "M6",
@@ -139,7 +144,8 @@
      "quien": "ARIA",
      "texto": "Chandrayaan-3 reached this south polar region in 2023. Luna 25 crashed the same year after a bad maneuver. Our window must be exact."
     }
-   ]
+   ],
+   "inspirado": "challenger"
   },
   {
    "id": "M7",
@@ -156,7 +162,8 @@
      "quien": "CONTROL",
      "texto": "The last Apollo crew left the Moon in 1972. You're part of a new generation of lunar explorers. Welcome home."
     }
-   ]
+   ],
+   "inspirado": "apollo11"
   }
  ],
  "secundarias": [

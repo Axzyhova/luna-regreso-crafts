@@ -1,69 +1,126 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGame, sim } from "@/game/store";
 import { sfx } from "@/game/audio";
 import { EFECTOS, PERKS, type EffectId } from "@/game/effects";
 import { eventBanner } from "@/game/events";
 import { PRINCIPALES, currentMain, sideAvailable, MISIONES } from "@/game/quests";
+import { expedicion } from "@/game/history";
 import { ITEMS } from "@/game/items";
 import { PixelIcon } from "./PixelIcon";
 import { missionHelp, navigation } from "@/game/nav";
 import { TUTORIAL, tutorialStep } from "@/game/tutorial";
 import { useTouchDevice } from "@/hooks/use-device";
 
-function Arrow({ deg, size, warn }: { deg: number; size: number; warn?: boolean }) {
+/** Unwrap an angle so a needle turning from 350° to 10° rotates 20° forward instead of spinning back 340°. */
+export function unwrapAngle(prev: number, next: number) {
+  return prev + ((((next - prev) % 360) + 540) % 360) - 180;
+}
+
+/** Compass dial: N at the top, needle eases toward the target (0° = north, clockwise). */
+function Compass({ deg, size, warn }: { deg: number; size: number; warn?: boolean }) {
+  const shown = useRef(deg);
+  shown.current = unwrapAngle(shown.current, deg);
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" style={{ transform: `rotate(${deg}deg)` }} className="shrink-0 transition-transform duration-200" aria-hidden>
-      <path d="M12 2 L20 13 H14.5 V22 H9.5 V13 H4 Z" fill={warn ? "#ff6b5b" : "#ffffff"} />
+    <svg width={size} height={size} viewBox="0 0 32 32" className="shrink-0" aria-hidden>
+      <circle cx="16" cy="16" r="14.5" fill="rgba(0,0,0,0.45)" stroke="#0b1230" strokeWidth="2" />
+      <circle cx="16" cy="16" r="12.5" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.35" />
+      {[0, 90, 180, 270].map((a) => <rect key={a} x="15.25" y="3.5" width="1.5" height={a ? 2 : 3.5} fill={a ? "currentColor" : "#f2d24f"} opacity={a ? 0.5 : 1} transform={`rotate(${a} 16 16)`} />)}
+      <g style={{ transform: `rotate(${shown.current}deg)`, transformOrigin: "16px 16px", transition: "transform 380ms cubic-bezier(0.2, 0.8, 0.2, 1)" }}>
+        <path d="M16 5.5 L19.5 16 L16 14.2 L12.5 16 Z" fill={warn ? "#f08a24" : "currentColor"} stroke="#0b1230" strokeWidth="0.8" strokeLinejoin="round" />
+        <path d="M16 26.5 L12.5 16 L16 17.8 L19.5 16 Z" fill="currentColor" opacity="0.35" />
+      </g>
+      <circle cx="16" cy="16" r="1.6" fill="#f2f2f2" stroke="#0b1230" strokeWidth="0.8" />
     </svg>
   );
 }
 
 /**
- * Compact GPS card in the style of a phone's car navigation: rounded dark tile with the
- * turn arrow and distance, the target name, and a slim "then" row. Kept small on purpose.
+ * Compact navigation chip: compass needle + target, distance, direction and ETA on two short lines.
+ * Leaks switch to the alert tone. A threat or capsule nearby adds a third tiny line.
  */
 export function NavCard({ className = "" }: { className?: string }) {
   const s = useGame((g) => g.snap);
   const { primary, then, etaS } = navigation(s);
   const help = missionHelp(s);
   if (!primary) return null;
+  const leak = primary.k === "fuga";
+  const text = leak ? "text-alert" : "text-suit-light";
   return (
-    <div className={`pointer-events-none w-[156px] overflow-hidden rounded-[14px] bg-[#1c1c1e]/90 font-sans text-white shadow-[0_4px_14px_rgba(0,0,0,0.35)] ring-1 ring-white/10 backdrop-blur-sm sm:w-[196px] ${className}`}>
-      <div className="flex items-center justify-between gap-1.5 px-2.5 pt-2">
-        <div className="flex items-center gap-1.5">
-          <Arrow deg={primary.deg} size={18} />
-          <span className="text-[17px] font-semibold leading-none tabular-nums sm:text-[20px]">{primary.m} m</span>
+    <div className={`tr-hud pointer-events-none inline-flex items-center gap-1.5 py-1 pl-1 pr-2 ${leak ? "tr-hud-alert" : ""} ${className}`}>
+      <span className={`${text} ${leak ? "animate-pulse" : ""}`}>
+        <Compass deg={primary.deg} size={24} warn={leak} />
+      </span>
+      <div className="leading-tight">
+        <div className={`flex items-center justify-between gap-2 text-[6px] ${text}`}>
+          <span>{leak ? "⚠ " : "▸ "}{primary.label.toUpperCase()}</span>
+          <span className="tabular-nums text-white/60">({s.pos.x}, {s.pos.y})</span>
         </div>
-        <span className="text-[9px] tabular-nums text-white/60 sm:text-[10px]">({s.pos.x}, {s.pos.y})</span>
-      </div>
-      <div className="truncate px-2.5 pb-1 pt-0.5 text-[11px] font-semibold sm:text-[12px]">{primary.label}</div>
-      {help && (
-        <div className="border-t border-white/10 px-2.5 py-1 text-[9px] leading-tight text-sky-200/90 sm:text-[10px]">
-          {help}
+        <div className="tr-text mt-0.5 text-[8px] tabular-nums">
+          {primary.m}m {primary.dir} <span className="text-[6px] text-white/60">~{etaS}s</span>
         </div>
-      )}
-      <div className={`flex items-center justify-between border-t border-white/10 px-2.5 py-1 text-[9px] sm:text-[10px] ${then?.warn ? "text-[#ff6b5b]" : "text-white/70"}`}>
-        <span className="truncate">{then ? `then ${then.label}` : `~${etaS} s · ${primary.dir}`}</span>
-        {then && <Arrow deg={then.deg} size={10} warn={then.warn} />}
+        {help && <div className="mt-0.5 max-w-[165px] text-[5px] leading-tight text-sky-200/90">{help}</div>}
+        {then && <div className={`mt-0.5 text-[5px] ${then.warn ? "text-alert" : "text-white/55"}`}>THEN {then.label.toUpperCase()} {then.m}m</div>}
       </div>
     </div>
   );
 }
 
-/** Natural-event alert with countdown, plus short toasts. */
-export function EventBanner() {
-  const s = useGame((g) => g.snap);
+type AlertItem = { key: string; text: string; tone: string; blink?: boolean; title?: string };
+
+/** Everything that needs the player's attention, most urgent first. (Stamina is already a bar in Vitals.) */
+function collectAlerts(s: ReturnType<typeof useGame.getState>["snap"]): AlertItem[] {
+  const out: AlertItem[] = [];
+  if (s.alert) out.push({ key: "alert", text: `⚠ ${s.alert}`, tone: "border-alert text-alert", blink: true });
   const b = eventBanner(s);
+  if (b) out.push({ key: "event", text: `${b.icono} ${b.texto}`, tone: b.activo ? "border-destructive text-destructive" : "border-alert text-alert", blink: b.activo });
+  const aliens = s.aliens.filter((a) => a.tipo !== "nodriza").length;
+  if (aliens && s.abduction === 0) out.push({ key: "aliens", text: `👾 ${aliens} alien(s) at the base`, tone: "border-alien text-alien" });
+  for (const e of s.effects as EffectId[]) out.push({ key: `fx-${e}`, text: `${EFECTOS[e]?.icono ?? ""} ${EFECTOS[e]?.nombre ?? e}`, tone: "border-alert text-alert", title: EFECTOS[e]?.desc });
+  return out;
+}
+
+/**
+ * Warnings side panel: one short line per warning, collapsible to a small badge so it never covers the game.
+ * The abduction meter and short toasts live here too.
+ */
+export function AlertsPanel({ className = "" }: { className?: string }) {
+  const s = useGame((g) => g.snap);
+  const [open, setOpen] = useState(true);
+  const items = collectAlerts(s);
+  const n = items.length + (s.abduction > 0 ? 1 : 0);
+  if (!n && !s.toast) return null;
   return (
-    <>
-      {b && <div className={`text-center text-[8px] leading-4 ${b.activo ? "animate-blink text-destructive" : "text-alert"}`}>{b.icono} {b.texto}</div>}
-      {s.toast && <div className="text-center text-[8px] leading-4 text-gold">{s.toast.text}</div>}
-    </>
+    <div className={`pointer-events-none flex w-44 flex-col items-end gap-1 ${className}`}>
+      {n > 0 && (
+        <button type="button" onClick={() => { sfx.click(); setOpen((o) => !o); }} aria-expanded={open}
+          className={`tr-hud pointer-events-auto flex items-center gap-1.5 px-1.5 py-1 text-[6px] ${items[0]?.key === "alert" ? "tr-hud-alert text-alert" : "text-gold"}`}>
+          <span className={items[0]?.blink ? "animate-pulse" : ""}>⚠</span> ALERTS
+          <span className="rounded-sm bg-alert px-1 text-[#2a1a04]">{n}</span>
+          <span className={`inline-block text-white/60 transition-transform duration-200 ${open ? "" : "rotate-180"}`}>▴</span>
+        </button>
+      )}
+      <div className={`grid w-full transition-[grid-template-rows,opacity] duration-200 ease-out ${open && n > 0 ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+        <ul className="flex min-h-0 w-full flex-col gap-0.5 overflow-hidden">
+          {s.abduction > 0 && (
+            <li className="tr-hud tr-in border-alien px-1.5 py-1 text-[6px] text-alien">
+              <span className="animate-pulse">ABDUCTION</span> · run to the light
+              <div className="tr-bar mt-0.5 !h-1"><div className="bg-alien" style={{ width: `${s.abduction}%` }} /></div>
+            </li>
+          )}
+          {items.map((i) => (
+            <li key={i.key} title={i.title} className={`tr-hud tr-in border-l-4 px-1.5 py-1 text-[6px] leading-3 ${i.tone}`}>
+              <span className={i.blink ? "animate-pulse" : ""}>{i.text}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      {s.toast && <div key={s.toast.text} className="tr-hud tr-in w-full border-l-4 border-gold px-1.5 py-1 text-[6px] leading-3 text-gold">{s.toast.text}</div>}
+    </div>
   );
 }
 
-/** Active negative states and worn gear. */
-export function EffectsBar() {
+/** Worn gear, shown inside the astronaut panel. */
+export function GearRow() {
   const s = useGame((g) => g.snap);
   if (!s.effects.length && !s.equip.length && !s.perks.length && s.fatigue < 40) return null;
   return (
@@ -117,7 +174,7 @@ export function QuestLog() {
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/70 p-4 short:p-1">
       <div className="tr-panel max-h-full w-full max-w-2xl overflow-auto p-4 short:p-2">
-        <div className="mb-3 flex items-center justify-between"><h3 className="text-[11px] text-gold">MISSIONS</h3><button onClick={() => setOverlay(null)} className="text-[9px] text-muted-foreground">[X]</button></div>
+        <div className="mb-3 flex items-center justify-between"><h3 className="tr-title text-[11px] text-gold">MISSIONS</h3><button onClick={() => setOverlay(null)} aria-label="Close" className="tr-btn px-2 py-1 text-[9px]">✕</button></div>
         <div className="mb-2 text-[8px] text-suit-light">MAIN STORY</div>
         <ol className="mb-4 space-y-2">
           {PRINCIPALES.map((q, i) => {
@@ -126,6 +183,7 @@ export function QuestLog() {
               <li key={q.id} className={`text-[8px] leading-4 ${done ? "text-ok" : cur ? "text-foreground" : "text-muted-foreground"}`}>
                 {done ? "✔" : cur ? "▶" : "🔒"} {i + 1}. {cur || done ? q.titulo : "???"}
                 {(cur || done) && <div className="pl-4 text-[7px] text-muted-foreground">{q.objetivo}</div>}
+                {(cur || done) && expedicion(q.inspirado) && <div className="pl-4 text-[6px] text-suit-light">📚 Inspired by {expedicion(q.inspirado)!.nombre}</div>}
               </li>
             );
           })}
@@ -168,13 +226,13 @@ export function TutorialCard({ className = "" }: { className?: string }) {
   const st = tutorialStep(s);
   if (!st) return null;
   return (
-    <div className={`pointer-events-auto w-[min(92vw,340px)] rounded-[12px] border-2 border-gold/70 bg-card/95 p-2.5 shadow-lg ${className}`}>
+    <div className={`pointer-events-auto w-[min(92vw,340px)] rounded-[12px] border-2 border-gold/70 bg-card/95 p-2.5 shadow-lg short:w-[min(52vw,250px)] short:rounded-[9px] short:p-1.5 ${className}`}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[9px] font-semibold text-gold">🎓 TUTORIAL {s.tut.step + 1}/{TUTORIAL.length} · {st.title}</span>
-        <button type="button" onClick={() => { sim.tut.skipped = true; sfx.click(); publish(); }} className="shrink-0 rounded bg-secondary px-2 py-1 text-[8px]">Skip</button>
+        <span className="text-[9px] font-semibold text-gold short:text-[7px]">🎓 TUTORIAL {s.tut.step + 1}/{TUTORIAL.length} · {st.title}</span>
+        <button type="button" onClick={() => { sim.tut.skipped = true; sfx.click(); publish(); }} className="shrink-0 rounded bg-secondary px-2 py-1 text-[8px] short:px-1.5 short:py-0.5 short:text-[6px]">Skip</button>
       </div>
-      <p className="mt-1 text-[9px] leading-4 text-foreground">{touch ? st.touch : st.text}</p>
-      <div className="mt-1.5 flex gap-1">
+      <p className="mt-1 text-[9px] leading-4 text-foreground short:mt-0.5 short:text-[7px] short:leading-[11px]">{touch ? st.touch : st.text}</p>
+      <div className="mt-1.5 flex gap-1 short:mt-1">
         {TUTORIAL.map((t, i) => <span key={t.id} className={`h-1 flex-1 rounded ${i < s.tut.step ? "bg-ok" : i === s.tut.step ? "bg-gold" : "bg-moon-2"}`} />)}
       </div>
     </div>
