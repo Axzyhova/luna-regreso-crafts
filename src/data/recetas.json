@@ -445,5 +445,20 @@
   },
   "disponible": true,
   "ref": "NASA Ref: in 2019 the first cookies were baked in space, on the ISS, in a special zero-g oven."
+ },
+ {
+  "id": "robot_lab",
+  "nombre": "Robert Station (module)",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 5,
+   "chatarra": 3,
+   "baterias": 1
+  },
+  "resultado": {
+   "robot_lab": 1
+  },
+  "disponible": true,
+  "ref": "NASA Ref: Astrobee free-flying robots on the ISS dock at a charging station between tasks; NASA's Robonaut was upgraded in orbit."
  }
 ]

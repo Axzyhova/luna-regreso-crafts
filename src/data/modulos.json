@@ -108,6 +108,14 @@
    "w": 16,
    "h": 12,
    "item": "hidroponia"
+  },
+  "robot_lab": {
+   "nombre": "Robert Station",
+   "energia": -1,
+   "desgaste": 0.005,
+   "w": 16,
+   "h": 12,
+   "item": "robot_lab"
   }
  },
  "iniciales": [

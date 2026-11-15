@@ -191,6 +191,8 @@ export class NightLighting {
   flashlight: Phaser.GameObjects.Image;
   godRays: Phaser.GameObjects.Graphics;
   glowPool: Phaser.GameObjects.Image[] = [];
+  // Sun-ray motion state: parallax anchor, spring lean from camera motion.
+  private rayLastX = NaN; private rayLastY = NaN; private rayLean = 0; private rayLeanVel = 0;
 
   constructor(scene: Phaser.Scene) {
     this.rt = scene.add.renderTexture(0, 0, 640, 360).setOrigin(0).setDepth(20);
@@ -232,9 +234,24 @@ export class NightLighting {
       const p = cycleT / DAY_LEN;
       const warm = p < 0.15 || p > 0.85;
       this.godRays.fillStyle(warm ? 0xffb86b : 0xfff4d8, (warm ? 0.06 : 0.035) * (1 - effAlpha));
-      const skew = (p - 0.5) * 180;
-      for (let i = 0; i < 4; i++) { const bx = rx + 60 + i * (vw / 4); this.godRays.fillTriangle(bx, ry - 10, bx + 54, ry - 10, bx + 110 - skew, ry + vh + 10); }
+      const now = scene.time.now / 1000;
+      // Camera motion this frame drives a damped spring: the shafts lean against your movement and settle back.
+      const dx = Number.isNaN(this.rayLastX) ? 0 : rx - this.rayLastX, dy = Number.isNaN(this.rayLastY) ? 0 : ry - this.rayLastY;
+      const target = Math.max(-45, Math.min(45, -dx * 6 - dy * 1.5));
+      this.rayLeanVel = (this.rayLeanVel + (target - this.rayLean) * 0.06) * 0.86;
+      this.rayLean += this.rayLeanVel;
+      // Parallax: the shafts are "high above", so they slide at 55 % of the ground speed, and drift slowly.
+      const spacing = 175, drift = now * 5;
+      const offset = (((drift - rx * 0.55) % spacing) + spacing) % spacing;
+      const skew = (p - 0.5) * 180 + this.rayLean;
+      const base = (warm ? 0.06 : 0.035) * (1 - effAlpha);
+      for (let i = -1; i * spacing < vw + spacing; i++) {
+        const bx = rx + offset + i * spacing, wdt = 46 + 14 * Math.sin(i * 1.7 + now * 0.4);
+        this.godRays.fillStyle(warm ? 0xffb86b : 0xfff4d8, base * (0.75 + 0.35 * Math.sin(now * 0.9 + i * 2.1)));
+        this.godRays.fillTriangle(bx, ry - 10, bx + wdt, ry - 10, bx + wdt * 2 - skew, ry + vh + 10);
+      }
     }
+    this.rayLastX = rx; this.rayLastY = ry;
 
     // Coloured light pools: barely there by day, warm/cold halos at night.
     let gi = 0;

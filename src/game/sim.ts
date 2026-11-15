@@ -36,7 +36,7 @@ export const CYCLE = DAY_LEN + NIGHT_LEN;
 export const LH2_CAP = balance.lh2_cap_kg;
 export const LOX_CAP = balance.lox_cap_kg;
 
-export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cofre: number; puente_kit: number; rover: number; biorreactor: number; hidroponia: number; semilla_papa: number; semilla_trigo: number; papa: number; trigo: number; papa_horneada: number; pan: number; galleta: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number; alga_lunar: number; racion: number; comida_caliente: number; pico_plasma: number; armadura_lunar: number; botas_gravedad: number }
+export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cofre: number; puente_kit: number; rover: number; biorreactor: number; hidroponia: number; robot_lab: number; semilla_papa: number; semilla_trigo: number; papa: number; trigo: number; papa_horneada: number; pan: number; galleta: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number; alga_lunar: number; racion: number; comida_caliente: number; pico_plasma: number; armadura_lunar: number; botas_gravedad: number }
 
 export function createSim(mode: Mode, difficulty: Difficulty) {
   return {
@@ -46,7 +46,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     battery: 60, energyIn: 0, energyOut: 0,
     habitatO2: 80,
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
-    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: difficulty === "facil" ? 3 : 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cofre: 0, puente_kit: 0, rover: 0, biorreactor: 0, hidroponia: 0, semilla_papa: 0, semilla_trigo: 0, papa: 0, trigo: 0, papa_horneada: 0, pan: 0, galleta: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0, alga_lunar: 0, racion: difficulty === "facil" ? 1 : 0, comida_caliente: 0, pico_plasma: 0, armadura_lunar: 0, botas_gravedad: 0 } as Inv,
+    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: difficulty === "facil" ? 3 : 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cofre: 0, puente_kit: 0, rover: 0, biorreactor: 0, hidroponia: 0, robot_lab: 0, semilla_papa: 0, semilla_trigo: 0, papa: 0, trigo: 0, papa_horneada: 0, pan: 0, galleta: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0, alga_lunar: 0, racion: difficulty === "facil" ? 1 : 0, comida_caliente: 0, pico_plasma: 0, armadura_lunar: 0, botas_gravedad: 0 } as Inv,
     relay: false,
     // --- historia, efectos, eventos y botín ---
     effects: [] as string[],
@@ -150,6 +150,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     drillAcc: 0,
     shed: false,
     robertMet: false,
+    robert: { level: 1, skills: [] as string[], mat: "regolito", skin: "gold" }, // upgrades from the Robert Station
     roverUid: null as number | null, // rover whose panel is open // saw Mini Robert's mandatory intro
     machineFx: [] as { x: number; y: number; text: string }[],
     farms: {} as Record<string, { crop: string | number; growth: number; water?: number }>,
@@ -751,6 +752,8 @@ export function stepBaseTech(s: Sim, dt: number, day: boolean) {
       }
     } else if (m.tipo === "hidroponia") stepFarm(s, m, dt, powered);
   }
+  // Med-bot skill: Mini Robert slowly patches you up while he rolls with you.
+  if (s.robert?.skills.includes("medic") && !s.dead && s.health > 0 && s.health < 100) s.health = Math.min(100, s.health + ROBERT_MEDIC_HP_S * s.robert.level * dt);
   if (s.machineFx.length > 12) s.machineFx.splice(0, s.machineFx.length - 12);
 }
 
@@ -806,6 +809,50 @@ export function setRoverMat(s: Sim, m: Module, mat: string) {
   m.mat = mat; if (m.rst !== "back") m.rst = "idle";
   return true;
 }
+
+// ---- Mini Robert upgrades (Robert Station) ----
+export const ROBERT_MAX_LEVEL = 5;
+export const ROBERT_MEDIC_HP_S = 0.04;
+export const ROBERT_MATS = ["regolito", "hielo", "chatarra", "alga_lunar", "cristal_hielo", "titanio", "aleacion"] as const;
+export const ROBERT_SKINS: Record<string, { nombre: string; tint: number }> = {
+  gold: { nombre: "Classic gold", tint: 0xffffff }, silver: { nombre: "Lunar silver", tint: 0xd8e2ff },
+  red: { nombre: "Mars red", tint: 0xff9a8a }, blue: { nombre: "Earth blue", tint: 0x8ab8ff }, green: { nombre: "Algae green", tint: 0x9ff0b4 },
+};
+export const ROBERT_SKILLS: Record<string, { nombre: string; icon: string; desc: string; cost: Record<string, number> }> = {
+  forager: { nombre: "Forager", icon: "⛏", desc: "Robert rolls to resource nodes near you and gathers your chosen material.", cost: { metal: 4, baterias: 1 } },
+  lamp: { nombre: "Headlamp", icon: "💡", desc: "Robert lights the area around him at night. Bigger with each level.", cost: { metal: 2, chatarra: 3 } },
+  magnet: { nombre: "Magnet", icon: "🧲", desc: "Picks up items lying on the ground near you.", cost: { metal: 3, chatarra: 2 } },
+  medic: { nombre: "Med-bot", icon: "➕", desc: "Slowly heals you while he is with you (faster with each level).", cost: { metal: 3, botiquin: 1 } },
+};
+/** Cost to raise Mini Robert to the next level. */
+export function robertUpCost(level: number): Record<string, number> {
+  return { metal: 3 * level, chatarra: 2 * level, ...(level >= 3 ? { baterias: 1 } : {}), ...(level >= 4 ? { titanio: 2 } : {}) };
+}
+/** Seconds between Forager trips (faster each level). */
+export const robertForageEvery = (level: number) => Math.max(3, 9 - level * 1.2);
+function payCost(s: Sim, cost: Record<string, number>) {
+  const inv = s.inv as unknown as Record<string, number>;
+  if (Object.entries(cost).some(([k, n]) => (inv[k] ?? 0) < n)) return false;
+  for (const [k, n] of Object.entries(cost)) inv[k]! -= n;
+  return true;
+}
+export function canPay(s: Sim, cost: Record<string, number>) {
+  const inv = s.inv as unknown as Record<string, number>;
+  return Object.entries(cost).every(([k, n]) => (inv[k] ?? 0) >= n);
+}
+export function upgradeRobert(s: Sim) {
+  if (s.robert.level >= ROBERT_MAX_LEVEL || !payCost(s, robertUpCost(s.robert.level))) return false;
+  s.robert.level++; addLog(s, `🤖 Mini Robert upgraded to level ${s.robert.level}.`);
+  return true;
+}
+export function unlockRobertSkill(s: Sim, id: string) {
+  const sk = ROBERT_SKILLS[id];
+  if (!sk || s.robert.skills.includes(id) || !payCost(s, sk.cost)) return false;
+  s.robert.skills.push(id); addLog(s, `🤖 Mini Robert learned: ${sk.nombre}.`);
+  return true;
+}
+export function setRobertMat(s: Sim, mat: string) { if (!(ROBERT_MATS as readonly string[]).includes(mat)) return false; s.robert.mat = mat; return true; }
+export function setRobertSkin(s: Sim, skin: string) { if (!ROBERT_SKINS[skin]) return false; s.robert.skin = skin; return true; }
 
 // ---- Hydroponic farm: plant Lunar algae with E, it grows on water (and grow-lamp power), harvest with E ----
 export const FARM_GROW_S = 90;          // algae: seconds to grow with power (half speed without)

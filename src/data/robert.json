@@ -857,6 +857,31 @@
        "d": "2 Potatoes = Baked potato · 3 Wheat = Bread · 2 Wheat + 1 Algae = Space cookies."
       }
      ]
+    },
+    {
+     "title": "Robert Station",
+     "points": [
+      {
+       "t": "Build it",
+       "d": "Workshop: 5 Metal + 3 Scrap + 1 Battery. Place it with BUILD and press E on it."
+      },
+      {
+       "t": "Upgrade",
+       "d": "Up to level 5: Robert follows faster and every skill gets stronger."
+      },
+      {
+       "t": "Skills",
+       "d": "⛏ Forager gathers your chosen material from nodes near you · 💡 Headlamp lights the night · 🧲 Magnet picks up items on the ground · ➕ Med-bot slowly heals you."
+      },
+      {
+       "t": "Tuning",
+       "d": "Repaint Robert: gold, silver, red, blue or green."
+      },
+      {
+       "t": "Collect",
+       "d": "Pick which material the Forager brings you."
+      }
+     ]
     }
    ]
   },

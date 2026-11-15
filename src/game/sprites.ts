@@ -236,6 +236,13 @@ export function makeSprites(scene: Phaser.Scene) {
     r(13, 12, 3, 3, 0x4fc3ff); r(13, 12, 1, 1, 0xd8f4ff);
     r(1, 13, 2, 3, 0xf2d24f); r(25, 13, 2, 3, 0xf2d24f);
   });
+  // Robert Station: a small dock with a charging pad, antenna and status screen.
+  tex(scene, "m_robot_lab", 16, 12, (g, r) => {
+    block(r, 1, 12, 30, 10, 0x6b6b75, 0x9a9aa3, 0x45454f);
+    g.fillStyle(0x1b1b22).fillEllipse(16, 14, 18, 6); g.fillStyle(0xf2d24f, 0.9).fillEllipse(16, 14, 14, 3.5); g.fillStyle(0x15151c).fillEllipse(16, 14, 10, 2);
+    block(r, 2, 2, 8, 10, 0x45454f, 0x6b6b75, 0x2a2a36); r(3, 4, 6, 4, 0x4fc3ff); r(4, 5, 2, 1, 0xd8f4ff);
+    r(26, 1, 1, 11, 0x45454f); g.fillStyle(0xd63b3b).fillCircle(26.5, 1.5, 1.5);
+  });
   // Historic sites.
   tex(scene, "poi_lcross", 14, 9, (g, r) => {
     g.fillStyle(OUT).fillPoints(toPts([2, 12, 10, 3, 22, 5, 27, 14, 14, 17], 1), true);

@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { PAL } from "./palette";
 import { sim, useGame, saveGame } from "./store";
-import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, dropItem, TIPOS, PLACEABLE, leakAllowed, hurt, visitPoi, tendFarm, farmOf, CROPS, seedToPlant, FARM_WATER_KG, applyBridgeKit, type Leak, toolInfo, meltIce, WATER_TANK_KG, nextLeakDelay, pickUpDrop, toggleSuit, WORLD, ZONAS, zoneAt, zoneBlock, reveal, BRIDGE, buildBridge, canUpgrade, upgradeCost, upgradeModule, lvl, type Zona, type LeakTarget, type Module, type ModType } from "./sim";
+import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, dropItem, TIPOS, PLACEABLE, leakAllowed, hurt, visitPoi, tendFarm, farmOf, ROBERT_SKINS, robertForageEvery, CROPS, seedToPlant, FARM_WATER_KG, applyBridgeKit, type Leak, toolInfo, meltIce, WATER_TANK_KG, nextLeakDelay, pickUpDrop, toggleSuit, WORLD, ZONAS, zoneAt, zoneBlock, reveal, BRIDGE, buildBridge, canUpgrade, upgradeCost, upgradeModule, lvl, type Zona, type LeakTarget, type Module, type ModType } from "./sim";
 import { sfx } from "./audio";
 import { stepAliens, hitAlien, type World } from "./aliens";
 import { stepCountdown } from "./mission";
@@ -21,6 +21,7 @@ import { SUBZONAS, stepHive, hitHive, stepBosses, hitBoss, checkSubzoneVisit } f
 import { twinkle, bobOffset, beamStrips, ringPhase, edgeMarker } from "./pickups";
 import { canMine } from "./tools";
 import { view } from "./view";
+import { TerrainFx } from "./terrainFx";
 import { createFxTextures, NightLighting, paintRichTerrain, sunShadow, updateSilhouetteShadow } from "./visualFx";
 import { PixelfxOverlay } from "./pixelfxBridge";
 import { HAB, ROCKET, SHADOW, RAVINE, BRIDGE_DECK } from "./world";
@@ -32,7 +33,7 @@ const isStation = (m: Module) => m.tipo === "taller" || m.tipo === "horno";
 export const INTERACT_EDGE = 2;
 /** Half-size of the astronaut's body (world px): reach is measured from its edge, not its centre. */
 const BODY_HW = 3, BODY_HH = 5;
-type TargetKind = "leak" | "special" | "cave" | "drop" | "bridge" | "poi" | "capsule" | "rocket" | "melt" | "chest" | "station" | "repair" | "upgrade" | "clean" | "farm" | "robert" | "rover";
+type TargetKind = "leak" | "special" | "cave" | "drop" | "bridge" | "poi" | "capsule" | "rocket" | "melt" | "chest" | "station" | "repair" | "upgrade" | "clean" | "farm" | "robert" | "rover" | "robotlab";
 interface Target { kind: TargetKind; x: number; y: number; ref?: unknown; label: string }
 type NodeType = "hielo" | "regolito" | "chatarra" | "cristal_hielo" | "titanio" | "aleacion" | "alga_lunar";
 const NODE_TEX: Record<NodeType, string> = { hielo: "ice", regolito: "reg", chatarra: "scrap", cristal_hielo: "n_cristal", titanio: "n_titanio", aleacion: "n_aleacion", alga_lunar: "n_aleacion" };
@@ -68,6 +69,7 @@ export class LunarScene extends Phaser.Scene {
   beam!: Phaser.GameObjects.Graphics;
   ring!: Phaser.GameObjects.Graphics;
   nightFx!: NightLighting;
+  terrainFx!: TerrainFx;
   pixelfx!: PixelfxOverlay;
   playerShadow!: Phaser.GameObjects.Image;
   staticShadows: { spr: Phaser.GameObjects.Image; baseX: number; baseY: number; w: number; h: number }[] = [];
@@ -81,6 +83,7 @@ export class LunarScene extends Phaser.Scene {
   animT = 0; dustT = 0; winded = false; wantsRun = false;
   faceX = 1; faceY = 0;
   robert!: Phaser.GameObjects.Image;
+  robErr: { n: RNode; t: number } | null = null; robForageT = 0;
   touchMode = false;
   pubT = 0; saveT = 0; repairT = 0; leakT = 0; useCd = 0; facing = 1;
   constructor() { super("lunar"); }
@@ -98,6 +101,7 @@ export class LunarScene extends Phaser.Scene {
     // multi-layered rich lunar terrain + outer biomes
     const g = this.add.graphics();
     paintRichTerrain(Phaser, this, g, W, H, SHADOW, PAL, FONT_KEY, toFont);
+    this.terrainFx = new TerrainFx(Phaser, this, SHADOW); // Phase 2: animated biome detail
     this.label(SHADOW.x, SHADOW.y - 3, "SHADOWED CRATER", PAL.moon2, 1);
 
     // rocket and tanks: separate sprites + 2.5D silhouette cast shadows
@@ -568,6 +572,7 @@ export class LunarScene extends Phaser.Scene {
       if (m.tipo === "hidroponia" && m.activo && m.durabilidad > 0) { const f = farmOf(sim, m.uid); const c = CROPS[f.crop]; const seed = seedToPlant(sim, sim.hotbarItems[sim.hotbar - 1]);
         consider({ kind: "farm", x: m.x, y: m.y, ref: m, label: !c ? (seed ? `E: PLANT ${CROPS[seed]!.nombre.toUpperCase()}` : "NEED SEEDS (CAPSULES / CHEST) OR LUNAR ALGAE") : f.growth >= 1 ? `E: HARVEST ${c.nombre.toUpperCase()}` : f.water < 0.5 ? `E: WATER CROP (${FARM_WATER_KG} KG FROM TANK)` : `GROWING ${Math.round(f.growth * 100)}% · WATER ${Math.round(f.water * 100)}%` }, half); continue; }
       if (m.tipo === "rover" && m.durabilidad >= 60) { consider({ kind: "rover", x: m.rx ?? m.x, y: m.ry ?? m.y, ref: m, label: `E: ROVER — MINING ${(ITEMS[m.mat ?? "regolito"]?.nombre ?? "").toUpperCase()} (CHANGE)` }, half); continue; }
+      if (m.tipo === "robot_lab" && m.durabilidad >= 60) { consider({ kind: "robotlab", x: m.x, y: m.y, ref: m, label: `E: ROBERT STATION (LV ${sim.robert.level})` }, half); continue; }
       if (m.tipo === "cofre") consider({ kind: "chest", x: m.x, y: m.y, ref: m, label: "E: OPEN STORAGE CHEST" }, half);
       else if (isStation(m) && m.durabilidad > 0) consider({ kind: "station", x: m.x, y: m.y, ref: m, label: m.tipo === "taller" ? "E: OPEN WORKSHOP" : "E: OPEN FURNACE" }, half);
       else if (m.durabilidad < 60) consider({ kind: "repair", x: m.x, y: m.y, ref: m, label: `HOLD E: REPAIR ${name} (1 KIT)` }, half);
@@ -577,6 +582,36 @@ export class LunarScene extends Phaser.Scene {
     // Mini Robert always rolls next to you, so he only answers E when nothing else is in reach.
     if (!best && this.robert && Phaser.Math.Distance.Between(this.robert.x, this.robert.y, px, py) < 14) best = { kind: "robert", x: this.robert.x, y: this.robert.y, label: "E: ASK MINI ROBERT FOR HELP" };
     return best;
+  }
+
+  /** Robert Station skills that act in the world: Forager errands and the Magnet. (Med-bot lives in the sim.) */
+  stepRobertSkills(dt: number) {
+    const rob = sim.robert, rb = this.robert, p = this.player;
+    if (rob.skills.includes("magnet")) {
+      for (const d of [...sim.drops]) if (Phaser.Math.Distance.Between(d.x, d.y, p.x, p.y) < 30 && pickUpDrop(sim, d.id)) { this.floatText(d.x, d.y - 4, "🧲", PAL.ok); sfx.pick(); }
+    }
+    if (!rob.skills.includes("forager")) { this.robErr = null; return; }
+    if (this.robErr) {
+      const n = this.robErr.n;
+      if (!this.nodes.includes(n) || n.amount <= 0) { this.robErr = null; return; }
+      if (Phaser.Math.Distance.Between(rb.x, rb.y, n.spr.x, n.spr.y + 4) < 4) {
+        this.robErr.t += dt;
+        if (this.robErr.t > 0.8) {
+          const ok = addItem(sim, n.type, 1);
+          this.floatText(rb.x, rb.y - 6, ok ? `+1 ${ITEMS[n.type]?.nombre ?? n.type}` : "FULL", ok ? PAL.gold : PAL.alert);
+          if (ok) { n.amount -= 1; sfx.pick(); this.tweens.add({ targets: n.spr, y: n.spr.y - 2, yoyo: true, duration: 60 }); }
+          if (n.amount <= 0) { n.spr.destroy(); this.nodes = this.nodes.filter((x) => x !== n); this.time.delayedCall(40000, () => this.spawnNode(n.type, n.zone)); }
+          this.robErr = null;
+        }
+      }
+      return;
+    }
+    this.robForageT += dt;
+    if (this.robForageT < robertForageEvery(rob.level)) return;
+    this.robForageT = 0;
+    let best: RNode | null = null, bd = 60 + rob.level * 8;
+    for (const n of this.nodes) { if (n.type !== rob.mat || n.amount <= 0) continue; const d = Phaser.Math.Distance.Between(n.spr.x, n.spr.y, p.x, p.y); if (d < bd) { bd = d; best = n; } }
+    if (best) this.robErr = { n: best, t: 0 };
   }
 
   /** Open Mini Robert's help menu (E next to him, or click / tap him). */
@@ -606,6 +641,7 @@ export class LunarScene extends Phaser.Scene {
       case "station": { const st = tg.ref as Module; sim.station = st.tipo as "taller" | "horno"; sim.stationUid = st.uid; sfx.click(); G.publish(); G.setOverlay("estacion"); return; }
       case "upgrade": { const m = tg.ref as Module; upgradeModule(sim, m); sfx.ok(); toast(sim, `⬆ ${TIPOS[m.tipo].nombre} → level ${lvl(m)}`, 3); return; }
       case "robert": this.openRobert(); return;
+      case "robotlab": sfx.click(); G.setOverlay("robotlab"); return;
       case "rover": sim.roverUid = (tg.ref as Module).uid; sfx.click(); G.publish(); G.setOverlay("rover"); return;
       case "farm": { const msg = tendFarm(sim, tg.ref as Module, sim.hotbarItems[sim.hotbar - 1]); sfx[/^(🌱 Planted|💧 Watered|✂)/u.test(msg) ? "ok" : "click"](); toast(sim, msg, 3); G.publish(); return; }
       case "clean": sim.dust = 0; sfx.ok(); toast(sim, "🧹 Panels cleaned: full solar power again. An EDS Dust Shield would do this for you.", 4); return;
@@ -621,11 +657,15 @@ export class LunarScene extends Phaser.Scene {
     if (overlay || sim.dead || !sim.robertMet) return;
     {
       // Mini Robert trails behind you (opposite your facing), with a little hover bob.
-      const rb = this.robert, p = this.player;
-      const tx = p.x - this.faceX * 10 - (this.faceY ? 6 : 0), ty = p.y - this.faceY * 9 + 5;
+      const rb = this.robert, p = this.player, rob = sim.robert;
+      // Looks: skin colour from the Robert Station, a little bigger each level.
+      rb.setTint(ROBERT_SKINS[rob.skin]?.tint ?? 0xffffff).setScale((0.6 + 0.05 * (rob.level - 1)) / HD);
+      this.stepRobertSkills(dt);
+      let tx = p.x - this.faceX * 10 - (this.faceY ? 6 : 0), ty = p.y - this.faceY * 9 + 5;
+      if (this.robErr) { tx = this.robErr.n.spr.x; ty = this.robErr.n.spr.y + 4; } // Forager errand
       const d = Phaser.Math.Distance.Between(rb.x, rb.y, tx, ty);
       if (d > 160) rb.setPosition(tx, ty); // after respawn / teleport
-      else if (d > 1.5) { const k = Math.min(1, dt * (d > 30 ? 6 : 3.5)); rb.x += (tx - rb.x) * k; rb.y += (ty - rb.y) * k; if (Math.abs(tx - rb.x) > 0.5) rb.setFlipX(tx < rb.x); }
+      else if (d > 1.5) { const k = Math.min(1, dt * (d > 30 ? 6 : 3.5) * (1 + 0.12 * (rob.level - 1))); rb.x += (tx - rb.x) * k; rb.y += (ty - rb.y) * k; if (Math.abs(tx - rb.x) > 0.5) rb.setFlipX(tx < rb.x); }
       rb.setDepth(rb.y + 6 > p.y ? p.depth + 0.01 : p.depth - 0.01).setY(rb.y + Math.sin(this.time.now / 260) * 0.04);
     }
     const k = this.keys;
@@ -753,12 +793,14 @@ export class LunarScene extends Phaser.Scene {
       { x: SHADOW.x, y: SHADOW.y, r: 40, color: 0x4fc2ff, dayAlpha: 0.03 },
     ];
     for (const m of sim.modules) if (m.tipo === "torre_luz" && m.activo && m.durabilidad > 0 && sim.battery > 0) lights.push({ x: m.x, y: m.y, r: 140, color: 0xfff0aa, dayAlpha: 0.12 });
+    if (sim.robert.skills.includes("lamp")) lights.push({ x: this.robert.x, y: this.robert.y, r: 40 + sim.robert.level * 10, color: 0xbfe6ff, dayAlpha: 0 }); // Robert's headlamp
     for (const c of sim.capsules) lights.push({ x: c.x, y: c.y, r: 46, color: 0xf2d24f, dayAlpha: 0.14 });
     for (const cv of sim.caves) lights.push({ x: cv.x, y: cv.y, r: 48, color: 0x66e0ff, dayAlpha: 0.12 });
     if (sim.specialCase) lights.push({ x: sim.specialCase.x, y: sim.specialCase.y, r: 62, color: 0xff8844, dayAlpha: 0.15 });
 
     this.nightFx.update(this, sim, a, inShadow, this.player.x, this.player.y, this.aimRad, lights);
     this.pixelfx.update(this, dt);
+    this.terrainFx.update(this.cameras.main);
     if (this.vignetteFx) {
       const danger = sim.suitO2 < 20 || sim.effects.length > 0;
       this.vignetteFx.strength = danger ? 0.34 + Math.abs(Math.sin(this.time.now / 400)) * 0.12 : 0.16;
