@@ -219,6 +219,12 @@ export function makeSprites(scene: Phaser.Scene) {
     block(r, 1, 20, 30, 7, 0x6b6b75, 0x9a9aa3, 0x45454f);
     for (const x of [3, 13, 23]) { block(r, x, 2, 7, 18, 0x2f8a45, 0x9ff0b4, 0x1d5a2c); r(x + 2, 5, 1, 10, 0xd8ffe4, 0.8); g.fillStyle(0xffffff, 0.8).fillCircle(x + 4, 8, 0.8); }
   });
+  // Hydroponic farm: a tray with LED bar; algae drawn on top by the scene when planted.
+  tex(scene, "m_hidroponia", 16, 12, (g, r) => {
+    block(r, 1, 12, 30, 10, 0x6b6b75, 0x9a9aa3, 0x45454f);
+    r(3, 14, 26, 4, 0x2a5aa8); r(3, 14, 26, 1, 0x7fa8ff);
+    r(2, 2, 2, 10, 0x45454f); r(28, 2, 2, 10, 0x45454f); r(2, 1, 28, 2, 0xc77dff); g.fillStyle(0xffffff, 0.7).fillRect(4, 3, 24, 1);
+  });
   // Historic sites.
   tex(scene, "poi_lcross", 14, 9, (g, r) => {
     g.fillStyle(OUT).fillPoints(toPts([2, 12, 10, 3, 22, 5, 27, 14, 14, 17], 1), true);

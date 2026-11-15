@@ -33,7 +33,7 @@ export const CYCLE = DAY_LEN + NIGHT_LEN;
 export const LH2_CAP = balance.lh2_cap_kg;
 export const LOX_CAP = balance.lox_cap_kg;
 
-export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cofre: number; puente_kit: number; rover: number; biorreactor: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number; alga_lunar: number; racion: number; comida_caliente: number; pico_plasma: number; armadura_lunar: number; botas_gravedad: number }
+export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cofre: number; puente_kit: number; rover: number; biorreactor: number; hidroponia: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number; alga_lunar: number; racion: number; comida_caliente: number; pico_plasma: number; armadura_lunar: number; botas_gravedad: number }
 
 export function createSim(mode: Mode, difficulty: Difficulty) {
   return {
@@ -43,7 +43,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     battery: 60, energyIn: 0, energyOut: 0,
     habitatO2: 80,
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
-    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: difficulty === "facil" ? 3 : 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cofre: 0, puente_kit: 0, rover: 0, biorreactor: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0, alga_lunar: 0, racion: difficulty === "facil" ? 1 : 0, comida_caliente: 0, pico_plasma: 0, armadura_lunar: 0, botas_gravedad: 0 } as Inv,
+    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: difficulty === "facil" ? 3 : 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cofre: 0, puente_kit: 0, rover: 0, biorreactor: 0, hidroponia: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0, alga_lunar: 0, racion: difficulty === "facil" ? 1 : 0, comida_caliente: 0, pico_plasma: 0, armadura_lunar: 0, botas_gravedad: 0 } as Inv,
     relay: false,
     // --- historia, efectos, eventos y botín ---
     effects: [] as string[],
@@ -143,6 +143,9 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     alert: "" as string,
     leakFreeNight: true,
     drillAcc: 0,
+    shed: false,
+    machineFx: [] as { x: number; y: number; text: string }[],
+    farms: {} as Record<string, { crop: number; growth: number }>,
   };
 }
 export type Sim = ReturnType<typeof createSim>;
@@ -184,14 +187,19 @@ const bestMult = (s: Sim, tipo: ModType) => Math.max(1, ...s.modules.filter((m) 
 
 /** Solar output multiplier from dust (set every step; the EDS keeps it at 1). */
 let dustFactor = 1;
+/** Heavy industry the base pauses on its own when the battery runs low at night, to keep life support alive. */
+export const SHED = new Set<string>(["electrolisis", "licuefactor", "horno", "taladro"]);
+let shedNow = false;
 export function moduleEnergy(m: Module, day: boolean) {
   if (!isOn(m)) return 0;
+  if (shedNow && SHED.has(m.tipo)) return 0;
   const t = TIPOS[m.tipo];
   if (t.solo_dia && !day) return 0;
   return t.energia * (t.energia > 0 && m.durabilidad < 30 ? 0.5 : 1) * (t.energia > 0 ? lvMult(m) : 1) * (m.tipo === "panel" ? dustFactor : 1);
 }
 export function energyBalance(s: Sim, day: boolean) {
   dustFactor = 1 - dustLoss(s); // this sim's dust, never a stale value from another game
+  shedNow = !!s.shed;
   let inp = 0, out = 0;
   for (const m of s.modules) { const e = moduleEnergy(m, day); if (e > 0) inp += e; else out -= e; }
   return { inp, out };
@@ -447,27 +455,35 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
 
   // energy
   const ev = s.event?.phase === "activo" ? s.event.id : null;
-  const { inp: eIn, out: eOut } = energyBalance(s, day && ev !== "eclipse");
+  const sunny = day && ev !== "eclipse";
+  // Smart power: below 30 % battery without sun, pause heavy machines; resume above 50 % or in daylight.
+  const wasShed = s.shed;
+  s.shed = !sunny && s.battery < batteryCap(s) * (s.shed ? 0.5 : 0.3);
+  if (s.shed && !wasShed) addLog(s, "🔋 Low battery: electrolysis, liquefier, furnace and drill paused to keep the habitat warm and breathing.");
+  const { inp: eIn, out: eOut } = energyBalance(s, sunny);
   const powered = s.battery > 0 || eIn > 0;
-  const elecOn = powered && working(s, "electrolisis") && s.inv.agua > 0;
-  const liqOn = powered && working(s, "licuefactor") && (s.h2gas > 0 || s.o2gas > 0);
-  const hornoOn = powered && working(s, "horno") && s.inv.regolito > 0;
+  const elecOn = powered && !s.shed && working(s, "electrolisis") && s.inv.agua > 0;
+  const liqOn = powered && !s.shed && working(s, "licuefactor") && (s.h2gas > 0 || s.o2gas > 0);
+  const hornoOn = powered && !s.shed && working(s, "horno") && s.inv.regolito > 0;
   s.energyIn = eIn; s.energyOut = eOut;
   // What each module is doing right now, so the player can see why things work or don't.
   for (const m of s.modules) {
     let st: "ok" | "nopower" | "idle" | "off" = "ok";
     if (!m.activo || m.durabilidad <= 0) st = "off";
     else if (m.tipo === "panel") st = day && ev !== "eclipse" ? "ok" : "idle";
-    else if (TIPOS[m.tipo].energia < 0 && !powered) st = "nopower";
+    else if (TIPOS[m.tipo].energia < 0 && (!powered || (s.shed && SHED.has(m.tipo)))) st = "nopower";
     else if (m.tipo === "electrolisis" && s.inv.agua <= 0) st = "idle";
     else if (m.tipo === "licuefactor" && s.h2gas <= 0 && s.o2gas <= 0) st = "idle";
     else if (m.tipo === "horno" && s.inv.regolito <= 0) st = "idle";
     s.modStatus[m.uid] = st;
   }
   s.battery = Math.min(batteryCap(s), Math.max(0, s.battery + (eIn - eOut) * dt * BATTERY_RATE));
-  if (powered) for (const m of s.modules) if (m.tipo === "taladro" && isOn(m)) {
+  if (powered && !s.shed) for (const m of s.modules) if (m.tipo === "taladro" && isOn(m)) {
     s.drillAcc = (s.drillAcc ?? 0) + (TIPOS.taladro.produce_hielo ?? 0) * lvMult(m) * dt;
-    if (s.drillAcc >= 1) { if (addItem(s, "hielo", 1)) s.drillAcc -= 1; else s.drillAcc = 1; }
+    if (s.drillAcc >= 1) {
+      const chest = s.modules.find((c) => c.tipo === "cofre" && moveIntoChest(s, c.uid, "hielo", 1));
+      if (chest || addItem(s, "hielo", 1)) { s.drillAcc -= 1; s.machineFx.push({ x: m.x, y: m.y - 10, text: chest ? "+1 Ice → chest" : "+1 Ice" }); } else s.drillAcc = 1;
+    }
   }
 
   // production
@@ -562,7 +578,7 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
     if (ev === "pico_termico" && !ctx.inShadow) target = 62;
     if (s.equip.includes("traje_termico") && target < 15) target = Math.max(target, 10); // insulated suit holds ~10 °C
     if (s.equip.includes("capa_reflectante") && target > 30) target = Math.min(target, 30); // reflective cape caps ~30 °C
-  } else if (s.battery <= 0) target = 0;
+  } else if (s.battery <= 0) target = 14; // insulated walls hold heat even when batteries are empty
   s.temp += (target - s.temp) * Math.min(1, dt * 0.08);
   if (s.suitO2 <= 0 && suitWorking(s) && !ctx.inHabitat) {
     hurt(s, 7 * dt, "suffocated (O2 depleted)");
@@ -711,8 +727,8 @@ export function stepBaseTech(s: Sim, dt: number, day: boolean) {
   const chests = s.modules.filter((m) => m.tipo === "cofre");
   const inv = s.inv as unknown as Record<string, number>;
   for (const m of s.modules) {
-    if (!isOn(m) || !powered) continue;
-    if (m.tipo === "rover") {
+    if (!isOn(m)) continue;
+    if (m.tipo === "rover") { // own radioisotope power: works day and night
       if (!chests.length) { s.modStatus[m.uid] = "idle"; continue; }
       m.acc = (m.acc ?? 0) + dt / ROVER_PERIOD_S;
       while (m.acc >= 1) {
@@ -720,8 +736,10 @@ export function stepBaseTech(s: Sim, dt: number, day: boolean) {
         const item = m.tick % 2 === 0 ? "hielo" : "regolito";
         const target = chests.find((c) => moveIntoChest(s, c.uid, item, 1));
         if (!target) s.modStatus[m.uid] = "idle";
+        else { s.modStatus[m.uid] = "ok"; s.machineFx.push({ x: m.x, y: m.y - 8, text: `+1 ${item === "hielo" ? "Ice" : "Regolith"} → chest` }); }
       }
     } else if (m.tipo === "biorreactor") {
+      if (!powered) { s.modStatus[m.uid] = "nopower"; continue; }
       const water = 0.02 * dt;
       if (s.inv.agua < water) { s.modStatus[m.uid] = "idle"; continue; }
       s.inv.agua -= water;
@@ -731,9 +749,39 @@ export function stepBaseTech(s: Sim, dt: number, day: boolean) {
         m.acc -= 1;
         const chest = chests.find((c) => moveIntoChest(s, c.uid, "racion", 1));
         if (!chest && addItem(s, "racion" as keyof Inv, 1)) addLog(s, "The bioreactor grew a Space ration.");
+        s.machineFx.push({ x: m.x, y: m.y - 10, text: "+1 Ration" });
       }
-    }
+    } else if (m.tipo === "hidroponia") stepFarm(s, m, dt, powered);
   }
+  if (s.machineFx.length > 12) s.machineFx.splice(0, s.machineFx.length - 12);
+}
+
+// ---- Hydroponic farm: plant Lunar algae with E, it grows on water (and grow-lamp power), harvest with E ----
+export const FARM_GROW_S = 90;          // seconds to grow with power (half speed without)
+export const FARM_HARVEST = 3;          // algae per harvest (plant 1, get 3)
+export function farmOf(s: Sim, uid: number) { return (s.farms[String(uid)] ??= { crop: 0, growth: 0 }); }
+function stepFarm(s: Sim, m: Module, dt: number, powered: boolean) {
+  const f = farmOf(s, m.uid);
+  if (!f.crop || f.growth >= 1) { s.modStatus[m.uid] = f.crop ? "ok" : "idle"; return; }
+  const water = 0.005 * dt;
+  if (s.inv.agua < water) { s.modStatus[m.uid] = "idle"; return; }
+  s.inv.agua -= water;
+  f.growth = Math.min(1, f.growth + (dt / FARM_GROW_S) * (powered ? 1 : 0.5) * lvMult(m));
+  s.modStatus[m.uid] = powered ? "ok" : "nopower";
+  if (f.growth >= 1) s.machineFx.push({ x: m.x, y: m.y - 10, text: "Algae ready!" });
+}
+/** E on a farm: plant if empty, harvest if ripe. Returns a message for the player. */
+export function tendFarm(s: Sim, m: Module): string {
+  const f = farmOf(s, m.uid);
+  if (!f.crop) {
+    if (s.inv.alga_lunar < 1) return "Need 1 Lunar algae to plant (Shadowed Crater / Glacial Rift)";
+    s.inv.alga_lunar -= 1; f.crop = 1; f.growth = 0;
+    return "🌱 Planted Lunar algae. Keep water in the tank.";
+  }
+  if (f.growth < 1) return `🌱 Growing… ${Math.round(f.growth * 100)}%${s.inv.agua <= 0 ? " (NO WATER: melt ice)" : ""}`;
+  if (!addItem(s, "alga_lunar", FARM_HARVEST)) return "Inventory full";
+  f.crop = 0; f.growth = 0;
+  return `🌿 Harvested +${FARM_HARVEST} Lunar algae`;
 }
 
 /** Put an item straight into a chest (used by machines). */

@@ -87,7 +87,7 @@
   },
   "rover": {
    "nombre": "Auto-Miner Rover",
-   "energia": -1,
+   "energia": 0,
    "desgaste": 0.01,
    "w": 12,
    "h": 10,
@@ -100,6 +100,14 @@
    "w": 16,
    "h": 14,
    "item": "biorreactor"
+  },
+  "hidroponia": {
+   "nombre": "Hydroponic farm",
+   "energia": -1,
+   "desgaste": 0.01,
+   "w": 16,
+   "h": 12,
+   "item": "hidroponia"
   }
  },
  "iniciales": [

@@ -377,6 +377,21 @@
   "ref": "NASA Ref: bioregenerative life support (BLSS) — plants and algae recycling air and food — is studied for the ISS (Veggie) and NASA's closed-loop programs."
  },
  {
+  "id": "hidroponia",
+  "nombre": "Hydroponic farm (module)",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 3,
+   "regolito": 2,
+   "alga_lunar": 1
+  },
+  "resultado": {
+   "hidroponia": 1
+  },
+  "disponible": true,
+  "ref": "NASA Ref: the ISS Veggie and Advanced Plant Habitat grow crops without soil, using water, nutrients and LED light."
+ },
+ {
   "id": "navcore",
   "nombre": "Interplanetary Nav-Core",
   "lugar": "taller",

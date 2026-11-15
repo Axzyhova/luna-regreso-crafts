@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { PAL } from "./palette";
 import { sim, useGame, saveGame } from "./store";
-import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, dropItem, TIPOS, PLACEABLE, leakAllowed, hurt, visitPoi, applyBridgeKit, type Leak, toolInfo, meltIce, WATER_TANK_KG, nextLeakDelay, pickUpDrop, toggleSuit, WORLD, ZONAS, zoneAt, zoneBlock, reveal, BRIDGE, buildBridge, canUpgrade, upgradeCost, upgradeModule, lvl, type Zona, type LeakTarget, type Module, type ModType } from "./sim";
+import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, dropItem, TIPOS, PLACEABLE, leakAllowed, hurt, visitPoi, tendFarm, farmOf, applyBridgeKit, type Leak, toolInfo, meltIce, WATER_TANK_KG, nextLeakDelay, pickUpDrop, toggleSuit, WORLD, ZONAS, zoneAt, zoneBlock, reveal, BRIDGE, buildBridge, canUpgrade, upgradeCost, upgradeModule, lvl, type Zona, type LeakTarget, type Module, type ModType } from "./sim";
 import { sfx } from "./audio";
 import { stepAliens, hitAlien, type World } from "./aliens";
 import { stepCountdown } from "./mission";
@@ -28,7 +28,7 @@ const WW = WORLD.w, WH = WORLD.h; // whole explorable world (2560x1440)
 const isStation = (m: Module) => m.tipo === "taller" || m.tipo === "horno";
 /** How far beyond an object's edge E still reaches (world px): practically touching it. */
 export const INTERACT_EDGE = 7;
-type TargetKind = "leak" | "special" | "cave" | "drop" | "bridge" | "poi" | "capsule" | "rocket" | "melt" | "chest" | "station" | "repair" | "upgrade" | "clean";
+type TargetKind = "leak" | "special" | "cave" | "drop" | "bridge" | "poi" | "capsule" | "rocket" | "melt" | "chest" | "station" | "repair" | "upgrade" | "clean" | "farm";
 interface Target { kind: TargetKind; x: number; y: number; ref?: unknown; label: string }
 type NodeType = "hielo" | "regolito" | "chatarra" | "cristal_hielo" | "titanio" | "aleacion" | "alga_lunar";
 const NODE_TEX: Record<NodeType, string> = { hielo: "ice", regolito: "reg", chatarra: "scrap", cristal_hielo: "n_cristal", titanio: "n_titanio", aleacion: "n_aleacion", alga_lunar: "n_aleacion" };
@@ -401,7 +401,15 @@ export class LunarScene extends Phaser.Scene {
     return best;
   }
 
+  cropGfx = new Map<number, Phaser.GameObjects.Graphics>();
   syncModules(a: number) {
+    for (const fx of sim.machineFx.splice(0)) this.floatText(fx.x, fx.y, fx.text, PAL.ok);
+    for (const m of sim.modules) if (m.tipo === "hidroponia") {
+      let g = this.cropGfx.get(m.uid);
+      if (!g) { g = this.add.graphics().setDepth(sortDepth(groundLine(m.y, TIPOS[m.tipo].h), H) + 0.01); this.cropGfx.set(m.uid, g); }
+      const f = farmOf(sim, m.uid); g.clear();
+      if (f.crop) { const h = 1 + Math.round(f.growth * 4); g.fillStyle(f.growth >= 1 ? PAL.gold : PAL.ok); for (const dx of [-5, -2, 1, 4]) g.fillRect(m.x + dx, m.y - h, 2, h); }
+    }
     const alive = new Set(sim.modules.map((m) => m.uid));
     for (const [uid, sp] of this.modSprites) if (!alive.has(uid)) { sp.img.destroy(); sp.shadow.destroy(); sp.warn.destroy(); sp.up.destroy(); sp.glow?.destroy(); this.modSprites.delete(uid); }
     for (const m of sim.modules) {
@@ -531,6 +539,7 @@ export class LunarScene extends Phaser.Scene {
       const half = Math.max(TIPOS[m.tipo].w, TIPOS[m.tipo].h) / 2;
       const name = TIPOS[m.tipo].nombre.toUpperCase();
       if (m.tipo === "habitat") { if (sim.inv.hielo > 0) consider({ kind: "melt", x: m.x, y: m.y, ref: m, label: sim.inv.agua >= WATER_TANK_KG ? "WATER TANK FULL" : "E: MELT ICE INTO WATER" }, half); continue; }
+      if (m.tipo === "hidroponia" && m.activo && m.durabilidad > 0) { const f = farmOf(sim, m.uid); consider({ kind: "farm", x: m.x, y: m.y, ref: m, label: !f.crop ? (sim.inv.alga_lunar > 0 ? "E: PLANT LUNAR ALGAE" : "NEED 1 LUNAR ALGAE TO PLANT") : f.growth >= 1 ? "E: HARVEST ALGAE" : `GROWING ${Math.round(f.growth * 100)}%` }, half); continue; }
       if (m.tipo === "cofre") consider({ kind: "chest", x: m.x, y: m.y, ref: m, label: "E: OPEN STORAGE CHEST" }, half);
       else if (isStation(m) && m.durabilidad > 0) consider({ kind: "station", x: m.x, y: m.y, ref: m, label: m.tipo === "taller" ? "E: OPEN WORKSHOP" : "E: OPEN FURNACE" }, half);
       else if (m.durabilidad < 60) consider({ kind: "repair", x: m.x, y: m.y, ref: m, label: `HOLD E: REPAIR ${name} (1 KIT)` }, half);
@@ -563,6 +572,7 @@ export class LunarScene extends Phaser.Scene {
       case "chest": sim.chestUid = (tg.ref as Module).uid; sfx.click(); G.publish(); G.setOverlay("cofre"); return;
       case "station": { const st = tg.ref as Module; sim.station = st.tipo as "taller" | "horno"; sim.stationUid = st.uid; sfx.click(); G.publish(); G.setOverlay("estacion"); return; }
       case "upgrade": { const m = tg.ref as Module; upgradeModule(sim, m); sfx.ok(); toast(sim, `⬆ ${TIPOS[m.tipo].nombre} → level ${lvl(m)}`, 3); return; }
+      case "farm": { const msg = tendFarm(sim, tg.ref as Module); sfx[msg.startsWith("🌱 Planted") || msg.startsWith("🌿") ? "ok" : "click"](); toast(sim, msg, 3); G.publish(); return; }
       case "clean": sim.dust = 0; sfx.ok(); toast(sim, "🧹 Panels cleaned: full solar power again. An EDS Dust Shield would do this for you.", 4); return;
     }
   }

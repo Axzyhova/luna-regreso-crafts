@@ -81,8 +81,9 @@ describe("things that used to get lost", () => {
     s.inv.agua = 0; cleanupInventory(s); expect(s.hotbarItems[3]).toBeNull();
   });
 
-  it("a full inventory pauses the ice drill instead of throwing the ice away", () => {
+  it("a full inventory (and no chest) pauses the ice drill instead of throwing the ice away", () => {
     const s = fresh();
+    s.modules = s.modules.filter((m) => m.tipo !== "cofre"); // with a chest the drill stores ice there
     s.modules.push({ uid: 999, tipo: "taladro", x: 640, y: 520, durabilidad: 100, activo: true });
     for (const k of Object.keys(s.inv) as (keyof Inv)[]) if (k !== "agua" && k !== "hielo") s.inv[k] = 0;
     const filler = (Object.keys(s.inv) as (keyof Inv)[]).filter((k) => k !== "agua" && k !== "hielo" && k !== "regolito").slice(0, SLOTS); // regolith is burnt by the furnace
