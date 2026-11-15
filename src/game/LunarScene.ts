@@ -536,6 +536,7 @@ export class LunarScene extends Phaser.Scene {
     if (!this.checkPlace(tipo, x, y)) { sfx.bad(); this.say(TIPOS[tipo].en_crater ? "THE DRILL GOES INSIDE THE CRATER" : "INVALID SPOT"); return; }
     (sim.inv as unknown as Record<string, number>)[key]! -= 1;
     sim.modules.push({ uid: sim.nextUid++, tipo, x, y, durabilidad: 100, activo: true });
+    sim.tut.built = true;
     addLog(sim, `Day ${sim.day}: you built a ${TIPOS[tipo].nombre.toLowerCase()}.`); sfx.ok();
     if (!this.ownedPlaceables().includes(key)) { sim.buildMode = null; this.preview.clear(); }
   }

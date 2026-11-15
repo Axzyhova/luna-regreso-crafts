@@ -6,6 +6,7 @@ import { ITEMS, INV_ORDER } from "@/game/items";
 import { sfx } from "@/game/audio";
 import { PixelIcon } from "./PixelIcon";
 import { itemSources } from "@/game/sources";
+import { CRAFT_CATS, categoryOf, sortRecipes, recipeStars, starText, STAR_LABEL } from "@/game/craftCats";
 
 const TITLE = { taller: "WORKSHOP", horno: "FURNACE" } as const;
 const NOTE = {
@@ -21,6 +22,17 @@ function Slot({ item, n, big, warn, active, dim, onClick, title }: { item?: stri
       {item && <PixelIcon item={item} size={big ? 34 : 22} />}
       {n !== undefined && n !== "" && <span className="tr-text absolute bottom-0 right-1 text-[9px]">{n}</span>}
     </button>
+  );
+}
+
+function CatTabs({ cats, value, onChange }: { cats: { id: string; nombre: string; icon: string; n: number }[]; value: string; onChange: (id: string) => void }) {
+  return (
+    <div className="mb-1.5 flex flex-wrap gap-1">
+      {[{ id: "all", nombre: "All", icon: "📋", n: cats.reduce((a, c) => a + c.n, 0) }, ...cats].map((c) => (
+        <button key={c.id} type="button" onClick={() => onChange(c.id)}
+          className={`tr-btn px-1.5 py-1 text-[8px] ${value === c.id ? "!border-gold !bg-gold/30" : ""}`}>{c.icon} {c.nombre} <span className="opacity-60">{c.n}</span></button>
+      ))}
+    </div>
   );
 }
 
@@ -46,8 +58,11 @@ export function StationPanel() {
   const publish = useGame((g) => g.publish);
   const setOverlay = useGame((g) => g.setOverlay);
   const station = s.station ?? "taller";
-  const list = recetas.filter((r) => r.lugar === station || r.lugar === "mano");
-  const [selId, setSelId] = useState(list[0]?.id ?? "");
+  const all = sortRecipes(recetas.filter((r) => r.lugar === station || r.lugar === "mano"));
+  const [cat, setCat] = useState<string>("all");
+  const list = cat === "all" ? all : all.filter((r) => categoryOf(r) === cat);
+  const cats = CRAFT_CATS.map((c) => ({ id: c.id, nombre: c.nombre, icon: c.icon, n: all.filter((r) => categoryOf(r) === c.id).length })).filter((c) => c.n > 0);
+  const [selId, setSelId] = useState(all[0]?.id ?? "");
   const [where, setWhere] = useState<string | null>(null);
   const sel: Receta | undefined = list.find((r) => r.id === selId) ?? list[0];
   const inv = s.inv as unknown as Record<string, number>;
@@ -93,7 +108,8 @@ export function StationPanel() {
         <div className="flex flex-col gap-3 sm:flex-row short:flex-row">
           {/* recipes */}
           <div className="sm:w-52 short:w-44">
-            <div className="tr-text mb-1 text-[9px] text-white/90">Recipes</div>
+            <div className="tr-text mb-1 text-[9px] text-white/90">Recipes <span className="text-white/50">(easiest first)</span></div>
+            <CatTabs cats={cats} value={cat} onChange={(id) => { sfx.click(); setCat(id); }} />
             <div className="grid grid-cols-4 gap-1">
               {list.map((r) => {
                 const out = Object.keys(r.resultado)[0]!;
@@ -107,6 +123,7 @@ export function StationPanel() {
           {sel && result && (
             <div className="flex flex-1 flex-col gap-2">
               <div className="tr-text text-[10px] text-gold">{sel.nombre}</div>
+              <div className="text-[8px] text-white/80">Difficulty <span className="text-gold">{starText(recipeStars(sel))}</span> {STAR_LABEL[recipeStars(sel)]} · {CRAFT_CATS.find((c) => c.id === categoryOf(sel))?.nombre}</div>
               <div className="flex items-center gap-3">
                 <div className="grid grid-cols-3 gap-1">
                   {Array.from({ length: 6 }, (_, i) => {

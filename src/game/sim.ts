@@ -102,7 +102,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     nextDropId: 1,
     notices: [] as { id: number; kind: "achievement" | "mission"; title: string; text: string }[],
     nextNoticeId: 1,
-    tut: { step: 0, skipped: false, moved: 0, invOpened: false, kitCrafted: false },
+    tut: { step: 0, skipped: false, moved: 0, invOpened: false, kitCrafted: false, seen: [] as string[], acks: [] as string[], built: false },
     leaksToday: 0,
     awayT: 0,
     coldT: 0,
