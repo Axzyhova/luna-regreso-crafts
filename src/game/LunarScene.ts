@@ -140,8 +140,10 @@ export class LunarScene extends Phaser.Scene {
     this.tint = this.add.rectangle(0, 0, 640, 360, PAL.red, 0).setOrigin(0).setScrollFactor(0).setDepth(26);
     this.nightFx = new NightLighting(this);
     if (this.renderer.type === Phaser.WEBGL && this.cameras.main.postFX) {
-      this.cameras.main.postFX.addBloom(0xffffff, 1, 1, 1.05, 0.3);
-      this.vignetteFx = this.cameras.main.postFX.addVignette(0.5, 0.5, 0.92, 0.18);
+      const cm = this.cameras.main.postFX.addColorMatrix();
+      cm.saturate(0.28);
+      cm.contrast(0.12);
+      this.vignetteFx = this.cameras.main.postFX.addVignette(0.5, 0.5, 0.94, 0.14);
     }
     // World text uses the pixel font at HD density (1 font pixel = 1 HD pixel), matching the sprites.
     this.promptBg = this.add.rectangle(0, 0, 4, 5, 0x0b1230, 0.88).setOrigin(0).setDepth(39).setStrokeStyle(0.5, 0x6f86d6, 0.8).setVisible(false);
