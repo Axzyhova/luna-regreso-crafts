@@ -7,7 +7,7 @@
    { "id": "rivera", "nombre": "Cmdr. Alex Rivera", "rol": "Commander and lander pilot (you)", "agencia": "NASA", "nota": "Grew up under the dark desert skies and trained for ten years for this landing." },
    { "id": "weber", "nombre": "Jonas Weber", "rol": "Pilot of the mothership, waiting in lunar orbit", "agencia": "ESA", "nota": "The voice you hope to hear again once the relay works." },
    { "id": "tanaka", "nombre": "Dr. Aiko Tanaka", "rol": "Mission specialist and geologist, in lunar orbit", "agencia": "JAXA", "nota": "Chose the south pole because she wanted to study its ice." },
-   { "id": "raman", "nombre": "Priya Raman", "rol": "Flight Director, Mission Control in Houston", "agencia": "NASA", "nota": "Leads the team on Earth and has not given up on you." },
+   { "id": "ortega", "nombre": "Ana Ortega", "rol": "Flight Director, Mission Control in Houston", "agencia": "NASA", "nota": "Leads the team on Earth and has not given up on you." },
    { "id": "aria", "nombre": "ARIA", "rol": "Onboard AI of the Selene-7 lander", "agencia": "fiction", "nota": "Monitors the ship and talks you through every repair." }
   ]
  },

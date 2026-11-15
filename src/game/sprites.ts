@@ -208,13 +208,11 @@ export function makeSprites(scene: Phaser.Scene) {
     g.fillStyle(OUT).fillTriangle(7, 25, 13, 25, 10, 28); g.fillStyle(0x9a9aa3).fillTriangle(8, 25, 12, 25, 10, 27);
     block(r, 1, 20, 18, 3, 0x6b6b75, 0x9a9aa3, 0x45454f);
   });
-  tex(scene, "m_cofre", 16, 12, (_g, r) => {
-    block(r, 1, 9, 30, 14, 0x6b6b75, 0x9a9aa3, 0x45454f);            // body
-    block(r, 1, 2, 30, 8, 0x9a9aa3, 0xc9c9cf, 0x6b6b75);             // lid
-    r(7, 3, 3, 20, 0x45454f); r(22, 3, 3, 20, 0x45454f);              // straps
-    r(7, 3, 1, 20, 0x6b6b75); r(22, 3, 1, 20, 0x6b6b75);
-    for (const x of [3, 28]) { r(x, 4, 1, 1, 0xe6e6ec); r(x, 20, 1, 1, 0x2a2a36); } // rivets
-    block(r, 13, 8, 6, 7, T.gold, 0xfff3a6, 0xb08a10); r(15, 10, 2, 3, 0x2a2a36); // latch
+  tex(scene, "m_cofre", 14, 11, (g, r) => {
+    block(r, 1, 6, 26, 15, 0x8a4a1e, 0xc0743a, 0x5a2e10);
+    block(r, 1, 1, 26, 7, 0xa85a26, 0xd8884a, 0x6a3614);
+    r(2, 7, 24, 1, 0x3a1a08); for (const x of [6, 20]) r(x, 2, 2, 18, 0x6b6b75);
+    block(r, 12, 6, 4, 5, T.gold, 0xfff3a6, 0xb08a10);
   });
   tex(scene, "m_torre_luz", 6, 16, (g, r) => {
     block(r, 1, 1, 10, 7, T.gold, 0xfff3a6, 0xb08a10); r(3, 3, 6, 2, 0xffffff);

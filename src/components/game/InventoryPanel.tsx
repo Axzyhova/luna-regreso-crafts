@@ -1,12 +1,12 @@
 import { useState } from "react";
 import recetas from "@/data/recetas.json";
 import { useGame, sim } from "@/game/store";
-import { SLOTS, STACK, WATER_CAP, usedSlots, recipeBlock, craft } from "@/game/sim";
+import { SLOTS, STACK, WATER_TANK_KG, usedSlots, recipeBlock, craft, dropItem, pourWater } from "@/game/sim";
 import { GEAR, CONSUMIBLES, toggleEquip, applyConsumable } from "@/game/effects";
 import { ITEMS } from "@/game/items";
-import { INV_ORDER, ITEM_GUIDE } from "@/game/itemGuide";
+import { INV_ORDER } from "@/game/items";
+import { ITEM_GUIDE } from "@/game/itemGuide";
 import { bestTool, HANDS, TOOLS } from "@/game/tools";
-import { dropItem, dropPoint, have } from "@/game/storage";
 import { sfx } from "@/game/audio";
 import { PixelIcon } from "./PixelIcon";
 import { Panel } from "./Panel";
@@ -25,6 +25,8 @@ export function inventoryStacks(inv: Record<string, number>) {
   return stacks;
 }
 
+const have = (o: { inv: unknown }, key: string) => Math.floor(((o.inv as Record<string, number>)[key]) ?? 0);
+
 export function Inventory() {
   const s = useGame((g) => g.snap);
   const publish = useGame((g) => g.publish);
@@ -36,9 +38,9 @@ export function Inventory() {
   const say = (m: string) => { setNote(m); setTimeout(() => setNote((c) => (c === m ? null : c)), 2600); };
 
   const throwAway = (key: string, n: number) => {
-    const r = dropItem(sim, key, n, dropPoint(sim));
-    sfx[r.dropped > 0 ? "click" : "bad"]();
-    say(r.dropped > 0 ? (key === "agua" ? r.msg : `Dropped ${r.dropped} ${ITEMS[key]?.nombre ?? key} on the ground`) : r.msg);
+    const done = key === "agua" ? pourWater(sim, n) : dropItem(sim, key, n, sim.pos.x, sim.pos.y);
+    sfx[done > 0 ? "click" : "bad"]();
+    say(done > 0 ? (key === "agua" ? `Poured out ${Math.round(done)} kg of water` : `Dropped ${done} ${ITEMS[key]?.nombre ?? key} on the ground`) : "Nothing to drop");
     if (!(have(sim, key) > 0)) setSel((c) => (c === key ? null : c));
     publish();
   };
@@ -54,7 +56,7 @@ export function Inventory() {
   const nextTool = TOOLS.slice().reverse().find((t) => t.tier > tool.tier);
   const info = sel ? ITEMS[sel] : null, guide = sel ? ITEM_GUIDE[sel] : null;
   const selCount = sel ? have(s, sel) : 0;
-  const waterPct = Math.min(100, (s.inv.agua / WATER_CAP) * 100);
+  const waterPct = Math.min(100, (s.inv.agua / WATER_TANK_KG) * 100);
 
   return (
     <Panel title="INVENTORY" wide dropOutside>
@@ -97,7 +99,7 @@ export function Inventory() {
               <div className="tr-slot flex items-center gap-2 !rounded-[7px] px-2 py-1.5 short:py-1">
                 <div {...drag.bind({ key: "agua", n: Math.floor(s.inv.agua), from: "tank" })} className="flex shrink-0 cursor-grab items-center" title="Drag to a hotbar slot or to DROP to pour it out"><PixelIcon item="agua" size={22} className="short:h-4 short:w-4" /></div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex justify-between text-[6px]"><span className="text-white/80">WATER TANK</span><span className="tr-text tabular-nums">{Math.round(s.inv.agua)}/{WATER_CAP} kg</span></div>
+                  <div className="flex justify-between text-[6px]"><span className="text-white/80">WATER TANK</span><span className="tr-text tabular-nums">{Math.round(s.inv.agua)}/{WATER_TANK_KG} kg</span></div>
                   <div className="tr-bar mt-0.5 !h-1.5"><div className="bg-suit-light" style={{ width: `${waterPct}%` }} /></div>
                 </div>
                 <button type="button" onClick={() => { const r = applyConsumable(sim, "agua"); sfx[r.ok ? "ok" : "bad"](); say(r.msg); publish(); }} className="tr-btn px-1.5 py-1 text-[6px]">DRINK</button>

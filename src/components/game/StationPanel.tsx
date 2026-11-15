@@ -2,10 +2,9 @@ import { useState } from "react";
 import recetas from "@/data/recetas.json";
 import { useGame, sim } from "@/game/store";
 import { recipeBlock, craft, addLog, TIPOS, STACK, SLOTS, type Receta } from "@/game/sim";
-import { ITEMS } from "@/game/items";
+import { ITEMS, INV_ORDER } from "@/game/items";
 import { sfx } from "@/game/audio";
 import { PixelIcon } from "./PixelIcon";
-import { INV_ORDER } from "@/game/itemGuide";
 
 const TITLE = { taller: "WORKSHOP", horno: "FURNACE" } as const;
 const NOTE = {

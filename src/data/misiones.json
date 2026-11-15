@@ -1,23 +1,21 @@
 {
  "personajes": {
-  "ARIA": "Onboard AI of the Selene-7 lander",
-  "CONTROL": "Mission Control in Houston (Flight Director Priya Raman)",
-  "WEBER": "Jonas Weber (ESA), pilot, in lunar orbit",
-  "TANAKA": "Dr. Aiko Tanaka (JAXA), geologist, in lunar orbit",
-  "TÚ": "Commander Alex Rivera (NASA)"
+  "ARIA": "Onboard AI of the Selene-7",
+  "CONTROL": "Flight Director Ana Ortega, Mission Control (Houston)",
+  "TÚ": "Commander of the Selene-7, an Artemis-era mission (fiction)"
  },
  "intro": [
   {
    "quien": "ARIA",
-   "texto": "Commander Rivera… can you hear me? This is ARIA, the onboard AI of Selene-7. The emergency landing broke the antenna and emptied the tanks."
+   "texto": "Selene-7 mission log, 2026. Our goal was a short survey of the south pole, where LCROSS found water ice in 2009."
+  },
+  {
+   "quien": "ARIA",
+   "texto": "Commander… can you hear me? This is ARIA. The impact broke the antenna and emptied the tanks."
   },
   {
    "quien": "ARIA",
    "texto": "We're at the Moon's south pole. Earth's last transmission came in before the crash: since then, silence."
-  },
-  {
-   "quien": "ARIA",
-   "texto": "Weber and Tanaka are safe in lunar orbit aboard the mothership, but without our antenna we can't reach them, or Mission Control in Houston."
   },
   {
    "quien": "ARIA",
@@ -32,13 +30,17 @@
   {
    "id": "M1",
    "titulo": "Wake up",
-   "objetivo": "Seal a leak (hold E next to it)",
+   "objetivo": "Seal a leak (hold E with 1 Sealant kit — craft: 2 Scrap + 1 Metal)",
    "cond": "fuga_sellada",
    "inicio": [],
    "fin": [
     {
      "quien": "ARIA",
      "texto": "Leak contained. The habitat is holding… for now. We need water: there's ice in the shadowed crater."
+    },
+    {
+     "quien": "ARIA",
+     "texto": "In 1970 Apollo 13 lost an oxygen tank too. Lovell, Swigert and Haise improvised and came home. So will we. (New entries in the Archive 📚)"
     }
    ],
    "inspirado": "apollo13"
@@ -53,6 +55,10 @@
     {
      "quien": "ARIA",
      "texto": "Excellent. Take it to the habitat (E) to melt it. With electricity we'll split it into hydrogen and oxygen: our fuel."
+    },
+    {
+     "quien": "ARIA",
+     "texto": "Lunar Prospector (1998) and LCROSS (2009) showed there's water ice in these cold craters. You just held some."
     }
    ],
    "inspirado": "lcross"
@@ -71,6 +77,10 @@
     {
      "quien": "ARIA",
      "texto": "The rocket is badly damaged. Start with the Structure and the Power."
+    },
+    {
+     "quien": "ARIA",
+     "texto": "Making fuel from local resources is called ISRU: in-situ resource utilization. Real lunar programs plan to do exactly this."
     }
    ],
    "inspirado": "moxie"
@@ -89,6 +99,10 @@
     {
      "quien": "ARIA",
      "texto": "Idea: a CubeSat in orbit can relay our signal to Earth. Design it from the rocket."
+    },
+    {
+     "quien": "ARIA",
+     "texto": "Landers like Beresheet (2019) and Vikram (2019) were lost when one system failed during descent. That's why we repair every subsystem."
     }
    ],
    "inspirado": "skylab"
@@ -102,15 +116,15 @@
    "fin": [
     {
      "quien": "CONTROL",
-     "texto": "…Selene-7, this is Mission Control. Flight Director Raman here. Commander Rivera? We thought we'd lost you!"
-    },
-    {
-     "quien": "WEBER",
-     "texto": "Alex, it's Jonas. Aiko and I have been circling above you, counting the minutes. Stay alive down there."
+     "texto": "…Selene-7, this is Mission Control. Commander? We thought we'd lost you!"
     },
     {
      "quien": "CONTROL",
      "texto": "We're sending you the return windows. Fill the tanks, repair the ship and don't miss your date."
+    },
+    {
+     "quien": "ARIA",
+     "texto": "Chang'e 4 (2019) used the Queqiao relay satellite to talk to Earth from the far side. Our CubeSat does the same."
     }
    ],
    "inspirado": "apollo8"
@@ -125,6 +139,10 @@
     {
      "quien": "ARIA",
      "texto": "All set. When the window opens, start the countdown from the rocket."
+    },
+    {
+     "quien": "ARIA",
+     "texto": "Chandrayaan-3 reached this south polar region in 2023. Luna 25 crashed the same year after a bad maneuver. Our window must be exact."
     }
    ],
    "inspirado": "challenger"
@@ -138,7 +156,11 @@
    "fin": [
     {
      "quien": "CONTROL",
-     "texto": "Liftoff confirmed, Selene-7. Welcome home, Commander Rivera."
+     "texto": "Liftoff confirmed, Selene-7. Welcome home, commander."
+    },
+    {
+     "quien": "CONTROL",
+     "texto": "The last Apollo crew left the Moon in 1972. You're part of a new generation of lunar explorers. Welcome home."
     }
    ],
    "inspirado": "apollo11"
@@ -153,8 +175,7 @@
    "recompensa": {
     "traje_termico": 1
    },
-   "fin": "ARIA: There was a thermal suit in the cargo. Equip it from the inventory.",
-   "inspirado": "apollo17"
+   "fin": "ARIA: There was a thermal suit in the cargo. Equip it from the inventory."
   },
   {
    "id": "S2",
@@ -164,8 +185,7 @@
    "recompensa": {
     "botiquin": 2
    },
-   "fin": "ARIA: Well done. Regolith and the habitat walls stop the particles.",
-   "inspirado": "skylab"
+   "fin": "ARIA: Well done. Regolith and the habitat walls stop the particles."
   },
   {
    "id": "S3",
@@ -185,8 +205,7 @@
    "recompensa": {
     "kits": 3
    },
-   "fin": "ARIA: Maintenance up to date. That's how you survive up here.",
-   "inspirado": "hubble"
+   "fin": "ARIA: Maintenance up to date. That's how you survive up here."
   },
   {
    "id": "S5",
@@ -207,8 +226,7 @@
    "recompensa": {
     "pieza_motor": 1
    },
-   "fin": "ARIA: Ideal mix. I found a spare engine part in storage.",
-   "inspirado": "mco"
+   "fin": "ARIA: Ideal mix. I found a spare engine part in storage."
   },
   {
    "id": "S7",
@@ -218,8 +236,7 @@
    "recompensa": {
     "titanio": 1
    },
-   "fin": "ARIA: Scorch Fields reached. The titanium ore there is what we need for the bridge.",
-   "inspirado": "skylab"
+   "fin": "ARIA: Scorch Fields reached. The titanium ore there is what we need for the bridge."
   },
   {
    "id": "S8",

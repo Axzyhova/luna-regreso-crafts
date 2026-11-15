@@ -59,6 +59,12 @@
    "peso": 5
   },
   {
+   "item": "racion",
+   "min": 1,
+   "max": 2,
+   "peso": 14
+  },
+  {
    "item": "baterias",
    "min": 1,
    "max": 1,

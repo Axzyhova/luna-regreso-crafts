@@ -1,84 +1,56 @@
-import { useState } from "react";
 import { useGame, sim } from "@/game/store";
-import { SLOTS, usedSlots } from "@/game/sim";
-import { ITEMS } from "@/game/items";
-import { INV_ORDER } from "@/game/itemGuide";
-import { CHEST_SLOTS, CHEST_STACK, chestUsed, deposit, depositAll, withdraw, withdrawAll } from "@/game/storage";
+import { moveToChest, moveFromChest, CHEST_SLOTS, SLOTS, STACK } from "@/game/sim";
+import { ITEMS, INV_ORDER } from "@/game/items";
 import { sfx } from "@/game/audio";
 import { PixelIcon } from "./PixelIcon";
-import { Panel } from "./Panel";
-import { useItemDrag, type DragSource } from "./ItemDrag";
-import { inventoryStacks } from "./InventoryPanel";
 
-type Side = "inv" | "chest";
-
-/** Stacks of the chest's contents, in the same order as the inventory grid. */
-export function chestStacks(storage: Record<string, number> | undefined) {
+const stacksOf = (rec: Record<string, number>) => {
   const out: { key: string; n: number }[] = [];
-  const keys = [...INV_ORDER, ...Object.keys(storage ?? {}).filter((k) => !INV_ORDER.includes(k))];
-  for (const key of keys) { let n = Math.floor(storage?.[key] ?? 0); while (n > 0) { out.push({ key, n: Math.min(CHEST_STACK, n) }); n -= CHEST_STACK; } }
+  for (const key of INV_ORDER) { let n = Math.floor(rec[key] ?? 0); while (n > 0) { out.push({ key, n: Math.min(STACK, n) }); n -= STACK; } }
   return out;
+};
+
+function Grid({ title, cells, total, onPick, hint }: { title: string; cells: { key: string; n: number }[]; total: number; onPick: (k: string, all: boolean) => void; hint: string }) {
+  return (
+    <div className="flex-1">
+      <div className="tr-text mb-1 text-[9px]">{title} <span className="text-white/60">({cells.length}/{total})</span></div>
+      <div className="flex flex-wrap gap-1">
+        {Array.from({ length: total }, (_, i) => cells[i]).map((c, i) => (
+          <button key={i} type="button" disabled={!c} title={c ? `${ITEMS[c.key]?.nombre} — tap: move 1 · double-tap / right-click: move stack` : ""}
+            onClick={() => c && onPick(c.key, false)} onDoubleClick={() => c && onPick(c.key, true)} onContextMenu={(e) => { e.preventDefault(); if (c) onPick(c.key, true); }}
+            className="tr-slot relative flex h-11 w-11 items-center justify-center">
+            {c && <PixelIcon item={c.key} size={22} />}
+            {c && <span className="tr-text absolute bottom-0 right-1 text-[9px]">{c.n}</span>}
+          </button>
+        ))}
+      </div>
+      <p className="mt-1 text-[8px] text-white/60">{hint}</p>
+    </div>
+  );
 }
 
-/** Storage chest: move items between your inventory and the chest by dragging, or with the buttons. */
+/** Storage chest: tap an item to move one across, double-tap (or right-click) to move the whole stack. */
 export function ChestPanel() {
   const s = useGame((g) => g.snap);
   const publish = useGame((g) => g.publish);
-  const chest = s.modules.find((m) => m.uid === s.chestUid && m.tipo === "cofre");
-  const [sel, setSel] = useState<{ key: string; side: Side } | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-  const say = (m: string) => { setNote(m); setTimeout(() => setNote((c) => (c === m ? null : c)), 2600); };
+  const setOverlay = useGame((g) => g.setOverlay);
   const uid = s.chestUid;
-
-  const move = (side: Side, key: string, n: number) => {
-    const moved = side === "inv" ? deposit(sim, uid, key, n) : withdraw(sim, uid, key, n);
-    if (moved > 0) { sfx.click(); say(`${side === "inv" ? "Stored" : "Took"} ${moved} ${ITEMS[key]?.nombre ?? key}`); }
-    else { sfx.bad(); say(side === "inv" ? "The chest is full" : "Your inventory is full"); }
-    publish();
-  };
-  const drag = useItemDrag((src: DragSource, target: string) => {
-    if (src.from === "inv" && target === "chest") move("inv", src.key, src.n);
-    else if (src.from === "chest" && target === "inv") move("chest", src.key, src.n);
-  });
-  const invCells = Array.from({ length: SLOTS }, (_, i) => inventoryStacks(s.inv as unknown as Record<string, number>)[i] ?? null);
-  const chestCells = Array.from({ length: CHEST_SLOTS }, (_, i) => chestStacks(chest?.storage)[i] ?? null);
-  const selCount = sel ? Math.floor(((sel.side === "inv" ? (s.inv as unknown as Record<string, number>) : chest?.storage ?? {})[sel.key]) ?? 0) : 0;
-
-  const cell = (c: { key: string; n: number } | null, side: Side, i: number) => (
-    <div key={i} {...(c ? drag.bind({ key: c.key, n: c.n, from: side }) : {})}
-      onClick={() => { if (!c || drag.justDragged()) return; setSel(sel?.key === c.key && sel.side === side ? null : { key: c.key, side }); sfx.click(); }}
-      title={c ? ITEMS[c.key]?.nombre : undefined}
-      className={`tr-slot relative flex h-12 w-12 items-center justify-center short:h-8 short:w-8 ${c ? `cursor-grab ${sel?.key === c.key && sel.side === side ? "tr-slot-active" : ""}` : "opacity-80"}`}>
-      {c && <><PixelIcon item={c.key} size={24} className="short:h-4 short:w-4" /><span className="tr-text absolute bottom-0 right-0.5 text-[8px] short:text-[6px]">{c.n}</span></>}
-    </div>
-  );
-
-  if (!chest) return <Panel title="STORAGE CHEST"><p className="text-[9px]">This chest is gone.</p></Panel>;
+  const chest = s.chests[String(uid)] ?? {};
+  const inv = s.inv as unknown as Record<string, number>;
   return (
-    <Panel title={`STORAGE CHEST · ${chestUsed(chest.storage)}/${CHEST_SLOTS} slots`} wide>
-      <div className="grid gap-3 sm:grid-cols-2 short:grid-cols-2 short:gap-2">
-        <div>
-          <div className="mb-1 flex items-center justify-between text-[7px] text-white/70"><span className="text-gold">YOUR INVENTORY</span><span>{usedSlots(s.inv)}/{SLOTS}</span></div>
-          <div data-drop="inv" className={`grid grid-cols-5 gap-1 rounded-[8px] p-1 short:gap-0.5 ${drag.dragging?.from === "chest" ? "ring-2 ring-ok" : ""}`}>{invCells.map((c, i) => cell(c, "inv", i))}</div>
+    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 p-3 short:p-1">
+      <div className="tr-panel max-h-full w-full max-w-3xl overflow-auto p-3 short:p-2">
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="tr-title text-[11px] text-gold">STORAGE CHEST</h3>
+          <button type="button" onClick={() => setOverlay(null)} className="tr-btn px-2 py-1 text-[9px]">✕</button>
         </div>
-        <div>
-          <div className="mb-1 flex items-center justify-between text-[7px] text-white/70"><span className="text-gold">CHEST</span><span>stacks of {CHEST_STACK}</span></div>
-          <div data-drop="chest" className={`grid grid-cols-6 gap-1 rounded-[8px] p-1 short:gap-0.5 ${drag.dragging?.from === "inv" ? "ring-2 ring-ok" : ""}`}>{chestCells.map((c, i) => cell(c, "chest", i))}</div>
+        <div className="flex flex-col gap-4 sm:flex-row short:flex-row">
+          <Grid title="Your inventory" cells={stacksOf(inv)} total={SLOTS} hint="Tap: store 1 · double-tap: store the stack"
+            onPick={(k, all) => { if (moveToChest(sim, uid, k, all ? STACK : 1)) sfx.click(); else sfx.bad(); publish(); }} />
+          <Grid title="Chest" cells={stacksOf(chest)} total={CHEST_SLOTS} hint="Tap: take 1 · double-tap: take the stack"
+            onPick={(k, all) => { if (moveFromChest(sim, uid, k, all ? STACK : 1)) sfx.click(); else sfx.bad(); publish(); }} />
         </div>
       </div>
-      {drag.ghost}
-      <div className="mt-2 flex flex-wrap items-center gap-1.5 short:mt-1">
-        {sel && selCount > 0 ? (<>
-          <span className="text-[8px] text-gold">{ITEMS[sel.key]?.nombre} ×{selCount}</span>
-          {[1, 10].map((n) => selCount >= n && <button key={n} type="button" onClick={() => move(sel.side, sel.key, n)} className="tr-btn px-2 py-1 text-[7px]">{sel.side === "inv" ? "STORE" : "TAKE"} {n}</button>)}
-          <button type="button" onClick={() => move(sel.side, sel.key, selCount)} className="tr-btn tr-btn-primary px-2 py-1 text-[7px]">{sel.side === "inv" ? "STORE ALL" : "TAKE ALL"}</button>
-        </>) : <span className="text-[7px] text-white/55">Tap an item (or drag it across) to move it.</span>}
-        <span className="ml-auto flex gap-1.5">
-          <button type="button" onClick={() => { const n = depositAll(sim, uid); sfx[n > 0 ? "ok" : "bad"](); say(n > 0 ? `Stored ${n} items (tools and gear stay with you)` : "Nothing to store"); publish(); }} className="tr-btn px-2 py-1 text-[7px]">STORE EVERYTHING</button>
-          <button type="button" onClick={() => { const n = withdrawAll(sim, uid); sfx[n > 0 ? "ok" : "bad"](); say(n > 0 ? `Took ${n} items` : "Nothing to take"); publish(); }} className="tr-btn px-2 py-1 text-[7px]">TAKE EVERYTHING</button>
-        </span>
-      </div>
-      <div className="mt-1 min-h-3 text-[7px] text-ok">{note}</div>
-    </Panel>
+    </div>
   );
 }

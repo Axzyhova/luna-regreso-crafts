@@ -38,6 +38,19 @@
   "disponible": true
  },
  {
+  "id": "cofre",
+  "nombre": "Storage chest (module)",
+  "lugar": "mano",
+  "ingredientes": {
+   "metal": 3,
+   "chatarra": 4
+  },
+  "resultado": {
+   "cofre": 1
+  },
+  "disponible": true
+ },
+ {
   "id": "horno",
   "nombre": "Regolith furnace (module)",
   "lugar": "mano",
@@ -247,15 +260,28 @@
   "disponible": true
  },
  {
-  "id": "cofre",
-  "nombre": "Storage chest (module)",
+  "id": "racion",
+  "nombre": "Space ration (food)",
   "lugar": "taller",
   "ingredientes": {
-   "metal": 3,
-   "chatarra": 3
+   "alga_lunar": 2,
+   "chatarra": 1
   },
   "resultado": {
-   "cofre": 1
+   "racion": 1
+  },
+  "disponible": true
+ },
+ {
+  "id": "comida_caliente",
+  "nombre": "Hot meal (food)",
+  "lugar": "horno",
+  "ingredientes": {
+   "alga_lunar": 2,
+   "metal": 1
+  },
+  "resultado": {
+   "comida_caliente": 1
   },
   "disponible": true
  },

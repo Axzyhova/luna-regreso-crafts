@@ -84,6 +84,7 @@ export function Vitals({ className = "" }: { className?: string }) {
         <VBar icon="♥" v={s.health} color="#3fbf6a" thick text={`${Math.round(s.health)} / 100`} />
         <VBar icon="⚡" v={100 - s.fatigue} color="#f08a24" />
         <VBar icon="💧" v={s.hydration} color="#39c6d8" />
+        <VBar icon="🧠" v={s.sanity} color={s.sanity < 30 ? "#e05252" : "#b388ff"} />
         <VBar icon="🧑‍🚀" thick={!s.suit.owned || !s.suit.worn} v={s.suit.owned ? s.suit.integrity : 0} color={s.suit.integrity < 25 ? "#f08a24" : "#c9c9cf"} text={!s.suit.owned ? "NO SUIT" : !s.suit.worn ? "SUIT OFF" : undefined} />
       </div>
       <Thermometer />

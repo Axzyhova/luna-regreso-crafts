@@ -18,9 +18,7 @@ export interface TipoInfo { nombre: string; energia: number; desgaste: number; w
 export const TIPOS = modulos.tipos as Record<ModType, TipoInfo>;
 export type AlienTipo = "abductor" | "rastreador" | "saboteador" | "nodriza";
 export interface Alien { id: number; tipo: AlienTipo; x: number; y: number; hp: number; stun: number; target?: LeakTarget | undefined }
-export interface Module { uid: number; tipo: ModType; x: number; y: number; durabilidad: number; activo: boolean; level?: number; /** Contents of a storage chest. */ storage?: Record<string, number> }
-/** An item stack the player threw on the ground (can be picked up again with E). */
-export interface GroundItem { id: number; x: number; y: number; key: string; n: number }
+export interface Module { uid: number; tipo: ModType; x: number; y: number; durabilidad: number; activo: boolean; level?: number }
 export const STACK = 50;
 export const SLOTS = 20;
 /** Inventory item -> module type it places. */
@@ -34,7 +32,7 @@ export const CYCLE = DAY_LEN + NIGHT_LEN;
 export const LH2_CAP = balance.lh2_cap_kg;
 export const LOX_CAP = balance.lox_cap_kg;
 
-export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number; cofre: number }
+export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cofre: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number; alga_lunar: number; racion: number; comida_caliente: number; pico_plasma: number; armadura_lunar: number; botas_gravedad: number }
 
 export function createSim(mode: Mode, difficulty: Difficulty) {
   return {
@@ -44,29 +42,48 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     battery: 60, energyIn: 0, energyOut: 0,
     habitatO2: 80,
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
-    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0, cofre: 0 } as Inv,
+    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cofre: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0, alga_lunar: 0, racion: 0, comida_caliente: 0, pico_plasma: 0, armadura_lunar: 0, botas_gravedad: 0 } as Inv,
     relay: false,
     // --- historia, efectos, eventos y botín ---
     effects: [] as string[],
     fatigue: 0,
+    chests: {} as Record<string, Record<string, number>>,
+    modStatus: {} as Record<number, "ok" | "nopower" | "idle" | "off">,
+    archive: [] as string[],
     // Exploration: fog-of-war cells (1 = seen), last position, zones visited, ravine bridge, hive creatures.
     explored: [] as number[],
     pos: { x: 110, y: 200 },
     visited: ["base"] as string[],
+    subzonesVisited: [] as string[],
     bridge: false,
     hive: [] as { id: number; x: number; y: number; hp: number; stun: number }[],
     nextHiveId: 1,
+    bosses: [] as { id: string; tipo: string; x: number; y: number; hp: number; maxHp: number; stun: number; homeX: number; homeY: number }[],
+    bossesDefeated: [] as string[],
+    discoveredItems: ["chatarra", "metal", "kits"] as string[],
+    creaturesSeen: [] as string[],
+    // Crew psychology & lunar gravity (0.165g) + far-from-base neglect + special expedition cases.
+    sanity: 100,
+    psychCheckT: 25,
+    psychEffect: null as null | { id: string; t: number },
+    farNeglectT: 0,
+    specialCase: null as null | { id: string; title: string; desc: string; x: number; y: number; reward: Record<string, number>; t: number },
+    nextCaseT: 95,
+    casesDone: 0,
+    // Pickup feed, exploration perks (superpowers), and meteor caves.
+    pickupFeed: [] as { item: string; n: number; t: number }[],
+    perks: [] as string[],
+    caves: [] as { id: number; x: number; y: number; explored: boolean; chestOpened: boolean; alienHp: number; alienMaxHp: number; alienType: string; relicDone: boolean }[],
+    nextCaveId: 1,
+    activeCaveId: null as number | null,
     // Space suit: indispensable outside. Integrity wears down with use; wearing it all the time makes you thirsty.
     suit: { owned: true, worn: true, integrity: 80 },
     hydration: 100,
     lastHurt: "" as string,
     dead: null as null | { cause: string; x: number; y: number },
     respawned: false,
-    drops: [] as { id: number; x: number; y: number; items: Record<string, number> }[],
+    drops: [] as { id: number; x: number; y: number; items: Record<string, number>; /** set on bags the player threw down on purpose */ kind?: "thrown" }[],
     nextDropId: 1,
-    ground: [] as GroundItem[],
-    nextGroundId: 1,
-    chestUid: 0,
     notices: [] as { id: number; kind: "achievement" | "mission"; title: string; text: string }[],
     nextNoticeId: 1,
     tut: { step: 0, skipped: false, moved: 0, invOpened: false, kitCrafted: false },
@@ -99,6 +116,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     near: { taller: false, horno: false, habitat: false },
     station: null as null | "taller" | "horno",
     stationUid: 0,
+    chestUid: 0,
     buildMode: null as string | null,
     nextUid: 100,
     hotbar: 1,
@@ -174,16 +192,98 @@ export function nightBatterySeconds(s: Sim) {
   const net = out - inp;
   return net <= 0 ? Infinity : s.battery / (net * BATTERY_RATE);
 }
-/** Water is stored in the habitat tank (up to WATER_CAP kg), so it never takes inventory slots. */
-export const WATER_CAP = 150;
+/** Items that live in base storage (tanks), not in your pockets. */
+export const NOT_CARRIED = new Set(["agua"]);
+export const WATER_TANK_KG = 400;
 export function usedSlots(inv: Inv) {
-  return Object.entries(inv).reduce((n, [k, v]) => (k === "agua" ? n : n + Math.ceil(Math.floor(v) / STACK)), 0);
+  return Object.entries(inv).reduce((n, [k, v]) => (NOT_CARRIED.has(k) ? n : n + Math.ceil(Math.floor(v) / STACK)), 0);
+}
+
+// ---- Tools: what you hold decides how much each swing gathers and how fast ----
+export function toolInfo(s: Sim) {
+  const bonus = s.perks.includes("vista_lunar") ? 1 : 0;
+  if (s.inv.pico_plasma > 0) return { name: "Plasma cutter", yield: 4 + bonus, cd: 0.18 };
+  if (s.inv.pala_titanio > 0) return { name: "Titanium shovel", yield: 3 + bonus, cd: 0.22 };
+  if (s.inv.pala_mejorada > 0) return { name: "Better shovel", yield: 2 + bonus, cd: 0.32 };
+  return { name: "Bare hands", yield: 1 + bonus, cd: 0.5 };
+}
+
+/** Melt carried ice into the habitat water tank (only as much as fits). Returns kg added. */
+export function meltIce(s: Sim) {
+  const room = Math.max(0, WATER_TANK_KG - s.inv.agua);
+  const ice = Math.min(Math.floor(s.inv.hielo), Math.floor(room / balance.hielo_a_agua_kg));
+  if (ice <= 0) return 0;
+  s.inv.hielo -= ice;
+  const w = ice * balance.hielo_a_agua_kg;
+  s.inv.agua += w;
+  return w;
+}
+
+/** Drop items on the ground as a bag you can pick up later. */
+export function dropItem(s: Sim, key: string, n: number, x: number, y: number) {
+  const inv = s.inv as unknown as Record<string, number>;
+  const k = Math.min(Math.floor(inv[key] ?? 0), n);
+  if (k <= 0 || NOT_CARRIED.has(key)) return 0;
+  inv[key] = (inv[key] ?? 0) - k;
+  const bag = s.drops.find((d) => Math.hypot(d.x - x, d.y - y) < 12);
+  if (bag) bag.items[key] = (bag.items[key] ?? 0) + k;
+  else s.drops.push({ id: s.nextDropId++, x: Math.round(x), y: Math.round(y + 6), items: { [key]: k }, kind: "thrown" });
+  return k;
+}
+
+/** Real suits carry an in-suit drink bag (~0.9 L). Here: 4 kg of water from the tank restores 25 hydration. */
+export const DRINK_KG = 4, DRINK_GAIN = 25;
+export function drinkWater(s: Sim): { ok: boolean; msg: string } {
+  if (s.inv.agua < DRINK_KG) return { ok: false, msg: `Not enough water (a drink takes ${DRINK_KG} kg)` };
+  if (s.hydration >= 92) return { ok: false, msg: "You're not thirsty yet" };
+  s.inv.agua -= DRINK_KG; s.hydration = Math.min(100, s.hydration + DRINK_GAIN);
+  addLog(s, `You drank from the suit's drink bag: hydration ${Math.round(s.hydration)}%.`);
+  return { ok: true, msg: `Hydration +${DRINK_GAIN}` };
+}
+
+/** Pour water out of the habitat tank (it can't be thrown on the ground). Returns the kg poured. */
+export function pourWater(s: Sim, kg: number): number {
+  const k = Math.min(Math.max(0, kg), s.inv.agua);
+  if (k <= 0) return 0;
+  s.inv.agua -= k;
+  addLog(s, `You poured out ${Math.round(k)} kg of water.`);
+  return k;
+}
+
+// ---- Storage chests ----
+export const CHEST_SLOTS = 20;
+const chestSlots = (c: Record<string, number>) => Object.values(c).reduce((n, v) => n + Math.ceil(v / STACK), 0);
+export function chestOf(s: Sim, uid: number) { return (s.chests[String(uid)] ??= {}); }
+/** Move up to n of an item between your inventory and a chest. */
+export function moveToChest(s: Sim, uid: number, key: string, n: number) {
+  const inv = s.inv as unknown as Record<string, number>;
+  const c = chestOf(s, uid);
+  let moved = 0;
+  while (moved < n && Math.floor(inv[key] ?? 0) > 0) {
+    const next = { ...c, [key]: (c[key] ?? 0) + 1 };
+    if (chestSlots(next) > CHEST_SLOTS) break;
+    c[key] = next[key]!; inv[key]! -= 1; moved++;
+  }
+  return moved;
+}
+export function moveFromChest(s: Sim, uid: number, key: string, n: number) {
+  const c = chestOf(s, uid);
+  let moved = 0;
+  while (moved < n && (c[key] ?? 0) > 0 && addItem(s, key as keyof Inv, 1)) { c[key]! -= 1; moved++; }
+  if ((c[key] ?? 0) <= 0) delete c[key];
+  return moved;
 }
 /** Adds items if the 4x5 inventory (stacks of 50) has room. */
 export function addItem(s: Sim, key: keyof Inv, n = 1) {
   const next = { ...s.inv, [key]: s.inv[key] + n };
   if (usedSlots(next) > SLOTS) return false;
   s.inv[key] += n;
+  if (n > 0) {
+    if (!s.discoveredItems.includes(key)) s.discoveredItems.push(key);
+    const existing = s.pickupFeed.find((p) => p.item === key);
+    if (existing) { existing.n += n; existing.t = 4.5; }
+    else { s.pickupFeed.unshift({ item: key, n, t: 4.5 }); if (s.pickupFeed.length > 4) s.pickupFeed.pop(); }
+  }
   return true;
 }
 export type Receta = (typeof recetas)[number];
@@ -259,7 +359,8 @@ export function notify(s: Sim, kind: "achievement" | "mission", title: string, t
 /** Apply damage and remember what caused it (shown on the death screen). */
 export function hurt(s: Sim, amount: number, cause: string) {
   if (amount <= 0) return;
-  s.health = Math.max(0, s.health - amount);
+  const mult = s.equip.includes("armadura_lunar") ? 0.6 : 1;
+  s.health = Math.max(0, s.health - amount * mult);
   s.lastHurt = cause;
 }
 
@@ -275,30 +376,6 @@ export function toggleSuit(s: Sim, inHabitat: boolean): string {
   s.suit.worn = !s.suit.worn;
   addLog(s, s.suit.worn ? "You put on the space suit." : "You took off the space suit. Drink and rest.");
   return s.suit.worn ? "Suit on" : "Suit off";
-}
-
-/**
- * Melt ice into water in the habitat's tank. Only as much as fits is melted; the rest stays as ice,
- * so a full tank never wastes ice. Returns what happened so the UI can explain it.
- */
-export function meltIce(s: Sim): { ice: number; water: number; full: boolean } {
-  const room = Math.max(0, WATER_CAP - s.inv.agua);
-  const ice = Math.min(Math.floor(s.inv.hielo), Math.floor(room / balance.hielo_a_agua_kg));
-  const water = ice * balance.hielo_a_agua_kg;
-  s.inv.hielo -= ice; s.inv.agua += water;
-  const full = s.inv.hielo >= 1; // ice left over means the tank had no more room
-  if (ice > 0) addLog(s, `You melted ${ice} ice: +${water} kg of water (tank ${Math.round(s.inv.agua)}/${WATER_CAP}).`);
-  return { ice, water, full };
-}
-
-/** Real suits carry an in-suit drink bag (~0.9 L). Here: 4 kg of water from the tank restores 25 hydration. */
-export const DRINK_KG = 4, DRINK_GAIN = 25;
-export function drinkWater(s: Sim): { ok: boolean; msg: string } {
-  if (s.inv.agua < DRINK_KG) return { ok: false, msg: `Not enough water (a drink takes ${DRINK_KG} kg)` };
-  if (s.hydration >= 92) return { ok: false, msg: "You're not thirsty yet" };
-  s.inv.agua -= DRINK_KG; s.hydration = Math.min(100, s.hydration + DRINK_GAIN);
-  addLog(s, `You drank from the suit's drink bag: hydration ${Math.round(s.hydration)}%.`);
-  return { ok: true, msg: `Hydration +${DRINK_GAIN}` };
 }
 
 /** Electrolysis: water mass splits into H2:O2 = 1:8 by mass. */
@@ -317,7 +394,7 @@ export function canCraft(inv: Inv, ing: Record<string, number | undefined>) {
 }
 
 /** Advance the simulation by dt seconds (excluding positional effects handled by the scene). */
-export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: boolean; zoneTemp?: number | undefined }) {
+export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: boolean; zoneTemp?: number | undefined; distFromHab?: number | undefined }) {
   const d = diffCfg(s);
   const prevDay = isDay(s);
   s.time += dt;
@@ -344,6 +421,17 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   const liqOn = powered && working(s, "licuefactor") && (s.h2gas > 0 || s.o2gas > 0);
   const hornoOn = powered && working(s, "horno") && s.inv.regolito > 0;
   s.energyIn = eIn; s.energyOut = eOut;
+  // What each module is doing right now, so the player can see why things work or don't.
+  for (const m of s.modules) {
+    let st: "ok" | "nopower" | "idle" | "off" = "ok";
+    if (!m.activo || m.durabilidad <= 0) st = "off";
+    else if (m.tipo === "panel") st = day && ev !== "eclipse" ? "ok" : "idle";
+    else if (TIPOS[m.tipo].energia < 0 && !powered) st = "nopower";
+    else if (m.tipo === "electrolisis" && s.inv.agua <= 0) st = "idle";
+    else if (m.tipo === "licuefactor" && s.h2gas <= 0 && s.o2gas <= 0) st = "idle";
+    else if (m.tipo === "horno" && s.inv.regolito <= 0) st = "idle";
+    s.modStatus[m.uid] = st;
+  }
   s.battery = Math.min(batteryCap(s), Math.max(0, s.battery + (eIn - eOut) * dt * BATTERY_RATE));
   if (powered) for (const m of s.modules) if (m.tipo === "taladro" && isOn(m)) {
     s.drillAcc = (s.drillAcc ?? 0) + (TIPOS.taladro.produce_hielo ?? 0) * lvMult(m) * dt;
@@ -395,7 +483,22 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
     const r = Math.min(100 - s.suitO2, 6 * dt);
     s.suitO2 += r; s.habitatO2 = Math.max(0, s.habitatO2 - r * 0.05);
   } else if (suitWorking(s)) {
-    s.suitO2 = Math.max(0, s.suitO2 - 0.28 * dt * d.consumo);
+    const farMult = (ctx.distFromHab ?? 0) > 340 ? 1.25 : 1;
+    s.suitO2 = Math.max(0, s.suitO2 - 0.28 * dt * d.consumo * farMult);
+  }
+  // Neglecting base crises while far from base causes system/rocket degradation.
+  if ((ctx.distFromHab ?? 0) > 340 && (s.leaks.length > 0 || s.aliens.length > 0)) {
+    s.farNeglectT += dt;
+    if (s.farNeglectT >= 25) {
+      s.farNeglectT = 0;
+      const targetSub = s.leaks.some((l) => l.target !== "habitat") ? "Propulsion" : "Structure";
+      s.rocket[targetSub] = Math.max(0, (s.rocket[targetSub] ?? 0) - 2);
+      const activeMod = s.modules.find((m) => isOn(m) && m.tipo !== "cofre");
+      if (activeMod) activeMod.durabilidad = Math.max(0, activeMod.durabilidad - 6);
+      addLog(s, `⚠ Base neglected from afar: ${targetSub} -2% and module wear!`);
+    }
+  } else {
+    s.farNeglectT = Math.max(0, s.farNeglectT - dt * 2);
   }
   if (!ctx.inHabitat) {
     if (suitWorking(s)) {
@@ -430,19 +533,20 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   s.health = Math.max(0, s.health);
 
   // alerts
-  s.alert = s.leaks.length ? `LEAK! ${s.leaks.map((l) => (l.target === "habitat" ? "HABITAT" : l.target.toUpperCase())).join(" · ")}` :
-    s.suitO2 < 20 ? "SUIT O2 LOW" : s.temp < 5 ? "HYPOTHERMIA" : s.battery < 5 ? "BATTERIES DEPLETED" : "";
+  s.alert = s.battery <= 0 && eIn <= 0 && s.modules.some((m) => TIPOS[m.tipo].energia < 0 && isOn(m)) ? "NO POWER: production stopped — wait for sunlight or add panels/batteries" : s.leaks.length ? `LEAK! ${s.leaks.map((l) => (l.target === "habitat" ? "HABITAT" : l.target.toUpperCase())).join(" · ")} — Need 1 Sealant kit (2 Scrap + 1 Metal) · Hold E` :
+    s.suitO2 < 20 ? "SUIT O2 LOW" : s.temp < 5 ? "HYPOTHERMIA" : s.battery < 5 ? "BATTERIES DEPLETED" : s.sanity < 25 ? "CREW MORALE CRITICAL: return to habitat or eat food" : "";
 
   // acts
   if (s.act === 1 && s.inv.hielo + s.inv.agua >= 6 && s.inv.chatarra >= 4 && s.actFlags.leakFixed) advanceAct(s);
   if (s.act === 2 && s.lh2 >= balance.meta_acto2_lh2_kg) advanceAct(s);
+  s.pickupFeed = s.pickupFeed.map((p) => ({ ...p, t: p.t - dt })).filter((p) => p.t > 0);
   cleanupInventory(s);
 }
 
 /** Remove depleted items from the hotbar and gear that is no longer owned. */
 export function cleanupInventory(s: Sim) {
   const inv = s.inv as unknown as Record<string, number>;
-  s.hotbarItems = s.hotbarItems.map((k) => (k && (inv[k] ?? 0) >= 1 ? k : null));
+  s.hotbarItems = s.hotbarItems.map((k) => (k && !NOT_CARRIED.has(k) && (inv[k] ?? 0) >= 1 ? k : null));
   s.equip = s.equip.filter((g) => (inv[g] ?? 0) >= 1);
   if (s.buildMode && (inv[s.buildMode] ?? 0) < 1) s.buildMode = null;
 }

@@ -39,7 +39,7 @@ describe("NASA archive data", () => {
   });
 
   it("the fictional crew is named and clearly labelled as fiction in the sources", () => {
-    expect(TRIPULACION.map((c) => c.nombre.split(" ").pop())).toEqual(expect.arrayContaining(["Rivera", "Weber", "Tanaka", "Raman", "ARIA"]));
+    expect(TRIPULACION.map((c) => c.nombre.split(" ").pop())).toEqual(expect.arrayContaining(["Rivera", "Weber", "Tanaka", "Ortega", "ARIA"]));
     expect(fuentes.some((f) => f.tipo === "FICTION" && f.titulo.includes("SELENE-7"))).toBe(true);
     expect(fuentes.filter((f) => f.tipo === "EXTERNAL").length).toBeGreaterThanOrEqual(14);
     expect(DATOS.length).toBeGreaterThanOrEqual(8);

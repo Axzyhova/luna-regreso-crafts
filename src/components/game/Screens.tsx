@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import modos from "@/data/modos.json";
 import fuentes from "@/data/fuentes.json";
-import { useGame, hasSave } from "@/game/store";
+import { useGame } from "@/game/store";
 import type { Mode, Difficulty } from "@/game/sim";
 import { sfx } from "@/game/audio";
 import { GAME_TITLE } from "@/game/title";
@@ -62,7 +62,7 @@ export function Rechazo() {
 }
 
 export function ModeSelect() {
-  const { go, newGame, loadGame } = useGame();
+  const { go, newGame } = useGame();
   const [mode, setMode] = useState<Mode>("realista");
   const [diff, setDiff] = useState<Difficulty>("normal");
   return (
@@ -92,7 +92,6 @@ export function ModeSelect() {
       </div>
       <div className="flex gap-3">
         <PixelButton onClick={() => { newGame(mode, diff); go("cinematica"); }}>Start</PixelButton>
-        {hasSave() && <PixelButton tone="ghost" onClick={() => { if (loadGame()) go("juego"); }}>Continue</PixelButton>}
       </div>
     </div>
   );
@@ -100,7 +99,7 @@ export function ModeSelect() {
 
 /** How you got to the Moon, one animated GIF per panel. Names and the mission are fiction; the history in the Archive is real. */
 const PANELS = [
-  { text: "Mission SELENE-7. Commander Alex Rivera, pilot Jonas Weber (ESA) and Dr. Aiko Tanaka (JAXA) will test whether a crew can live off the Moon's water ice. Flight Director Priya Raman leads the team in Houston.", art: "briefing" },
+  { text: "Mission SELENE-7. Commander Alex Rivera, pilot Jonas Weber (ESA) and Dr. Aiko Tanaka (JAXA) will test whether a crew can live off the Moon's water ice. Flight Director Ana Ortega leads the team in Houston.", art: "briefing" },
   { text: "Liftoff! A giant rocket, like the ones of the Apollo and Artemis programs, pushes Selene-7 away from Earth.", art: "launch" },
   { text: "Three days of coasting to the Moon, the same route Apollo 8 and Apollo 11 flew. The Earth shrinks behind you.", art: "coast" },
   { text: "In lunar orbit the lander separates. Weber and Tanaka stay on the mothership while you descend to the south pole, where the ice is.", art: "orbit" },

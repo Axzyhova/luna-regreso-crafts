@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useGame } from "@/game/store";
+import { ARCHIVO } from "@/game/quests";
 import { EXPEDICIONES, TRIPULACION, DATOS, MISION, TIPO_ICON, TIPO_LABEL, TIPO_LONG, countByTipo, type Tipo } from "@/game/history";
 import { sfx } from "@/game/audio";
 import { Panel } from "./Panel";
@@ -12,9 +13,51 @@ const FILTERS: { id: "all" | Tipo; label: string }[] = [
   { id: "fallo", label: `✖ FAILURE ${countByTipo("fallo")}` },
 ];
 
+const BADGE: Record<string, { text: string; cls: string }> = {
+  success: { text: "SUCCESS", cls: "bg-[#2f8a45]" },
+  failure: { text: "FAILED", cls: "bg-[#b02a2a]" },
+  partial: { text: "PARTIAL", cls: "bg-[#c48a14]" },
+  planned: { text: "PLANNED", cls: "bg-[#3a5ab8]" },
+};
+const HINT: Record<string, string> = { M1: "mission 1", M2: "mission 2", M3: "mission 3", M4: "mission 4", M5: "mission 5", M6: "mission 6", M7: "the final mission" };
+
+/** Real missions to the Moon, unlocked as the story advances (all open on the title screen). */
+function LunarMissions({ unlockAll }: { unlockAll: boolean }) {
+  const archive = useGame((g) => g.snap.archive);
+  const list = [...ARCHIVO].sort((a, b) => a.anio - b.anio);
+  return (
+    <>
+      <p className="mb-2 text-white/80">Real missions to the Moon, with their crews. {unlockAll ? ARCHIVO.length : archive.length}/{ARCHIVO.length} unlocked: more entries appear as you complete missions. Summaries are simplified: check NASA and each agency for the full story.</p>
+      <div className="grid items-start gap-1.5 sm:grid-cols-2">
+        {list.map((e) => {
+          const open = unlockAll || archive.includes(e.id);
+          const b = BADGE[e.resultado] ?? BADGE["planned"]!;
+          if (!open) return (
+            <div key={e.id} className="rounded-[8px] border-2 border-dashed border-white/20 bg-black/25 p-2 text-white/50">
+              🔒 ??? · {e.anio}<div className="mt-1 text-[7px]">Unlocks with {HINT[e.desbloqueo] ?? (e.desbloqueo === "zona_fire" ? "visiting the Scorch Fields" : "progress")}.</div>
+            </div>
+          );
+          return (
+            <div key={e.id} className="tr-slot !rounded-[8px] p-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[9px] text-gold">{e.nombre}</span>
+                <span className={`rounded px-1.5 py-0.5 text-[7px] text-white ${b.cls}`}>{b.text}</span>
+              </div>
+              <div className="text-[7px] text-white/60">{e.anio} · {e.agencia}</div>
+              <div className="mt-1"><span className="text-suit-light">CREW</span> {e.tripulacion}</div>
+              <p className="mt-1 text-white/90">{e.resumen}</p>
+              <p className="mt-1 text-ok">🎮 {e.leccion}</p>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 /** Real NASA expeditions, the fictional Selene-7 crew, and a few space facts. Static data: works on the title screen too. */
-export function ArchiveContent() {
-  const [tab, setTab] = useState<"exp" | "crew" | "facts">("exp");
+export function ArchiveContent({ unlockAll = false, start = "exp" }: { unlockAll?: boolean; start?: "luna" | "exp" } = {}) {
+  const [tab, setTab] = useState<"luna" | "exp" | "crew" | "facts">(start);
   const [filter, setFilter] = useState<"all" | Tipo>("all");
   const [sel, setSel] = useState(EXPEDICIONES[0]!.id);
   const list = EXPEDICIONES.filter((e) => filter === "all" || e.tipo === filter);
@@ -23,10 +66,12 @@ export function ArchiveContent() {
   return (
     <div className="text-[8px] leading-4 short:text-[7px] short:leading-3">
       <div className="mb-2 flex flex-wrap items-center gap-1.5 short:mb-1">
-        {([["exp", "EXPEDITIONS"], ["crew", "SELENE-7 CREW"], ["facts", "DID YOU KNOW?"]] as const).map(([id, label]) => (
+        {([["luna", "LUNAR MISSIONS"], ["exp", "NASA EXPEDITIONS"], ["crew", "SELENE-7 CREW"], ["facts", "DID YOU KNOW?"]] as const).map(([id, label]) => (
           <button key={id} type="button" onClick={() => { setTab(id); sfx.click(); }} className={`tr-btn px-2.5 py-1.5 text-[8px] short:px-2 short:py-1 short:text-[7px] ${tab === id ? "tr-btn-primary" : "opacity-80"}`}>{label}</button>
         ))}
       </div>
+
+      {tab === "luna" && <LunarMissions unlockAll={unlockAll} />}
 
       {tab === "exp" && (<>
         <div className="mb-2 flex flex-wrap gap-1 short:mb-1">
@@ -85,7 +130,7 @@ export function ArchiveContent() {
 
 /** In-game overlay (K, or from the Log and Pause menus). */
 export function ArchivePanel() {
-  return <Panel title="NASA MISSION ARCHIVE" wide><ArchiveContent /></Panel>;
+  return <Panel title="NASA MISSION ARCHIVE" wide><ArchiveContent start="luna" /></Panel>;
 }
 
 /** Same content on its own screen, reachable from the title without starting a game. */
@@ -96,7 +141,7 @@ export function ArchiveScreen() {
       <div className="tr-panel w-full max-w-3xl p-3 short:p-2">
         <div className="mb-2 flex items-center justify-between"><h2 className="tr-title text-[11px] text-gold short:text-[9px]">NASA MISSION ARCHIVE</h2>
           <button type="button" onClick={() => { sfx.click(); go("intro"); }} className="tr-btn px-3 py-1.5 text-[8px]">← BACK</button></div>
-        <ArchiveContent />
+        <ArchiveContent unlockAll />
       </div>
     </div>
   );

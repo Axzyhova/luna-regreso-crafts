@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import modos from "@/data/modos.json";
 import recetas from "@/data/recetas.json";
 import { useGame, sim, saveGame } from "@/game/store";
-import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, WATER_CAP, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft, PLACEABLE, upgradeCost, canUpgrade, upgradeModule, UPGRADES, SUBSISTEMAS, UMBRAL_VERDE, repairBlock, repairSubsystem, subCap } from "@/game/sim";
+import { CHEST_SLOTS, clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft, PLACEABLE, dropItem, toolInfo, WATER_TANK_KG, upgradeCost, canUpgrade, upgradeModule, UPGRADES, SUBSISTEMAS, UMBRAL_VERDE, repairBlock, repairSubsystem, subCap } from "@/game/sim";
 import { launchBlockers, startLaunch, countdownLength, currentWindow, nextWindow, windowSecondsLeft, windowsUntil, VENTANAS_PROVISIONALES } from "@/game/mission";
 import { CubeSatDesigner } from "./CubeSatDesigner";
 import { Vitals, DayClock } from "./Vitals";
@@ -14,13 +14,14 @@ import { ChestPanel } from "./ChestPanel";
 import { ArchivePanel } from "./ArchivePanel";
 import { Hotbar } from "./Hotbar";
 import { view, setZoom, defaultZoom, ZOOM_STEP } from "@/game/view";
-import { chestUsed, CHEST_SLOTS } from "@/game/storage";
 export { Hotbar } from "./Hotbar";
 import { MapPanel } from "./MapPanel";
+import { FieldGuidePanel } from "./FieldGuidePanel";
+import { CavePanel } from "./CavePanel";
 import { DeathScreen, NoticeToast, AchievementList, SuitControl } from "./SurvivalUI";
 import { AlertsPanel, GearRow, NavCard, QuestTracker, QuestLog } from "./StoryUI";
 import { GEAR, CONSUMIBLES, toggleEquip, consumeItem } from "@/game/effects";
-import { ITEMS } from "@/game/items";
+import { ITEMS, INV_ORDER } from "@/game/items";
 import { PixelIcon } from "./PixelIcon";
 import { sfx } from "@/game/audio";
 import { PixelButton } from "./Screens";
@@ -121,10 +122,26 @@ export function Countdown() {
   );
 }
 
+export function PickupFeed() {
+  const s = useGame((g) => g.snap);
+  if (!s.pickupFeed.length) return null;
+  const inv = s.inv as unknown as Record<string, number>;
+  return (
+    <div className="pointer-events-none flex flex-wrap justify-center gap-1.5">
+      {s.pickupFeed.map((p) => (
+        <span key={p.item} className="flex items-center gap-1 rounded-full bg-black/35 px-2 py-0.5 text-[7px] text-white/80 backdrop-blur-[2px]">
+          <PixelIcon item={p.item} size={10} />+{p.n} {ITEMS[p.item]?.nombre ?? p.item} <span className="text-white/50">({Math.floor(inv[p.item] ?? 0)})</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function HUDBottom({ className = "", touch = false }: { className?: string; touch?: boolean }) {
   const s = useGame((g) => g.snap);
   return (
       <div className={`pointer-events-none flex flex-col items-center gap-1 bg-background/80 p-2 ${className}`}>
+        <PickupFeed />
         <QuestTracker />
         {s.hint && <div className="text-[7px] text-ok">{s.hint}</div>}
         <div className="flex items-center gap-1">
@@ -136,8 +153,9 @@ export function HUDBottom({ className = "", touch = false }: { className?: strin
           )}
           <Hotbar />
           {!touch && <button type="button" onClick={() => { sfx.click(); useGame.getState().setOverlay("mapa"); }} className="tr-btn pointer-events-auto ml-1 h-10 px-2 text-[10px]" title="Map (M)">🗺 MAP</button>}
+          {!touch && <button type="button" onClick={() => { sfx.click(); useGame.getState().setOverlay("guia"); }} className="tr-btn pointer-events-auto h-10 px-2 text-[10px]" title="Field Guide (G)">📖 GUIDE</button>}
         </div>
-        {!touch && <div className="text-[6px] text-muted-foreground">WASD move · SHIFT run · SPACE pick up/hit · E interact (hold to seal/repair) · TAB inventory · C build · B base · L log · M map · J missions · V suit · ESC pause · 1-5 or click: pick item</div>}
+        {!touch && <div className="text-[6px] text-muted-foreground">WASD move · SHIFT run · SPACE pick up/hit · E interact (hold to seal/repair) · TAB inventory · X drop · C build · B base · L log · M map · G guide · J missions · K archive · V suit · ESC pause · 1-5 or click: pick item</div>}
       </div>
   );
 }
@@ -146,6 +164,13 @@ function fmtTime(sec: number) {
   if (!isFinite(sec)) return "no drain";
   return `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, "0")} min`;
 }
+
+const STATUS: Record<string, { text: string; cls: string; tip: string }> = {
+  ok: { text: "● Working", cls: "text-ok", tip: "Running normally" },
+  idle: { text: "● Idle", cls: "text-gold", tip: "Nothing to process (no water / gas / regolith) or no sunlight" },
+  nopower: { text: "● No power", cls: "text-destructive", tip: "Batteries empty: add solar panels or batteries" },
+  off: { text: "● Off", cls: "text-muted-foreground", tip: "Switched off or broken" },
+};
 
 function Base() {
   const s = useGame((g) => g.snap);
@@ -163,7 +188,7 @@ function Base() {
           ☀ <span className="text-ok">{solarCount} solar panel{solarCount === 1 ? "" : "s"}</span> make +{solarIn.toFixed(0)}/s{day ? "" : " (night: 0)"} · ⚙ machines use −{s.energyOut.toFixed(0)}/s. Add panels to run more machines; add batteries to last the night.
         </div>
         <div className="text-[8px]">Batteries {s.battery.toFixed(0)}/{batteryCap(s)} · They last tonight: <span className={nightSec < NIGHT_LEN ? "text-alert" : "text-ok"}>{fmtTime(nightSec)}</span> <span className="text-muted-foreground">(night lasts {NIGHT_LEN / 60} min)</span></div>
-        <div className="text-[7px] text-muted-foreground">Habitat O2 {s.habitatO2.toFixed(0)}% · Water tank {s.inv.agua.toFixed(0)}/{WATER_CAP} kg · H2 gas {s.h2gas.toFixed(2)} kg · O2 gas {s.o2gas.toFixed(2)} kg</div>
+        <div className="text-[7px] text-muted-foreground">Habitat O2 {s.habitatO2.toFixed(0)}% · Water tank {s.inv.agua.toFixed(0)}/{WATER_TANK_KG} kg · H2 gas {s.h2gas.toFixed(2)} kg · O2 gas {s.o2gas.toFixed(2)} kg</div>
       </div>
       <div className="space-y-2">
         {s.modules.map((m) => {
@@ -172,12 +197,13 @@ function Base() {
           if (m.tipo === "cofre") return (
             <div key={m.uid} className="flex flex-wrap items-center gap-2 text-[8px]">
               <span className="w-36">{t.nombre}</span>
-              <span className="text-white/70">{chestUsed(m.storage)}/{CHEST_SLOTS} slots used · press E next to it to open</span>
+              <span className="text-white/70">{Object.values(s.chests[String(m.uid)] ?? {}).reduce((n, v) => n + Math.ceil(v / STACK), 0)}/{CHEST_SLOTS} slots used · press E next to it to open</span>
             </div>
           );
           return (
             <div key={m.uid} className="flex flex-wrap items-center gap-2 text-[8px]">
               <span className="w-36">{t.nombre} <span className="text-gold">Lv{m.level ?? 1}</span></span>
+              <span className={`w-20 text-[7px] ${STATUS[s.modStatus[m.uid] ?? "ok"]!.cls}`} title={STATUS[s.modStatus[m.uid] ?? "ok"]!.tip}>{STATUS[s.modStatus[m.uid] ?? "ok"]!.text}</span>
               <div className="h-2 w-24 bg-moon-0"><div className={`h-full ${m.durabilidad < 25 ? "bg-alert" : "bg-ok"}`} style={{ width: `${m.durabilidad}%` }} /></div>
               <span className="w-8">{m.durabilidad.toFixed(0)}%</span>
               <span className={`w-14 ${e > 0 ? "text-ok" : e < 0 ? "text-destructive" : "text-muted-foreground"}`}>{e > 0 ? "+" : ""}{e.toFixed(1)}/s</span>
@@ -298,7 +324,8 @@ function Pause() {
       </div>
       <div className="flex flex-wrap gap-3">
         <PixelButton onClick={() => setOverlay(null)}>Continue</PixelButton>
-        <PixelButton tone="ghost" onClick={() => setOverlay("archivo")}>📚 NASA Archive</PixelButton>
+        <PixelButton tone="ghost" onClick={() => setOverlay("archivo")}>📚 Archive</PixelButton>
+        <PixelButton tone="ghost" onClick={() => setOverlay("guia")}>📖 Field Guide</PixelButton>
         <PixelButton tone="ghost" onClick={() => { saveGame(); sfx.ok(); }}>Save</PixelButton>
         <PixelButton tone="alert" onClick={() => { saveGame(); setOverlay(null); go("intro"); }}>Quit to title</PixelButton>
       </div>
@@ -310,7 +337,7 @@ export function Overlays() {
   const overlay = useGame((g) => g.overlay);
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      const map: Record<string, "inv" | "base" | "log" | "pausa" | "misiones" | "mapa" | "archivo"> = { k: "archivo", K: "archivo", Tab: "inv", b: "base", B: "base", l: "log", L: "log", j: "misiones", J: "misiones", m: "mapa", M: "mapa", Escape: "pausa" };
+      const map: Record<string, "inv" | "base" | "log" | "pausa" | "misiones" | "mapa" | "archivo" | "guia"> = { Tab: "inv", b: "base", B: "base", l: "log", L: "log", j: "misiones", J: "misiones", m: "mapa", M: "mapa", k: "archivo", K: "archivo", g: "guia", G: "guia", Escape: "pausa" };
       const o = map[e.key];
       if (!o) return;
       if (e.key === "Escape" && sim.buildMode && !useGame.getState().overlay) { e.preventDefault(); sim.buildMode = null; useGame.getState().publish(); return; }
@@ -325,6 +352,6 @@ export function Overlays() {
   const panel =
     overlay === "inv" ? <Inventory /> : overlay === "base" ? <Base /> : overlay === "log" ? <Log /> : overlay === "pausa" ? <Pause /> :
     overlay === "cohete" ? <Rocket /> : overlay === "cubesat" ? <CubeSatDesigner /> : overlay === "misiones" ? <QuestLog /> :
-    overlay === "estacion" ? <StationPanel /> : overlay === "cofre" ? <ChestPanel /> : overlay === "archivo" ? <ArchivePanel /> : overlay === "mapa" ? <MapPanel /> : null;
+    overlay === "estacion" ? <StationPanel /> : overlay === "mapa" ? <MapPanel /> : overlay === "cofre" ? <ChestPanel /> : overlay === "archivo" ? <ArchivePanel /> : overlay === "guia" ? <FieldGuidePanel /> : overlay === "cueva" ? <CavePanel /> : null;
   return <>{panel}<NoticeToast /><DeathScreen /></>;
 }

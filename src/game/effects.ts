@@ -1,14 +1,22 @@
 import cfg from "@/data/efectos.json";
-import { addLog, isDay, hurt, drinkWater, type Sim } from "./sim";
+import { addLog, isDay, hurt, type Sim, drinkWater } from "./sim";
 import { inLight, type World } from "./aliens";
 
 export type EffectId = keyof typeof cfg.efectos;
 export const EFECTOS = cfg.efectos as Record<EffectId, { nombre: string; icono: string; desc: string; velocidad: number; recoleccion: number; reparar?: number; salud_s?: number; o2_extra?: number; protege?: string; remedio: string }>;
 export const UMBRALES = cfg.umbrales;
 export const EQUIPO_MAX = cfg.equipo_max;
-export const GEAR = ["traje_termico", "capa_reflectante", "escudo_radiacion"];
+export const GEAR = ["traje_termico", "capa_reflectante", "escudo_radiacion", "armadura_lunar", "botas_gravedad"];
 /** Items you use up from the inventory or the hotbar. Water is drunk from the suit's drink bag. */
-export const CONSUMIBLES = ["botiquin", "estimulante", "agua"];
+export const CONSUMIBLES = ["botiquin", "estimulante", "racion", "comida_caliente", "agua"];
+const PSYCH_EFFECTS: EffectId[] = ["vertigo_gravedad", "aislamiento", "panico"];
+
+export const PERKS: Record<string, { nombre: string; icono: string; desc: string }> = {
+  salto_gravedad: { nombre: "Low-G Thrusters", icono: "🚀", desc: "+25% movement speed on the lunar surface." },
+  escudo_bio: { nombre: "Bio-Regen Field", icono: "💚", desc: "Passive +0.4 HP/s regeneration even outside." },
+  vista_lunar: { nombre: "Deep Scanner", icono: "🔭", desc: "+1 bonus gathering yield & wider fog reveal." },
+  mente_acero: { nombre: "Astronaut Focus", icono: "🧘", desc: "-50% sanity drain from isolation and gravity." },
+};
 
 const dist = (ax: number, ay: number, bx: number, by: number) => Math.hypot(ax - bx, ay - by);
 const has = (s: Sim, item: string) => s.equip.includes(item);
@@ -24,6 +32,7 @@ export function activeEffects(s: Sim, w: World, inShadow: boolean): EffectId[] {
   const alienNear = s.aliens.some((a) => dist(a.x, a.y, w.player.x, w.player.y) < UMBRALES.miedo_radio);
   if (dark && !lit && (alienNear || s.abduction > 0 || inShadow)) out.push("miedo");
   if (s.fatigue > UMBRALES.cansancio) out.push("cansancio");
+  if (s.psychEffect && s.psychEffect.t > 0) out.push(s.psychEffect.id as EffectId);
   return out;
 }
 
@@ -56,7 +65,44 @@ export function stepEffects(s: Sim, dt: number, w: World, inShadow: boolean) {
     if (c.o2_extra && !w.inHabitat) s.suitO2 = Math.max(0, s.suitO2 - c.o2_extra * dt);
     if (!before.has(e)) addLog(s, `${c.icono} ${c.nombre}: ${c.remedio}`);
   }
+  if (s.perks.includes("escudo_bio") && s.health > 0) s.health = Math.min(100, s.health + 0.4 * dt);
   s.effects = now;
+}
+
+/**
+ * Crew psychology & lunar gravity (0.165g) formula:
+ * Sanity drains faster when far from base, in darkness, near aliens, or with low hydration/leaks.
+ * Every psychCheckT seconds, a probabilistic formula rolls a random psychological/gravity effect.
+ */
+export function stepPsychology(s: Sim, dt: number, w: World, rnd: () => number) {
+  const dHab = dist(w.player.x, w.player.y, w.hab.x, w.hab.y);
+  const far = dHab > (UMBRALES.distancia_lejos ?? 340);
+  const dark = !isDay(s) && !w.inHabitat && !inLight(s, w, w.player.x, w.player.y);
+  if (w.inHabitat) {
+    s.sanity = Math.min(100, s.sanity + 3.0 * dt);
+    if (s.psychEffect) s.psychEffect.t = Math.max(0, s.psychEffect.t - 3 * dt);
+  } else {
+    const drain = ((far ? 0.38 : 0.08) + (dark ? 0.25 : 0) + (s.aliens.length ? 0.2 : 0) + (s.leaks.length ? 0.15 : 0) + (s.hydration < 30 ? 0.2 : 0)) * (s.perks.includes("mente_acero") ? 0.5 : 1);
+    s.sanity = Math.max(0, s.sanity - drain * dt);
+  }
+  if (s.psychEffect) {
+    s.psychEffect.t -= dt;
+    if (s.psychEffect.t <= 0) s.psychEffect = null;
+  }
+  s.psychCheckT -= dt;
+  if (s.psychCheckT <= 0) {
+    s.psychCheckT = 25 + rnd() * 15;
+    if (!w.inHabitat && !s.psychEffect) {
+      const p = Math.max(0, Math.min(0.75, 0.05 + Math.max(0, 75 - s.sanity) / 100 * 0.45 + (far ? 0.15 : 0) + (dark ? 0.1 : 0)));
+      if (rnd() < p) {
+        let pick = far && rnd() < 0.5 ? "vertigo_gravedad" : PSYCH_EFFECTS[Math.floor(rnd() * PSYCH_EFFECTS.length)]!;
+        if (pick === "vertigo_gravedad" && s.equip.includes("botas_gravedad")) pick = "aislamiento";
+        s.psychEffect = { id: pick, t: 20 };
+        const ef = EFECTOS[pick];
+        addLog(s, `${ef.icono} ${ef.nombre}: ${ef.desc}`);
+      }
+    }
+  }
 }
 
 /** Combined multipliers the scene applies to movement, gathering cooldown and repair time. */
@@ -67,6 +113,8 @@ export function effectMods(s: Sim) {
     if (!c) continue;
     speed *= c.velocidad; gather *= c.recoleccion; repair *= c.reparar ?? 1;
   }
+  if (s.perks.includes("salto_gravedad")) speed *= 1.25;
+  if (s.equip.includes("botas_gravedad")) speed *= 1.15;
   return { speed, gather, repair };
 }
 
@@ -81,16 +129,36 @@ export function toggleEquip(s: Sim, item: string): string {
   return "Equipped";
 }
 
-/** Use a consumable. Returns whether it worked and a short message for the player. */
-export function applyConsumable(s: Sim, item: string): { ok: boolean; msg: string } {
+/** Use a consumable from the inventory. */
+export function consumeItem(s: Sim, item: string): boolean {
+  if (item === "agua") return drinkWater(s).ok;
   const inv = s.inv as unknown as Record<string, number>;
-  if (!CONSUMIBLES.includes(item)) return { ok: false, msg: "You can't use that" };
-  if (item === "agua") return drinkWater(s);
-  if ((inv[item] ?? 0) < 1) return { ok: false, msg: "You have none" };
-  if (item === "botiquin") {
-    if (s.health >= 100) return { ok: false, msg: "Your health is already full" };
-    inv[item]! -= 1; s.health = Math.min(100, s.health + 40); addLog(s, "You used a medkit: +40 health."); return { ok: true, msg: "Health +40" };
+  if (!CONSUMIBLES.includes(item) || (inv[item] ?? 0) < 1) return false;
+  inv[item]! -= 1;
+  if (item === "botiquin") { s.health = Math.min(100, s.health + 40); addLog(s, "You used a medkit: +40 health."); }
+  if (item === "estimulante") { s.fatigue = 0; addLog(s, "You used a stimulant: fatigue is gone."); }
+  if (item === "racion") {
+    s.health = Math.min(100, s.health + 25);
+    s.sanity = Math.min(100, s.sanity + 15);
+    s.hydration = Math.min(100, s.hydration + 10);
+    addLog(s, "🍱 You ate a Space ration: +25 health, +15 sanity.");
   }
-  inv[item]! -= 1; s.fatigue = 0; addLog(s, "You used a stimulant: fatigue is gone."); return { ok: true, msg: "Fatigue gone" };
+  if (item === "comida_caliente") {
+    s.health = Math.min(100, s.health + 45);
+    s.sanity = Math.min(100, s.sanity + 25);
+    s.hydration = Math.min(100, s.hydration + 15);
+    s.coldT = 0;
+    if (s.psychEffect && (s.psychEffect.id === "vertigo_gravedad" || s.psychEffect.id === "aislamiento")) s.psychEffect = null;
+    addLog(s, "🍲 You ate a Hot meal: +45 health, +25 sanity, Cold & Vertigo cleared.");
+  }
+  return true;
 }
-export const consumeItem = (s: Sim, item: string): boolean => applyConsumable(s, item).ok;
+
+const CONSUME_MSG: Record<string, string> = { botiquin: "Health +40", estimulante: "Fatigue gone", racion: "Health +25 · sanity +15", comida_caliente: "Health +45 · sanity +25 · warm again" };
+/** Use a consumable and say what happened, for the on-screen message. */
+export function applyConsumable(s: Sim, item: string): { ok: boolean; msg: string } {
+  if (item === "agua") return drinkWater(s);
+  if (!CONSUMIBLES.includes(item)) return { ok: false, msg: "You can't use that" };
+  const ok = consumeItem(s, item);
+  return ok ? { ok, msg: CONSUME_MSG[item] ?? "Used" } : { ok, msg: "You have none" };
+}

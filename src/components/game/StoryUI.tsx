@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useGame, sim } from "@/game/store";
 import { sfx } from "@/game/audio";
-import { EFECTOS, type EffectId } from "@/game/effects";
+import { EFECTOS, PERKS, type EffectId } from "@/game/effects";
 import { eventBanner } from "@/game/events";
 import { PRINCIPALES, currentMain, sideAvailable, MISIONES } from "@/game/quests";
 import { expedicion } from "@/game/history";
@@ -117,10 +117,13 @@ export function AlertsPanel({ className = "" }: { className?: string }) {
 /** Worn gear, shown inside the astronaut panel. */
 export function GearRow() {
   const s = useGame((g) => g.snap);
-  if (!s.equip.length) return null;
+  if (!s.effects.length && !s.equip.length && !s.perks.length && s.fatigue < 40) return null;
   return (
-    <div className="flex flex-wrap items-center gap-1.5 text-[6px] text-ok">
-      {s.equip.map((g) => <span key={g} className="flex items-center gap-0.5"><PixelIcon item={g} size={8} />{ITEMS[g]?.nombre}</span>)}
+    <div className="flex flex-wrap items-center justify-center gap-2 text-[7px]">
+      {(s.effects as EffectId[]).map((e) => <span key={e} title={EFECTOS[e]?.desc} className="animate-pulse text-alert">{EFECTOS[e]?.icono} {EFECTOS[e]?.nombre}</span>)}
+      {!s.effects.includes("cansancio") && s.fatigue >= 40 && <span className="text-muted-foreground">😮‍💨 Fatigue {Math.round(s.fatigue)}%</span>}
+      {s.equip.map((g) => <span key={g} className="flex items-center gap-1 text-ok"><PixelIcon item={g} size={10} />{ITEMS[g]?.nombre}</span>)}
+      {s.perks.map((p) => <span key={p} title={PERKS[p]?.desc} className="text-gold">{PERKS[p]?.icono} {PERKS[p]?.nombre}</span>)}
     </div>
   );
 }
@@ -180,6 +183,18 @@ export function QuestLog() {
             );
           })}
         </ol>
+        <div className="mb-2 text-[8px] text-suit-light">SPECIAL EXPEDITION CASE</div>
+        <div className="mb-4 rounded border border-white/15 bg-black/25 p-2 text-[8px] leading-4">
+          {s.specialCase ? (
+            <>
+              <div className="font-bold text-gold">⭐ {s.specialCase.title} ({Math.ceil(s.specialCase.t)}s left)</div>
+              <div className="text-white/85">{s.specialCase.desc}</div>
+              <div className="text-[7px] text-ok">Reward: {Object.entries(s.specialCase.reward).map(([k, n]) => `${n} ${ITEMS[k]?.nombre ?? k}`).join(", ")}</div>
+            </>
+          ) : (
+            <div className="text-muted-foreground">No active special case right now ({s.casesDone} resolved). Watch the Map (M) for ⭐ expedition signals.</div>
+          )}
+        </div>
         <div className="mb-2 text-[8px] text-suit-light">SIDE MISSIONS</div>
         <ul className="space-y-2">
           {sideAvailable(s).map((q) => {

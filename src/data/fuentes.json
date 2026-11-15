@@ -96,6 +96,12 @@
   "nota": "That's why warmth comes from insulation and electric heaters."
  },
  {
+  "titulo": "History of lunar missions: Luna, Surveyor, Apollo, Lunar Prospector, LCROSS, Chang'e 4, Chandrayaan-2/3, Beresheet, Luna 25, SLIM, Artemis",
+  "tipo": "EXTERNAL",
+  "url": "",
+  "nota": "Used in the in-game Archive and ARIA's dialogs. Summaries simplified; check NASA and each agency for details. To do: cite exact pages."
+ },
+ {
   "titulo": "NASA Mercury, Gemini and Apollo mission records (Friendship 7, Gemini 8, Apollo 1, 8, 11, 13 and 17)",
   "tipo": "EXTERNAL",
   "url": "",
@@ -138,7 +144,7 @@
   "nota": "Artemis I test flight and the ISS water recycling system."
  },
  {
-  "titulo": "Mission SELENE-7 and its crew: Commander Alex Rivera, Jonas Weber, Dr. Aiko Tanaka, Flight Director Priya Raman",
+  "titulo": "Mission SELENE-7 and its crew: Commander Alex Rivera, Jonas Weber, Dr. Aiko Tanaka, Flight Director Ana Ortega",
   "tipo": "FICTION",
   "url": "",
   "nota": "Made up for the game. Any resemblance to real people is a coincidence; the real astronauts are in the Archive."
