@@ -58,6 +58,20 @@ export function makeSprites(scene: Phaser.Scene) {
   });
 
   // Zone resources.
+  // ☀ Solar glass: amber sun-fused shards (day only).
+  tex(scene, "n_solar", 8, 6, (g, r) => {
+    g.fillStyle(OUT).fillPoints(toPts([1, 11, 4, 3, 8, 6, 12, 1, 15, 11], 1), true);
+    g.fillStyle(0xf2a83a).fillPoints(toPts([1, 11, 4, 3, 8, 6, 12, 1, 15, 11], 0), true);
+    g.fillStyle(0xffe08a).fillPoints(toPts([4, 4, 7, 10, 2, 10], 0), true);
+    r(11, 3, 1, 5, 0xfff6d0); r(5, 6, 1, 2, 0xffffff);
+  });
+  // 🌙 Starlight crystal: violet star-shaped crystal (night only).
+  tex(scene, "n_estelar", 7, 8, (g, r) => {
+    g.fillStyle(OUT).fillPoints(toPts([7, 0, 9, 5, 14, 7, 9, 9, 7, 15, 5, 9, 0, 7, 5, 5], 1), true);
+    g.fillStyle(0xb48cff).fillPoints(toPts([7, 0, 9, 5, 14, 7, 9, 9, 7, 15, 5, 9, 0, 7, 5, 5], 0), true);
+    g.fillStyle(0xe8dcff).fillPoints(toPts([7, 2, 8, 7, 7, 12, 6, 7], 0), true);
+    r(7, 6, 1, 2, 0xffffff);
+  });
   tex(scene, "n_cristal", 7, 8, (g, r) => {
     g.fillStyle(OUT).fillPoints(toPts([7, 0, 13, 7, 7, 15, 1, 7], 1), true);
     g.fillStyle(0x9fd8ff).fillPoints(toPts([7, 0, 13, 7, 7, 15, 1, 7], 0), true);

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { RobertPanel, RobertIntro } from "./RobertPanel";
 import { RoverPanel } from "./RoverPanel";
 import { RobotLabPanel } from "./RobotLabPanel";
+import { HabitatPanel } from "./HabitatPanel";
 import modos from "@/data/modos.json";
 import recetas from "@/data/recetas.json";
 import { useGame, sim, saveGame } from "@/game/store";
@@ -377,6 +378,6 @@ export function Overlays() {
   const panel =
     overlay === "inv" ? <Inventory /> : overlay === "base" ? <Base /> : overlay === "log" ? <Log /> : overlay === "pausa" ? <Pause /> :
     overlay === "cohete" ? <Rocket /> : overlay === "cubesat" ? <CubeSatDesigner /> : overlay === "misiones" ? <QuestLog /> :
-    overlay === "estacion" ? <StationPanel /> : overlay === "mapa" ? <MapPanel /> : overlay === "cofre" ? <ChestPanel /> : overlay === "archivo" ? <ArchivePanel /> : overlay === "guia" ? <FieldGuidePanel /> : overlay === "cueva" ? <CavePanel /> : overlay === "robert" ? <RobertPanel /> : overlay === "rover" ? <RoverPanel /> : overlay === "robotlab" ? <RobotLabPanel /> : null;
+    overlay === "estacion" ? <StationPanel /> : overlay === "mapa" ? <MapPanel /> : overlay === "cofre" ? <ChestPanel /> : overlay === "archivo" ? <ArchivePanel /> : overlay === "guia" ? <FieldGuidePanel /> : overlay === "cueva" ? <CavePanel /> : overlay === "robert" ? <RobertPanel /> : overlay === "rover" ? <RoverPanel /> : overlay === "robotlab" ? <RobotLabPanel /> : overlay === "habitat" ? <HabitatPanel /> : null;
   return <>{panel}<RobertIntro /><NoticeToast /><DeathScreen /></>;
 }

@@ -69,6 +69,7 @@ export function DayClock({ className = "" }: { className?: string }) {
         <span className={day ? "text-gold" : "text-suit-light"}>{day ? "☀ Day" : "☾ Night"} {s.day}</span>
         <span className="tabular-nums text-white/80">{left}</span>
       </div>
+      <div className={`tr-text text-center text-[5px] leading-none ${day ? "text-[#ffd27a]" : "text-[#cdb6ff]"}`}>{day ? "☀ Solar glass out · 🌙 crystals hidden" : "🌙 Starlight crystals out · ☀ glass hidden"}</div>
       <div className="h-[2px] w-full rounded bg-white/15"><div className={`h-full rounded transition-[width] duration-1000 ease-linear ${day ? "bg-gold" : "bg-suit-light"}`} style={{ width: `${Math.min(100, p * 100)}%` }} /></div>
     </div>
   );

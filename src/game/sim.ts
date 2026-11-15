@@ -36,7 +36,7 @@ export const CYCLE = DAY_LEN + NIGHT_LEN;
 export const LH2_CAP = balance.lh2_cap_kg;
 export const LOX_CAP = balance.lox_cap_kg;
 
-export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cofre: number; puente_kit: number; rover: number; biorreactor: number; hidroponia: number; robot_lab: number; semilla_papa: number; semilla_trigo: number; papa: number; trigo: number; papa_horneada: number; pan: number; galleta: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number; alga_lunar: number; racion: number; comida_caliente: number; pico_plasma: number; armadura_lunar: number; botas_gravedad: number }
+export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cofre: number; puente_kit: number; rover: number; biorreactor: number; hidroponia: number; robot_lab: number; vidrio_solar: number; cristal_estelar: number; semilla_papa: number; semilla_trigo: number; papa: number; trigo: number; papa_horneada: number; pan: number; galleta: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number; alga_lunar: number; racion: number; comida_caliente: number; pico_plasma: number; armadura_lunar: number; botas_gravedad: number }
 
 export function createSim(mode: Mode, difficulty: Difficulty) {
   return {
@@ -46,7 +46,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     battery: 60, energyIn: 0, energyOut: 0,
     habitatO2: 80,
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
-    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: difficulty === "facil" ? 3 : 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cofre: 0, puente_kit: 0, rover: 0, biorreactor: 0, hidroponia: 0, robot_lab: 0, semilla_papa: 0, semilla_trigo: 0, papa: 0, trigo: 0, papa_horneada: 0, pan: 0, galleta: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0, alga_lunar: 0, racion: difficulty === "facil" ? 1 : 0, comida_caliente: 0, pico_plasma: 0, armadura_lunar: 0, botas_gravedad: 0 } as Inv,
+    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: difficulty === "facil" ? 3 : 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cofre: 0, puente_kit: 0, rover: 0, biorreactor: 0, hidroponia: 0, robot_lab: 0, vidrio_solar: 0, cristal_estelar: 0, semilla_papa: 0, semilla_trigo: 0, papa: 0, trigo: 0, papa_horneada: 0, pan: 0, galleta: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0, alga_lunar: 0, racion: difficulty === "facil" ? 1 : 0, comida_caliente: 0, pico_plasma: 0, armadura_lunar: 0, botas_gravedad: 0 } as Inv,
     relay: false,
     // --- historia, efectos, eventos y botín ---
     effects: [] as string[],
@@ -116,7 +116,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     nextEventT: 150,
     impacts: [] as { x: number; y: number; t: number }[],
     quest: { main: 0, sideDone: [] as string[], started: false },
-    stats: { hielo: 0, capsulas: 0, aliens: 0, reparaciones: 0, llamaradas: 0 },
+    stats: { hielo: 0, capsulas: 0, aliens: 0, reparaciones: 0, llamaradas: 0, noches: 0 },
     dialog: [] as { quien: string; texto: string }[],
     toast: null as null | { text: string; t: number },
     radar: [] as { k: string; dx: number; dy: number }[],
@@ -839,6 +839,27 @@ export function setRoverMat(s: Sim, m: Module, mat: string) {
   m.mat = mat; if (m.rst !== "back") m.rst = "idle";
   return true;
 }
+
+// ---- Day / night resources and the habitat bed ----
+/** Resources that only exist in one half of the lunar day (forces you to live through both). */
+export const DAY_ONLY = ["vidrio_solar"] as const;
+export const NIGHT_ONLY = ["cristal_estelar"] as const;
+export const phaseOf = (item: string): "day" | "night" | null => ((DAY_ONLY as readonly string[]).includes(item) ? "day" : (NIGHT_ONLY as readonly string[]).includes(item) ? "night" : null);
+/** Sleep in the habitat bed: only at night, with no open leaks. Skips to the next dawn and rests you. */
+export function sleepUntilDawn(s: Sim): { ok: boolean; msg: string } {
+  if (isDay(s)) return { ok: false, msg: "You can only sleep at night." };
+  if (s.leaks.length) return { ok: false, msg: "There's a leak! Seal it before you sleep." };
+  if (s.countdown !== null) return { ok: false, msg: "Not now: the launch countdown is running." };
+  s.time = (Math.floor(s.time / CYCLE) + 1) * CYCLE + 1;
+  s.day += 1; s.leaksToday = 0;
+  s.fatigue = 0; s.sanity = Math.min(100, s.sanity + 30); s.health = Math.min(100, s.health + 15); s.hydration = Math.max(0, s.hydration - 10);
+  s.aliens = []; s.abduction = 0;
+  s.stats.noches += 1;
+  addLog(s, `😴 You slept through the night. Day ${s.day} dawns. Fully rested.`);
+  return { ok: true, msg: `Good morning! Day ${s.day}. Fatigue gone, +30 sanity, +15 health.` };
+}
+/** Diary pages and album photos unlock by day reached or main missions completed. */
+export const personalUnlocked = (s: Sim, u: { day?: number; mission?: number }) => (u.day === undefined || s.day >= u.day) && (u.mission === undefined || s.quest.main >= u.mission);
 
 // ---- Mini Robert upgrades (Robert Station) ----
 export const ROBERT_MAX_LEVEL = 5;

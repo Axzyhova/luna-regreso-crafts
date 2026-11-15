@@ -91,7 +91,7 @@ describe("reparación del cohete", () => {
   });
   it("Comunicaciones se topa en 50% sin CubeSat relé", () => {
     const s = createSim("realista", "normal");
-    s.inv.metal = 20; s.inv.chatarra = 20;
+    s.inv.metal = 20; s.inv.chatarra = 20; s.inv.vidrio_solar = 10; // ☀ day-only glass is part of the repair now
     while (repairSubsystem(s, SUB("Communications")));
     expect(s.rocket["Communications"]).toBe(50);
     expect(repairBlock(s, SUB("Communications"))).toBe("Needs the CubeSat relay");

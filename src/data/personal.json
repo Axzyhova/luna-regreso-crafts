@@ -1,0 +1,22 @@
+{
+ "nota": "Personal life of Commander Alex Rivera (fiction). Unlocks: day = survive until that day, mission = main missions completed.",
+ "diario": [
+  { "id": "d1", "title": "Day 1 — Still breathing", "unlock": {}, "text": "The Selene-7 hit harder than any simulator ever did. My ribs hurt, the antenna is gone and the tanks are empty. ARIA keeps talking, which helps. I promised Luna I'd call her from the Moon. I will keep that promise, even if I have to build the phone myself." },
+  { "id": "d2", "title": "The silence", "unlock": { "day": 2 }, "text": "No wind, no birds, no traffic. The quiet here has weight. At night I count the stars I know from the backyard at home: the same ones Luna and I used to name. Sam always laughed that I named them after snacks." },
+  { "id": "d3", "title": "Patched", "unlock": { "mission": 1 }, "text": "First leak sealed. My hands were shaking inside the gloves. Dad used to fix the roof every winter and swear at the shingles; I swore at the habitat. Same family tradition, different roof." },
+  { "id": "d4", "title": "Luna's drawing", "unlock": { "day": 3 }, "text": "I found Luna's drawing folded in my suit pocket. A yellow Moon with a smiling astronaut and a dog in a helmet. She gave Biscuit a helmet. I taped it above the bed so it is the first thing I see." },
+  { "id": "d5", "title": "Water from the dark", "unlock": { "mission": 2 }, "text": "Ice from the shadowed crater, melted into the tank. The first sip tasted like metal and victory. LCROSS found this water in 2009; tonight it kept me alive. Thank you, NASA nerds." },
+  { "id": "d6", "title": "Dreams of rain", "unlock": { "day": 4 }, "text": "I dreamed of the day Sam and I got married, when the sky opened and everyone ran under the trees. I woke up laughing in a place where it has never rained. I miss mud. I never thought I'd write that." },
+  { "id": "d7", "title": "The rocket breathes", "unlock": { "mission": 4 }, "text": "Structure and power are back. When the systems lit up I talked to the rocket like a horse: easy, girl, we're going home. ARIA pretended not to hear." },
+  { "id": "d8", "title": "Contact", "unlock": { "mission": 5 }, "text": "The relay is up. For three seconds there was only static, then Mission Control said my name. I had to turn the mic off so Houston wouldn't hear me cry. Ana Ortega said Luna watches the Moon every night." },
+  { "id": "d9", "title": "Coming home", "unlock": { "mission": 6 }, "text": "Tanks full, every subsystem green. Tomorrow the window opens. I packed Luna's drawing, the photo of Biscuit and a pebble of regolith for Mom. If you're reading this, it means I left it behind on purpose: the Moon should remember somebody tried." }
+ ],
+ "album": [
+  { "id": "launch", "title": "Launch day", "caption": "Sam, Luna and Mom at the Kennedy viewing stands. Luna holds a sign: GO MOM GO!", "unlock": {} },
+  { "id": "drawing", "title": "Luna's drawing", "caption": "A smiling Moon, an astronaut and Biscuit in a space helmet. Age 7.", "unlock": {} },
+  { "id": "dog", "title": "Biscuit", "caption": "Our golden retriever. Steals socks, fears the vacuum, loves everyone.", "unlock": { "day": 2 } },
+  { "id": "wedding", "title": "Married in the rain", "caption": "Sam and me, soaked and laughing. Best day of my life (so far).", "unlock": { "day": 3 } },
+  { "id": "crew", "title": "Selene-7 crew", "caption": "Me, Jonas Weber and Dr. Aiko Tanaka in training. Jonas brought the bad jokes.", "unlock": { "mission": 2 } },
+  { "id": "earthrise", "title": "Earthrise", "caption": "Taken from orbit, the day before landing. Everyone I love is on that blue marble.", "unlock": { "mission": 4 } }
+ ]
+}

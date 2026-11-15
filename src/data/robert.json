@@ -395,6 +395,31 @@
        "d": "Real missions and astronauts, unlocked as you play."
       }
      ]
+    },
+    {
+     "title": "Habitat (home)",
+     "points": [
+      {
+       "t": "Enter",
+       "d": "Press E at the habitat to go inside."
+      },
+      {
+       "t": "Bed",
+       "d": "Sleep through the night (night only, no open leaks)."
+      },
+      {
+       "t": "Diary",
+       "d": "Alex's personal story; new pages unlock as days pass and missions are done."
+      },
+      {
+       "t": "Family album",
+       "d": "Photos of Alex's family and crew; more unlock as you progress."
+      },
+      {
+       "t": "Water tank",
+       "d": "Melt your ice here."
+      }
+     ]
     }
    ]
   },
@@ -565,6 +590,65 @@
       {
        "t": "Fog",
        "d": "The map reveals itself as you walk."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "daynight",
+   "icon": "🌗",
+   "title": "Day & night",
+   "sub": "What only appears by day or by night",
+   "subs": [
+    {
+     "title": "☀ Only by day",
+     "points": [
+      {
+       "t": "Solar glass",
+       "d": "Amber shards that shine on the open plains (Landing Site, Scorch Fields). Needed to repair the rocket's Communications."
+      },
+      {
+       "t": "Heat peaks",
+       "d": "Extreme heat in the sun. Shade, habitat or Reflective cape."
+      },
+      {
+       "t": "Solar power",
+       "d": "Panels only make energy in daylight."
+      }
+     ]
+    },
+    {
+     "title": "🌙 Only at night",
+     "points": [
+      {
+       "t": "Starlight crystals",
+       "d": "Violet star crystals that grow in the dark (Landing Site, Frozen Basin). Needed for the rocket's Attitude control."
+      },
+      {
+       "t": "Aliens",
+       "d": "In Fantasy and Horror modes they come out at night. Realistic mode has none."
+      },
+      {
+       "t": "The bed",
+       "d": "You can only sleep at night: it skips to dawn and rests you."
+      }
+     ]
+    },
+    {
+     "title": "How to tell",
+     "points": [
+      {
+       "t": "The clock",
+       "d": "Under the day/night clock a line says what is out right now."
+      },
+      {
+       "t": "Sunrise & nightfall",
+       "d": "A message tells you what just appeared or faded."
+      },
+      {
+       "t": "Items & crafting",
+       "d": "☀ / 🌙 tags in the item descriptions and in 'Where to get it'."
       }
      ]
     }

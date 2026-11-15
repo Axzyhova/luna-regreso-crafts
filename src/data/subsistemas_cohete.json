@@ -34,21 +34,23 @@
    "disciplina": "Communications",
    "ingredientes": {
     "metal": 2,
-    "chatarra": 2
+    "chatarra": 2,
+    "vidrio_solar": 1
    },
    "sube": 20,
    "tope_sin_relay": 50,
-   "porque": "Without a link to Earth you won't get the return window. Going past 50% needs the CubeSat relay."
+   "porque": "Without a link to Earth you won't get the return window. Going past 50% needs the CubeSat relay. ☀ Needs Solar glass (only found in daylight)."
   },
   {
    "id": "Attitude control",
    "disciplina": "Attitude control (ACS)",
    "ingredientes": {
     "metal": 3,
-    "kits": 1
+    "kits": 1,
+    "cristal_estelar": 1
    },
    "sube": 30,
-   "porque": "Keeps the rocket pointed correctly. Without it the return trajectory drifts."
+   "porque": "Keeps the rocket pointed correctly. Without it the return trajectory drifts. 🌙 Needs a Starlight crystal for the star tracker (only at night)."
   },
   {
    "id": "Structure",

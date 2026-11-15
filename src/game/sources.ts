@@ -11,6 +11,8 @@ const EXTRA: Record<string, string[]> = {
   regolito: ["Everywhere on the ground"],
   chatarra: ["Wreckage around the crash site"],
   alga_lunar: ["Grow it in a Hydroponic farm"],
+  vidrio_solar: ["☀ DAY ONLY: shining amber shards on the open plains of the Landing Site and the Scorch Fields. They go dull at night."],
+  cristal_estelar: ["🌙 NIGHT ONLY: violet star crystals on the Landing Site and in the Frozen Basin. They fade at sunrise."],
 };
 
 /** Where an item comes from: zones where you mine it, capsules, caves, farms, machines and recipes. */

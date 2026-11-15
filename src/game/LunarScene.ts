@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { PAL } from "./palette";
 import { sim, useGame, saveGame } from "./store";
-import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, dropItem, TIPOS, PLACEABLE, leakAllowed, hurt, visitPoi, tendFarm, farmOf, ROBERT_SKINS, robertForageEvery, CROPS, seedToPlant, FARM_WATER_KG, applyBridgeKit, type Leak, toolInfo, meltIce, WATER_TANK_KG, nextLeakDelay, pickUpDrop, toggleSuit, WORLD, ZONAS, zoneAt, zoneBlock, reveal, BRIDGE, buildBridge, canUpgrade, upgradeCost, upgradeModule, lvl, type Zona, type LeakTarget, type Module, type ModType } from "./sim";
+import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, dropItem, TIPOS, PLACEABLE, leakAllowed, hurt, visitPoi, tendFarm, farmOf, phaseOf, ROBERT_SKINS, robertForageEvery, CROPS, seedToPlant, FARM_WATER_KG, applyBridgeKit, type Leak, toolInfo, meltIce, WATER_TANK_KG, nextLeakDelay, pickUpDrop, toggleSuit, WORLD, ZONAS, zoneAt, zoneBlock, reveal, BRIDGE, buildBridge, canUpgrade, upgradeCost, upgradeModule, lvl, type Zona, type LeakTarget, type Module, type ModType } from "./sim";
 import { sfx } from "./audio";
 import { stepAliens, hitAlien, type World } from "./aliens";
 import { stepCountdown } from "./mission";
@@ -35,13 +35,13 @@ const isStation = (m: Module) => m.tipo === "taller" || m.tipo === "horno";
 export const INTERACT_EDGE = 2;
 /** Half-size of the astronaut's body (world px): reach is measured from its edge, not its centre. */
 const BODY_HW = 3, BODY_HH = 5;
-type TargetKind = "leak" | "special" | "cave" | "drop" | "bridge" | "poi" | "capsule" | "rocket" | "melt" | "chest" | "station" | "repair" | "upgrade" | "clean" | "farm" | "robert" | "rover" | "robotlab";
+type TargetKind = "leak" | "special" | "cave" | "drop" | "bridge" | "poi" | "capsule" | "rocket" | "melt" | "chest" | "station" | "repair" | "upgrade" | "clean" | "farm" | "robert" | "rover" | "robotlab" | "home";
 interface Target { kind: TargetKind; x: number; y: number; ref?: unknown; label: string }
-type NodeType = "hielo" | "regolito" | "chatarra" | "cristal_hielo" | "titanio" | "aleacion" | "alga_lunar";
-const NODE_TEX: Record<NodeType, string> = { hielo: "ice", regolito: "reg", chatarra: "scrap", cristal_hielo: "n_cristal", titanio: "n_titanio", aleacion: "n_aleacion", alga_lunar: "n_aleacion" };
+type NodeType = "hielo" | "regolito" | "chatarra" | "cristal_hielo" | "titanio" | "aleacion" | "alga_lunar" | "vidrio_solar" | "cristal_estelar";
+const NODE_TEX: Record<NodeType, string> = { hielo: "ice", regolito: "reg", chatarra: "scrap", cristal_hielo: "n_cristal", titanio: "n_titanio", aleacion: "n_aleacion", alga_lunar: "n_aleacion", vidrio_solar: "n_solar", cristal_estelar: "n_estelar" };
 interface RNode { type: NodeType; amount: number; spr: Phaser.GameObjects.Image; zone?: string | undefined }
 /** Glow colour under each kind of resource lying on the ground. */
-const NODE_GLOW: Record<NodeType, number> = { hielo: PAL.ice, cristal_hielo: PAL.ice, regolito: PAL.moon4, chatarra: PAL.alert, titanio: 0xd8e0ea, aleacion: PAL.ok, alga_lunar: PAL.ok };
+const NODE_GLOW: Record<NodeType, number> = { hielo: PAL.ice, cristal_hielo: PAL.ice, regolito: PAL.moon4, chatarra: PAL.alert, titanio: 0xd8e0ea, aleacion: PAL.ok, alga_lunar: PAL.ok, vidrio_solar: 0xf2a83a, cristal_estelar: 0xb48cff };
 
 /** Static solids that are not modules: the rocket and its two tanks (sprite size + centre). */
 const STATIC_SPRITES = [
@@ -129,6 +129,9 @@ export class LunarScene extends Phaser.Scene {
     for (let i = 0; i < 4; i++) { this.spawnNode("chatarra", "ice"); this.spawnNode("chatarra", "fire"); this.spawnNode("chatarra", "hive"); }
     for (let i = 0; i < 12; i++) { this.spawnNode("cristal_hielo"); this.spawnNode("titanio"); }
     for (let i = 0; i < 10; i++) { this.spawnNode("hielo", "ice"); this.spawnNode("aleacion"); this.spawnNode("regolito", "fire"); }
+    // ☀ Solar glass shines only by day on the plains; 🌙 Starlight crystals only exist at night.
+    for (let i = 0; i < 10; i++) { this.spawnNode("vidrio_solar"); this.spawnNode("cristal_estelar"); }
+    for (let i = 0; i < 4; i++) { this.spawnNode("vidrio_solar", "fire"); this.spawnNode("cristal_estelar", "ice"); }
     // Dedicated resource lands ("Tierras de recursos dedicados") & far boss caches
     for (const sz of SUBZONAS) {
       const count = sz.tipo === "jefe" ? 5 : 4;
@@ -273,8 +276,18 @@ export class LunarScene extends Phaser.Scene {
 
   nearestNode() {
     let best: RNode | null = null, bd = 10; // short reach: stand next to the node
-    for (const n of this.nodes) { const d = Phaser.Math.Distance.Between(n.spr.x, n.spr.y, this.player.x, this.player.y); if (d < bd) { bd = d; best = n; } }
+    for (const n of this.nodes) { if (!this.nodeActive(n)) continue; const d = Phaser.Math.Distance.Between(n.spr.x, n.spr.y, this.player.x, this.player.y); if (d < bd) { bd = d; best = n; } }
     return best;
+  }
+  /** Day-only / night-only resources exist only in their half of the lunar day. */
+  nodeActive(n: RNode) { const ph = phaseOf(n.type); return ph === null || (ph === "day") === isDay(sim); }
+  dayPhase: boolean | null = null;
+  /** Fade the phased resources in/out and announce what just appeared. */
+  stepPhasedNodes() {
+    const day = isDay(sim);
+    for (const n of this.nodes) { if (!phaseOf(n.type)) continue; const on = this.nodeActive(n); const a = n.spr.alpha + ((on ? 1 : 0) - n.spr.alpha) * 0.05; n.spr.setAlpha(a).setVisible(a > 0.02); }
+    if (this.dayPhase !== null && this.dayPhase !== day) toast(sim, day ? "☀ Sunrise: Solar glass is shining on the plains (day only). Starlight crystals faded." : "🌙 Night: Starlight crystals are growing in the dark (night only). Solar glass went dull.", 6);
+    this.dayPhase = day;
   }
   nearestLeak() {
     return sim.leaks.find((l) => Phaser.Math.Distance.Between(l.x, l.y, this.player.x, this.player.y) < 16);
@@ -589,7 +602,7 @@ export class LunarScene extends Phaser.Scene {
     for (const m of sim.modules) {
       const half: [number, number] = [TIPOS[m.tipo].w / 2, TIPOS[m.tipo].h / 2];
       const name = TIPOS[m.tipo].nombre.toUpperCase();
-      if (m.tipo === "habitat") { if (sim.inv.hielo > 0) consider({ kind: "melt", x: m.x, y: m.y, ref: m, label: sim.inv.agua >= WATER_TANK_KG ? "WATER TANK FULL" : "E: MELT ICE INTO WATER" }, half); continue; }
+      if (m.tipo === "habitat") { consider({ kind: "home", x: m.x, y: m.y, ref: m, label: sim.inv.hielo > 0 ? "E: ENTER HABITAT (MELT ICE · BED · DIARY)" : "E: ENTER HABITAT (BED · DIARY · ALBUM)" }, half); continue; }
       if (m.tipo === "hidroponia" && m.activo && m.durabilidad > 0) { const f = farmOf(sim, m.uid); const c = CROPS[f.crop]; const seed = seedToPlant(sim, sim.hotbarItems[sim.hotbar - 1]);
         consider({ kind: "farm", x: m.x, y: m.y, ref: m, label: !c ? (seed ? `E: PLANT ${CROPS[seed]!.nombre.toUpperCase()}` : "NEED SEEDS (CAPSULES / CHEST) OR LUNAR ALGAE") : f.growth >= 1 ? `E: HARVEST ${c.nombre.toUpperCase()}` : f.water < 0.5 ? `E: WATER CROP (${FARM_WATER_KG} KG FROM TANK)` : `GROWING ${Math.round(f.growth * 100)}% · WATER ${Math.round(f.water * 100)}%` }, half); continue; }
       if (m.tipo === "rover" && m.durabilidad >= 60) { consider({ kind: "rover", x: m.rx ?? m.x, y: m.ry ?? m.y, ref: m, label: `E: ROVER — MINING ${(ITEMS[m.mat ?? "regolito"]?.nombre ?? "").toUpperCase()} (CHANGE)` }, half); continue; }
@@ -631,7 +644,7 @@ export class LunarScene extends Phaser.Scene {
     if (this.robForageT < robertForageEvery(rob.level)) return;
     this.robForageT = 0;
     let best: RNode | null = null, bd = 60 + rob.level * 8;
-    for (const n of this.nodes) { if (n.type !== rob.mat || n.amount <= 0) continue; const d = Phaser.Math.Distance.Between(n.spr.x, n.spr.y, p.x, p.y); if (d < bd) { bd = d; best = n; } }
+    for (const n of this.nodes) { if (!this.nodeActive(n)) continue; if (n.type !== rob.mat || n.amount <= 0) continue; const d = Phaser.Math.Distance.Between(n.spr.x, n.spr.y, p.x, p.y); if (d < bd) { bd = d; best = n; } }
     if (best) this.robErr = { n: best, t: 0 };
   }
 
@@ -662,6 +675,7 @@ export class LunarScene extends Phaser.Scene {
       case "station": { const st = tg.ref as Module; sim.station = st.tipo as "taller" | "horno"; sim.stationUid = st.uid; sfx.click(); G.publish(); G.setOverlay("estacion"); return; }
       case "upgrade": { const m = tg.ref as Module; upgradeModule(sim, m); sfx.ok(); toast(sim, `⬆ ${TIPOS[m.tipo].nombre} → level ${lvl(m)}`, 3); return; }
       case "robert": this.openRobert(); return;
+      case "home": sfx.click(); G.publish(); G.setOverlay("habitat"); return;
       case "robotlab": sfx.click(); G.setOverlay("robotlab"); return;
       case "rover": sim.roverUid = (tg.ref as Module).uid; sfx.click(); G.publish(); G.setOverlay("rover"); return;
       case "farm": { const msg = tendFarm(sim, tg.ref as Module, sim.hotbarItems[sim.hotbar - 1]); sfx[/^(🌱 Planted|💧 Watered|✂)/u.test(msg) ? "ok" : "click"](); toast(sim, msg, 3); G.publish(); return; }
@@ -816,6 +830,7 @@ export class LunarScene extends Phaser.Scene {
     for (const m of sim.modules) if (m.tipo === "torre_luz" && m.activo && m.durabilidad > 0 && sim.battery > 0) lights.push({ x: m.x, y: m.y, r: 140, color: 0xfff0aa, dayAlpha: 0.12 });
     if (sim.roverTech.skills.includes("lights")) for (const m of sim.modules) if (m.tipo === "rover") lights.push({ x: m.rx ?? m.x, y: m.ry ?? m.y, r: 55, color: 0xfff0c0, dayAlpha: 0 }); // rover headlights
     if (sim.robert.skills.includes("lamp")) lights.push({ x: this.robert.x, y: this.robert.y, r: 40 + sim.robert.level * 10, color: 0xbfe6ff, dayAlpha: 0 }); // Robert's headlamp
+    for (const n of this.nodes) if (n.type === "cristal_estelar" && this.nodeActive(n)) lights.push({ x: n.spr.x, y: n.spr.y, r: 22, color: 0xb48cff, dayAlpha: 0 }); // 🌙 crystals glow in the dark
     for (const c of sim.capsules) lights.push({ x: c.x, y: c.y, r: 46, color: 0xf2d24f, dayAlpha: 0.14 });
     for (const cv of sim.caves) lights.push({ x: cv.x, y: cv.y, r: 48, color: 0x66e0ff, dayAlpha: 0.12 });
     if (sim.specialCase) lights.push({ x: sim.specialCase.x, y: sim.specialCase.y, r: 62, color: 0xff8844, dayAlpha: 0.15 });
@@ -823,6 +838,7 @@ export class LunarScene extends Phaser.Scene {
     this.nightFx.update(this, sim, a, inShadow, this.player.x, this.player.y, this.aimRad, lights);
     this.pixelfx.update(this, dt);
     this.terrainFx.update(this.cameras.main);
+    this.stepPhasedNodes();
     this.fx3.update(dt, sim, this.player, this.wantsRun && !this.winded, this.nodes, this.androidSprites.values());
     if (this.vignetteFx) {
       const danger = sim.suitO2 < 20 || sim.effects.length > 0;
