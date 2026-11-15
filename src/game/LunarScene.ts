@@ -21,7 +21,8 @@ import { SUBZONAS, stepHive, hitHive, stepBosses, hitBoss, checkSubzoneVisit } f
 import { twinkle, bobOffset, beamStrips, ringPhase, edgeMarker } from "./pickups";
 import { canMine } from "./tools";
 import { view } from "./view";
-import { createFxTextures, NightLighting, paintRichTerrain, sunShadow } from "./visualFx";
+import { createFxTextures, NightLighting, paintRichTerrain, sunShadow, updateSilhouetteShadow } from "./visualFx";
+import { PixelfxOverlay } from "./pixelfxBridge";
 import { HAB, ROCKET, SHADOW, RAVINE, BRIDGE_DECK } from "./world";
 
 const W = 896, H = 504; // landing site (night aliens, events and capsules stay here)
@@ -67,6 +68,7 @@ export class LunarScene extends Phaser.Scene {
   beam!: Phaser.GameObjects.Graphics;
   ring!: Phaser.GameObjects.Graphics;
   nightFx!: NightLighting;
+  pixelfx!: PixelfxOverlay;
   playerShadow!: Phaser.GameObjects.Image;
   staticShadows: { spr: Phaser.GameObjects.Image; baseX: number; baseY: number; w: number; h: number }[] = [];
   vignetteFx?: Phaser.FX.Vignette;
@@ -98,10 +100,10 @@ export class LunarScene extends Phaser.Scene {
     paintRichTerrain(Phaser, this, g, W, H, SHADOW, PAL, FONT_KEY, toFont);
     this.label(SHADOW.x, SHADOW.y - 3, "SHADOWED CRATER", PAL.moon2, 1);
 
-    // rocket and tanks: separate sprites so the astronaut can walk behind them (depth sorted by their base)
+    // rocket and tanks: separate sprites + 2.5D silhouette cast shadows
     this.staticShadows = [];
     for (const s of STATIC_SPRITES) {
-      const sh = this.add.image(s.x, s.y + s.h / 2, "shadow").setDisplaySize(s.w + 6, 8).setDepth(5.5);
+      const sh = this.add.image(s.x, s.y + s.h / 2, s.key).setDepth(5.5);
       this.staticShadows.push({ spr: sh, baseX: s.x, baseY: s.y + s.h / 2, w: s.w + 6, h: 8 });
       this.add.image(s.x, s.y, s.key).setScale(1 / HD).setDepth(sortDepth(groundLine(s.y, s.h), H));
     }
@@ -139,6 +141,8 @@ export class LunarScene extends Phaser.Scene {
     this.pickFx = this.add.graphics().setDepth(11); // glow, light shafts and pointers for things on the ground
     this.tint = this.add.rectangle(0, 0, 640, 360, PAL.red, 0).setOrigin(0).setScrollFactor(0).setDepth(26);
     this.nightFx = new NightLighting(this);
+    this.pixelfx = new PixelfxOverlay(this);
+    this.pixelfx.spawn("energyCore", ROCKET.x, ROCKET.y - 6, { loop: true });
     if (this.renderer.type === Phaser.WEBGL && this.cameras.main.postFX) {
       const cm = this.cameras.main.postFX.addColorMatrix();
       cm.saturate(0.28);
@@ -500,6 +504,7 @@ export class LunarScene extends Phaser.Scene {
     const hit = hitAlien(sim, this.player.x, this.player.y, dmg) ?? hitAndroid(sim, this.player.x, this.player.y, dmg) ?? hitHive(sim, this.player.x, this.player.y, dmg) ?? hitBoss(sim, this.player.x, this.player.y, dmg);
     if (hit) {
       this.useCd = 0.4; sfx.click();
+      this.pixelfx.spawn("critHit", hit.x, hit.y);
       const spr = this.alienSprites.get(hit.id as number) ?? this.androidSprites.get(hit.id as number) ?? this.hiveSprites.get(hit.id as number) ?? this.bossSprites.get(String(hit.id));
       if (spr) { spr.setTint(PAL.white); this.time.delayedCall(120, () => spr.clearTint()); }
       return;
@@ -524,6 +529,7 @@ export class LunarScene extends Phaser.Scene {
     }
     sim.fatigue = Math.min(100, sim.fatigue + 0.6);
     n.amount -= got; sfx.pick();
+    this.pixelfx.spawn(n.type === "cristal_hielo" || n.type === "hielo" ? "frostNova" : "collectBurst", n.spr.x, n.spr.y);
     this.floatText(n.spr.x, n.spr.y - 4, `+${got}`, got > 1 ? PAL.gold : PAL.white);
     this.tweens.add({ targets: n.spr, y: n.spr.y - 2, yoyo: true, duration: 60 });
     if (n.amount <= 0 && this.inShadowAt(n.spr.x, n.spr.y) && !sim.scanner && Math.random() < 0.3) { hurt(sim, 12, "was caught in a regolith collapse"); this.cameras.main.shake(200, 0.012); toast(sim, "⚠ The crater wall collapsed! The VIPER scanner would have warned you.", 4); }
@@ -732,22 +738,24 @@ export class LunarScene extends Phaser.Scene {
 
     const sh = sunShadow(sim.time);
     this.playerShadow.setPosition(this.player.x + sh.ox * 0.7, this.player.y + PLAYER_FOOT_Y + sh.oy * 0.5).setDisplaySize(10 * sh.sx, 4 * sh.sy).setAlpha(sh.alpha);
-    for (const st of this.staticShadows) st.spr.setPosition(st.baseX + sh.ox, st.baseY + sh.oy).setDisplaySize(st.w * sh.sx, st.h * sh.sy).setAlpha(sh.alpha);
+    for (const st of this.staticShadows) updateSilhouetteShadow(st.spr, st.baseX, st.baseY, sh, HD);
     for (const m of sim.modules) {
       const sp = this.modSprites.get(m.uid);
       if (sp) { const mt = TIPOS[m.tipo]; sp.shadow.setPosition(m.x + sh.ox, groundLine(m.y, mt.h) + sh.oy).setDisplaySize((mt.w + 4) * sh.sx, 6 * sh.sy).setAlpha(sh.alpha); }
     }
 
-    const lights: { x: number; y: number; r: number }[] = [
-      { x: HAB.x, y: HAB.y, r: sim.battery > 0 ? 115 : 55 },
-      { x: ROCKET.x, y: ROCKET.y, r: 95 },
+    const lights: { x: number; y: number; r: number; color?: number; dayAlpha?: number }[] = [
+      { x: HAB.x, y: HAB.y, r: sim.battery > 0 ? 125 : 60, color: 0xffb85c, dayAlpha: 0.14 },
+      { x: ROCKET.x, y: ROCKET.y, r: 105, color: 0x66d9ff, dayAlpha: 0.14 },
+      { x: SHADOW.x, y: SHADOW.y, r: 95, color: 0x4fc2ff, dayAlpha: 0.08 },
     ];
-    for (const m of sim.modules) if (m.tipo === "torre_luz" && m.activo && m.durabilidad > 0 && sim.battery > 0) lights.push({ x: m.x, y: m.y, r: 135 });
-    for (const c of sim.capsules) lights.push({ x: c.x, y: c.y, r: 42 });
-    for (const cv of sim.caves) lights.push({ x: cv.x, y: cv.y, r: 45 });
-    if (sim.specialCase) lights.push({ x: sim.specialCase.x, y: sim.specialCase.y, r: 58 });
+    for (const m of sim.modules) if (m.tipo === "torre_luz" && m.activo && m.durabilidad > 0 && sim.battery > 0) lights.push({ x: m.x, y: m.y, r: 140, color: 0xfff0aa, dayAlpha: 0.12 });
+    for (const c of sim.capsules) lights.push({ x: c.x, y: c.y, r: 46, color: 0xf2d24f, dayAlpha: 0.14 });
+    for (const cv of sim.caves) lights.push({ x: cv.x, y: cv.y, r: 48, color: 0x66e0ff, dayAlpha: 0.12 });
+    if (sim.specialCase) lights.push({ x: sim.specialCase.x, y: sim.specialCase.y, r: 62, color: 0xff8844, dayAlpha: 0.15 });
 
     this.nightFx.update(this, sim, a, inShadow, this.player.x, this.player.y, this.aimRad, lights);
+    this.pixelfx.update(this, dt);
     if (this.vignetteFx) {
       const danger = sim.suitO2 < 20 || sim.effects.length > 0;
       this.vignetteFx.strength = danger ? 0.34 + Math.abs(Math.sin(this.time.now / 400)) * 0.12 : 0.16;
@@ -797,6 +805,7 @@ export class LunarScene extends Phaser.Scene {
     const w = this.world();
     for (const p of stepEvents(sim, dt, w)) {
       if (Phaser.Math.Distance.Between(p.x, p.y, this.player.x, this.player.y) < 90) this.cameras.main.shake(150, 0.01);
+      this.pixelfx.spawn("bigExplosion", p.x, p.y);
       sfx.alert();
     }
     stepEffects(sim, dt, w, inShadow);

@@ -6,6 +6,8 @@ import { stepEvents, stepSpecialCases, resolveSpecialCase, spawnCave, strikeCave
 import { missionHelp } from "@/game/nav";
 import { NavCard } from "@/components/game/StoryUI";
 import { sunShadow } from "@/game/visualFx";
+import { FX_CATALOG } from "@/game/pixelfxBridge";
+import { createFx, createFrame, clearFrame } from "@/game/pixelfx/core/index.js";
 import { SUBZONAS, stepBosses, hitBoss, checkSubzoneVisit } from "@/game/zones";
 import { FieldGuidePanel } from "@/components/game/FieldGuidePanel";
 import { MapPanel } from "@/components/game/MapPanel";
@@ -230,5 +232,15 @@ describe("Lunar survival & exploration expansions", () => {
     expect(dusk.ox).toBeLessThan(0);
     expect(Math.abs(noon.ox)).toBeLessThan(Math.abs(dawn.ox));
     expect(night.alpha).toBeLessThan(dawn.alpha);
+  });
+
+  it("pixelfx effects instantiate, step, and draw into pixel/light buffers", () => {
+    const frame = createFrame(64, 64);
+    clearFrame(frame);
+    const fx = createFx(FX_CATALOG.collectBurst, { x: 32, y: 32 });
+    fx.update(0.05);
+    fx.draw(frame, "front");
+    expect(frame.color.some((v) => v > 0)).toBe(true);
+    expect(fx.done()).toBe(false);
   });
 });

@@ -9,6 +9,21 @@ export interface ShadowVec {
   alpha: number;
 }
 
+/** Position a 2.5D cast silhouette shadow under a sprite using the solar vector. */
+export function updateSilhouetteShadow(
+  spr: Phaser.GameObjects.Image,
+  baseX: number,
+  baseY: number,
+  sh: ShadowVec,
+  hd: number,
+) {
+  spr
+    .setPosition(baseX + sh.ox * 1.4, baseY + sh.oy * 0.6)
+    .setScale(sh.sx / hd, -0.42 * sh.sy / hd)
+    .setTint(0x050814)
+    .setAlpha(sh.alpha * 0.78);
+}
+
 /** Compute dynamic directional sun/moon shadow offset & scale from lunar time. */
 export function sunShadow(time: number): ShadowVec {
   const t = time % CYCLE;
@@ -165,21 +180,25 @@ export function paintRichTerrain(
   scene.add.image(BRIDGE.x + 16, BRIDGE.y - 12, "gate").setDepth(5).setScale(1 / 2);
 }
 
-/** Real-time RenderTexture night/crater darkness with flashlight cone and dynamic point lights. */
+/** Real-time RenderTexture night/crater darkness + always-on colored shader glows & god-rays. */
 export class NightLighting {
   rt: Phaser.GameObjects.RenderTexture;
   brush: Phaser.GameObjects.Image;
   cone: Phaser.GameObjects.Image;
-  halo: Phaser.GameObjects.Image;
   flashlight: Phaser.GameObjects.Image;
+  godRays: Phaser.GameObjects.Graphics;
+  glowPool: Phaser.GameObjects.Image[] = [];
 
   constructor(scene: Phaser.Scene) {
     this.rt = scene.add.renderTexture(0, 0, 640, 360).setOrigin(0).setDepth(20);
     // Off-screen helper stamps (never rendered directly on their own)
     this.brush = scene.make.image({ key: "fx_light", add: false });
     this.cone = scene.make.image({ key: "fx_cone", add: false }).setOrigin(0.08, 0.5);
-    this.halo = scene.add.image(0, 0, "fx_cone").setOrigin(0.08, 0.5).setDepth(20.5).setBlendMode(1 /* ADD */).setTint(0xdbeeff).setAlpha(0);
-    this.flashlight = this.halo;
+    this.flashlight = scene.add.image(0, 0, "fx_cone").setOrigin(0.08, 0.5).setDepth(20.5).setBlendMode(1 /* ADD */).setTint(0xdbeeff).setAlpha(0);
+    this.godRays = scene.add.graphics().setDepth(20.2).setBlendMode(1 /* ADD */);
+    for (let i = 0; i < 18; i++) {
+      this.glowPool.push(scene.add.image(0, 0, "fx_light").setDepth(20.4).setBlendMode(1 /* ADD */).setVisible(false));
+    }
   }
 
   update(
@@ -190,15 +209,42 @@ export class NightLighting {
     playerX: number,
     playerY: number,
     aimRad: number,
-    lights: { x: number; y: number; r: number }[],
+    lights: { x: number; y: number; r: number; color?: number; dayAlpha?: number }[],
   ) {
-    const effAlpha = Math.min(0.88, Math.max(darkAlpha, inShadow ? 0.42 : 0, s.event?.id === "eclipse" && s.event.phase === "activo" ? 0.72 : 0));
+    const effAlpha = Math.min(0.86, Math.max(darkAlpha, inShadow ? 0.44 : 0, s.event?.id === "eclipse" && s.event.phase === "activo" ? 0.72 : 0));
     const v = scene.cameras.main.worldView;
     const rx = Math.floor(v.x), ry = Math.floor(v.y);
     this.rt.setPosition(rx, ry);
 
+    // Subtle daytime diagonal sunlight shafts ("God Rays")
+    this.godRays.clear();
+    const cycleT = s.time % CYCLE;
+    if (cycleT < DAY_LEN && effAlpha < 0.5) {
+      const p = cycleT / DAY_LEN;
+      const warm = p < 0.15 || p > 0.85;
+      const rayColor = warm ? 0xffb86b : 0xfff4d8;
+      const rayAlpha = (warm ? 0.09 : 0.055) * (1 - effAlpha);
+      const skew = (p - 0.5) * 180;
+      this.godRays.fillStyle(rayColor, rayAlpha);
+      for (let i = 0; i < 4; i++) {
+        const bx = rx + 60 + i * 165;
+        this.godRays.fillTriangle(bx, ry - 10, bx + 54, ry - 10, bx + 110 - skew, ry + 370);
+      }
+    }
+
+    // Always-on colored additive shader glows (stronger at night, subtle & vibrant in daytime)
+    let gi = 0;
+    for (const l of lights) {
+      if (gi >= this.glowPool.length) break;
+      if (l.x < rx - 120 || l.x > rx + 760 || l.y < ry - 120 || l.y > ry + 480) continue;
+      const spr = this.glowPool[gi++]!;
+      const ga = l.dayAlpha ?? (effAlpha > 0.1 ? 0.24 : 0.09);
+      spr.setPosition(l.x, l.y).setScale((l.r * 1.15) / 64).setTint(l.color ?? 0xffc878).setAlpha(ga).setVisible(true);
+    }
+    for (; gi < this.glowPool.length; gi++) this.glowPool[gi]!.setVisible(false);
+
     // Flashlight additive beam
-    this.flashlight.setPosition(playerX, playerY).setRotation(aimRad).setScale(0.65, 0.55).setAlpha(effAlpha > 0.08 ? Math.min(0.28, effAlpha * 0.45) : 0);
+    this.flashlight.setPosition(playerX, playerY).setRotation(aimRad).setScale(0.7, 0.58).setAlpha(effAlpha > 0.08 ? Math.min(0.32, effAlpha * 0.5) : 0.04);
 
     if (effAlpha <= 0.02) {
       this.rt.setVisible(false);
@@ -209,17 +255,17 @@ export class NightLighting {
     this.rt.fill(0x050816, effAlpha);
 
     // Cut soft radial glow around player
-    this.brush.setScale(0.75).setAlpha(0.95);
+    this.brush.setScale(0.78).setAlpha(0.95);
     this.rt.erase(this.brush, playerX - rx, playerY - ry);
 
     // Cut flashlight cone ahead of player
-    this.cone.setRotation(aimRad).setScale(0.72, 0.62).setAlpha(0.92);
+    this.cone.setRotation(aimRad).setScale(0.76, 0.65).setAlpha(0.92);
     this.rt.erase(this.cone, playerX - rx, playerY - ry);
 
     // Cut base/tower/crystal point lights visible in camera view
     for (const l of lights) {
       if (l.x < rx - 90 || l.x > rx + 730 || l.y < ry - 90 || l.y > ry + 450) continue;
-      this.brush.setScale(l.r / 64).setAlpha(0.9);
+      this.brush.setScale(l.r / 64).setAlpha(0.92);
       this.rt.erase(this.brush, l.x - rx, l.y - ry);
     }
   }
