@@ -20,12 +20,11 @@ import { SUBZONAS, stepHive, hitHive, stepBosses, hitBoss, checkSubzoneVisit } f
 import { twinkle, bobOffset, beamStrips, ringPhase, edgeMarker } from "./pickups";
 import { canMine } from "./tools";
 import { view } from "./view";
+import { HAB, ROCKET, SHADOW, RAVINE, BRIDGE_DECK } from "./world";
 
 const W = 1280, H = 720; // landing site (night aliens, events and capsules stay here)
 const WW = WORLD.w, WH = WORLD.h; // whole explorable world (2560x1440)
 const isStation = (m: Module) => m.tipo === "taller" || m.tipo === "horno";
-const HAB = { x: 110, y: 170 } /* matches habitat in modulos.json */, ROCKET = { x: 760, y: 220 };
-const SHADOW = { x: 640, y: 520, rx: 180, ry: 90 };
 type NodeType = "hielo" | "regolito" | "chatarra" | "cristal_hielo" | "titanio" | "aleacion" | "alga_lunar";
 const NODE_TEX: Record<NodeType, string> = { hielo: "ice", regolito: "reg", chatarra: "scrap", cristal_hielo: "n_cristal", titanio: "n_titanio", aleacion: "n_aleacion", alga_lunar: "n_aleacion" };
 interface RNode { type: NodeType; amount: number; spr: Phaser.GameObjects.Image; zone?: string | undefined }
@@ -41,7 +40,7 @@ const STATIC_SPRITES = [
 
 export class LunarScene extends Phaser.Scene {
   player!: Phaser.GameObjects.Image;
-  keys!: Record<"W" | "A" | "S" | "D" | "UP" | "DOWN" | "LEFT" | "RIGHT" | "E" | "SHIFT" | "SPACE" | "G", Phaser.Input.Keyboard.Key>;
+  keys!: Record<"W" | "A" | "S" | "D" | "UP" | "DOWN" | "LEFT" | "RIGHT" | "E" | "SHIFT" | "SPACE" | "X", Phaser.Input.Keyboard.Key>;
   nodes: RNode[] = [];
   leakSprites = new Map<number, Phaser.GameObjects.Image>();
   alienSprites = new Map<number, Phaser.GameObjects.Image>();
@@ -140,7 +139,7 @@ export class LunarScene extends Phaser.Scene {
     this.prompt = this.add.bitmapText(0, 0, FONT_KEY, "").setScale(1 / HD).setTint(PAL.gold).setDepth(40).setVisible(false);
 
     this.cameras.main.setBounds(0, 0, WW, WH).startFollow(this.player, true, 0.15, 0.15).setRoundPixels(true).setZoom(HD * view.zoom);
-    this.keys = this.input.keyboard!.addKeys("W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SHIFT,SPACE,ONE,TWO,THREE,FOUR,FIVE,C,Q,G") as LunarScene["keys"];
+    this.keys = this.input.keyboard!.addKeys("W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SHIFT,SPACE,ONE,TWO,THREE,FOUR,FIVE,C,Q,X") as LunarScene["keys"];
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
       const w = p.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
       if (sim.buildMode) { this.place(p.wasTouch ? { x: w.x, y: w.y } : undefined); return; }
@@ -156,10 +155,10 @@ export class LunarScene extends Phaser.Scene {
     this.input.keyboard!.on("keydown-SPACE", () => (sim.buildMode ? this.place() : this.useTool()));
     this.input.keyboard!.on("keydown-E", () => this.interact());
     this.input.keyboard!.on("keydown-V", () => this.suitToggle());
-    this.input.keyboard!.on("keydown-G", (e: KeyboardEvent) => this.dropHeld(e.shiftKey)); // G: drop 1 · Shift+G: drop the stack
+    this.input.keyboard!.on("keydown-X", (e: KeyboardEvent) => this.dropHeld(e.shiftKey)); // X: drop 1 · Shift+X: drop the stack
     const t = (f: () => void) => () => { this.touchMode = true; f(); };
-    touch.act = { use: t(() => (sim.buildMode ? this.place() : this.useTool())), interact: t(() => this.interact()), build: t(() => this.toggleBuild()), cycle: t(() => this.cycleBuild()), suit: t(() => this.suitToggle()) };
-    this.events.once("shutdown", () => { touch.act = { use: () => {}, interact: () => {}, build: () => {}, cycle: () => {}, suit: () => {} }; });
+    touch.act = { use: t(() => (sim.buildMode ? this.place() : this.useTool())), interact: t(() => this.interact()), build: t(() => this.toggleBuild()), cycle: t(() => this.cycleBuild()), suit: t(() => this.suitToggle()), drop: t(() => this.dropHeld(false)) };
+    this.events.once("shutdown", () => { touch.act = { use: () => {}, interact: () => {}, build: () => {}, cycle: () => {}, suit: () => {}, drop: () => {} }; });
     (["ONE", "TWO", "THREE", "FOUR", "FIVE"] as const).forEach((n, i) => this.input.keyboard!.on(`keydown-${n}`, () => { sim.hotbar = i + 1; sfx.click(); }));
     for (const l of sim.leaks) this.addLeakSprite(l.id, l.x, l.y);
     initCapsules(sim, { w: W, h: H, hab: HAB, rnd: () => Math.random() });
@@ -225,8 +224,8 @@ export class LunarScene extends Phaser.Scene {
       this.add.bitmapText(x + 10, y + 8, FONT_KEY, toFont(z.nombre)).setScale(1.5).setTint(z.id === "ice" ? 0xcfe9ff : z.id === "fire" ? 0xffd0a0 : 0xd8b0ff).setDepth(3);
     }
     // Ravine around the Hive (the bridge crosses it at BRIDGE).
-    g.fillStyle(0x07070c).fillRect(640, 356, 640, 8).fillRect(636, 360, 8, 360);
-    g.fillStyle(0x2a2a36).fillRect(640, 355, 640, 1).fillRect(635, 360, 1, 360);
+    for (const r of RAVINE) g.fillStyle(0x07070c).fillRect(r.x, r.y, r.w, r.h);
+    g.fillStyle(0x2a2a36).fillRect(RAVINE[0].x, RAVINE[0].y - 1, RAVINE[0].w, 1).fillRect(RAVINE[1].x - 1, RAVINE[1].y, 1, RAVINE[1].h);
     this.add.image(BRIDGE.x + 16, BRIDGE.y - 12, "gate").setDepth(5).setScale(1 / HD);
   }
 
@@ -535,8 +534,6 @@ export class LunarScene extends Phaser.Scene {
       sim.chestUid = chest.uid; sfx.click(); useGame.getState().publish(); useGame.getState().setOverlay("cofre");
     } else {
       // Crafting stations open their own interface (unless they need a repair: hold E for that).
-      const chest = this.nearModule((m) => m.tipo === "cofre", 20);
-      if (chest) { sim.chestUid = chest.uid; sfx.click(); useGame.getState().publish(); useGame.getState().setOverlay("cofre"); return; }
       const st = this.nearModule((m) => isStation(m) && m.durabilidad > 0, 26);
       if (st) { sim.station = st.tipo as "taller" | "horno"; sim.stationUid = st.uid; sfx.click(); useGame.getState().publish(); useGame.getState().setOverlay("estacion"); }
     }
@@ -797,11 +794,11 @@ export class LunarScene extends Phaser.Scene {
     this.bridgeG ??= this.add.graphics().setDepth(4);
     this.bridgeG.clear();
     if (!sim.bridge) return;
-    const x = BRIDGE.x - 12;
-    this.bridgeG.fillStyle(0x14141c).fillRect(x - 1, 346, 26, 20);
-    this.bridgeG.fillStyle(0x9a9aa3).fillRect(x, 347, 24, 18);
-    for (let i = 0; i < 6; i++) this.bridgeG.fillStyle(0x6b6b75).fillRect(x, 348 + i * 3, 24, 0.5);
-    this.bridgeG.fillStyle(0xf2d24f).fillRect(x, 347, 1, 18).fillRect(x + 23, 347, 1, 18);
+    const { x, y, w, h } = BRIDGE_DECK;
+    this.bridgeG.fillStyle(0x14141c).fillRect(x - 1, y, w + 2, h);
+    this.bridgeG.fillStyle(0x9a9aa3).fillRect(x, y + 1, w, h - 2);
+    for (let i = 0; i < 6; i++) this.bridgeG.fillStyle(0x6b6b75).fillRect(x, y + 2 + i * 3, w, 0.5);
+    this.bridgeG.fillStyle(0xf2d24f).fillRect(x, y + 1, 1, h - 2).fillRect(x + w - 1, y + 1, 1, h - 2);
   }
 
   upgradeHint(): string | null {

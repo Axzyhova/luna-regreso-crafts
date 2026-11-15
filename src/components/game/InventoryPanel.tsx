@@ -6,7 +6,7 @@ import { GEAR, CONSUMIBLES, toggleEquip, applyConsumable } from "@/game/effects"
 import { ITEMS } from "@/game/items";
 import { INV_ORDER } from "@/game/items";
 import { ITEM_GUIDE } from "@/game/itemGuide";
-import { bestTool, HANDS, TOOLS } from "@/game/tools";
+import { bestTool, TOOLS } from "@/game/tools";
 import { sfx } from "@/game/audio";
 import { PixelIcon } from "./PixelIcon";
 import { Panel } from "./Panel";
@@ -53,7 +53,7 @@ export function Inventory() {
     }
   });
   const tool = bestTool(s.inv);
-  const nextTool = TOOLS.slice().reverse().find((t) => t.tier > tool.tier);
+  const nextTool = TOOLS.slice().reverse().find((t) => t.yield > tool.yield && t.key !== "pico_plasma");
   const info = sel ? ITEMS[sel] : null, guide = sel ? ITEM_GUIDE[sel] : null;
   const selCount = sel ? have(s, sel) : 0;
   const waterPct = Math.min(100, (s.inv.agua / WATER_TANK_KG) * 100);
@@ -120,7 +120,7 @@ export function Inventory() {
                 {tool.key ? <PixelIcon item={tool.key} size={22} className="short:h-4 short:w-4" /> : <span className="w-[22px] text-center text-[14px] short:w-4">✋</span>}
                 <div className="min-w-0">
                   <div className="text-gold">TOOL: {tool.name.toUpperCase()}</div>
-                  <div className="text-white/75">{tool === HANDS ? HANDS.blurb : tool.blurb}</div>
+                  <div className="text-white/75">{tool.blurb}</div>
                   {nextTool && <div className="text-ok">Next: {nextTool.name} → {nextTool.tier >= 2 ? "Alien alloy" : "Frost crystals + Titanium"}</div>}
                 </div>
               </div>

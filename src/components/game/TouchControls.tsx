@@ -92,6 +92,7 @@ export function ActionPad() {
           <McButton label="🔨" sub="BUILD" size={Math.round(46 * k)} onPress={() => { touch.act.build(); publish(); }} />
         )}
         <McButton label="🧑‍🚀" sub={s.suit.worn ? "SUIT OFF" : "SUIT ON"} size={Math.round(46 * k)} onPress={() => { touch.act.suit(); publish(); }} />
+        <McButton label="⤓" sub="DROP" size={Math.round(46 * k)} onPress={() => { touch.act.drop(); publish(); }} />
       </div>
       <div className="flex flex-col items-center gap-2">
         <McButton label="E" sub="HOLD" size={Math.round(54 * k)} onPress={() => { touch.e = true; touch.act.interact(); }} onRelease={() => { touch.e = false; }} />

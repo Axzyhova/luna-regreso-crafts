@@ -5,6 +5,7 @@ import subsistemas from "@/data/subsistemas_cohete.json";
 import balance from "@/data/balance.json";
 import mejoras from "@/data/mejoras.json";
 import zonasCfg from "@/data/zonas.json";
+import { bestTool } from "./tools";
 
 /** Tunable game rates (see src/data/balance.json). */
 export const BAL = balance;
@@ -205,10 +206,8 @@ export function usedSlots(inv: Inv) {
 // ---- Tools: what you hold decides how much each swing gathers and how fast ----
 export function toolInfo(s: Sim) {
   const bonus = s.perks.includes("vista_lunar") ? 1 : 0;
-  if (s.inv.pico_plasma > 0) return { name: "Plasma cutter", yield: 4 + bonus, cd: 0.18 };
-  if (s.inv.pala_titanio > 0) return { name: "Titanium shovel", yield: 3 + bonus, cd: 0.22 };
-  if (s.inv.pala_mejorada > 0) return { name: "Better shovel", yield: 2 + bonus, cd: 0.32 };
-  return { name: "Bare hands", yield: 1 + bonus, cd: 0.5 };
+  const t = bestTool(s.inv); // the table lives in tools.ts
+  return { name: t.name, yield: t.yield + bonus, cd: t.cooldown };
 }
 
 /** Melt carried ice into the habitat water tank (only as much as fits). Returns kg added. */
@@ -438,7 +437,7 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   s.battery = Math.min(batteryCap(s), Math.max(0, s.battery + (eIn - eOut) * dt * BATTERY_RATE));
   if (powered) for (const m of s.modules) if (m.tipo === "taladro" && isOn(m)) {
     s.drillAcc = (s.drillAcc ?? 0) + (TIPOS.taladro.produce_hielo ?? 0) * lvMult(m) * dt;
-    if (s.drillAcc >= 1) { s.drillAcc -= 1; addItem(s, "hielo", 1); }
+    if (s.drillAcc >= 1) { if (addItem(s, "hielo", 1)) s.drillAcc -= 1; else s.drillAcc = 1; }
   }
 
   // production
@@ -556,7 +555,7 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
 /** Remove depleted items from the hotbar and gear that is no longer owned. */
 export function cleanupInventory(s: Sim) {
   const inv = s.inv as unknown as Record<string, number>;
-  s.hotbarItems = s.hotbarItems.map((k) => (k && !NOT_CARRIED.has(k) && (inv[k] ?? 0) >= 1 ? k : null));
+  s.hotbarItems = s.hotbarItems.map((k) => (k && (inv[k] ?? 0) >= 1 ? k : null));
   s.equip = s.equip.filter((g) => (inv[g] ?? 0) >= 1);
   if (s.buildMode && (inv[s.buildMode] ?? 0) < 1) s.buildMode = null;
 }
