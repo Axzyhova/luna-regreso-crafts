@@ -161,7 +161,7 @@ export class LunarScene extends Phaser.Scene {
     if (this.renderer.type === Phaser.WEBGL && this.cameras.main.postFX) {
       const cm = this.cameras.main.postFX.addColorMatrix();
       cm.saturate(0.28);
-      cm.contrast(0.12);
+      cm.contrast(0.04); // a strong contrast boost blew out every light
       this.vignetteFx = this.cameras.main.postFX.addVignette(0.5, 0.5, 0.94, 0.14);
     }
     // World text uses the pixel font at HD density (1 font pixel = 1 HD pixel), matching the sprites.
@@ -495,7 +495,7 @@ export class LunarScene extends Phaser.Scene {
       sp.warn.setText(m.durabilidad < 25 ? "!" : st === "nopower" ? "🔌" : st === "idle" && m.tipo !== "panel" ? "💤" : "");
       sp.warn.setVisible(m.durabilidad < 25 ? Math.sin(this.time.now / 200) > 0 : st === "nopower" || (st === "idle" && m.tipo !== "panel"));
       sp.img.setTint(st === "ok" && TIPOS[m.tipo].energia !== 0 && Math.sin(this.time.now / 300 + m.uid) > 0.85 ? 0xfff3c0 : 0xffffff);
-      sp.glow?.setAlpha(on && sim.battery > 0 ? a * 0.3 : 0).setTint(m.tipo === "habitat" ? 0xffc27a : 0xfff0aa); // soft warm halo, the light pools do the rest
+      sp.glow?.setAlpha(0); // the old additive halo stacked on the light pools and caused glare: light pools only now
     }
   }
 
@@ -849,13 +849,13 @@ export class LunarScene extends Phaser.Scene {
     }
 
     const lights: { x: number; y: number; r: number; color?: number; dayAlpha?: number }[] = [
-      { x: HAB.x, y: HAB.y, r: sim.battery > 0 ? 95 : 50, color: 0xffb85c, dayAlpha: 0.04 },
+      { x: HAB.x, y: HAB.y, r: sim.battery > 0 ? 70 : 40, color: 0xffb85c, dayAlpha: 0 },
       { x: ROCKET.x, y: ROCKET.y, r: 70, color: 0x66d9ff, dayAlpha: 0.04 },
       { x: SHADOW.x, y: SHADOW.y, r: 40, color: 0x4fc2ff, dayAlpha: 0.03 },
     ];
     for (const m of sim.modules) if (m.tipo === "torre_luz" && m.activo && m.durabilidad > 0 && sim.battery > 0) lights.push({ x: m.x, y: m.y, r: 140, color: 0xfff0aa, dayAlpha: 0.12 });
-    if (sim.roverTech.skills.includes("lights")) for (const m of sim.modules) if (m.tipo === "rover") lights.push({ x: m.rx ?? m.x, y: m.ry ?? m.y, r: 55, color: 0xfff0c0, dayAlpha: 0 }); // rover headlights
-    if (sim.robert.skills.includes("lamp")) lights.push({ x: this.robert.x, y: this.robert.y, r: 40 + sim.robert.level * 10, color: 0xbfe6ff, dayAlpha: 0 }); // Robert's headlamp
+    if (sim.roverTech.skills.includes("lights")) for (const m of sim.modules) if (m.tipo === "rover") lights.push({ x: m.rx ?? m.x, y: m.ry ?? m.y, r: 34, color: 0xfff0c0, dayAlpha: 0 }); // rover headlights
+    if (sim.robert.skills.includes("lamp")) lights.push({ x: this.robert.x, y: this.robert.y, r: 26 + sim.robert.level * 5, color: 0xbfe6ff, dayAlpha: 0 }); // Robert's headlamp
     for (const n of this.nodes) if (n.type === "cristal_estelar" && this.nodeActive(n)) lights.push({ x: n.spr.x, y: n.spr.y, r: 22, color: 0xb48cff, dayAlpha: 0 }); // 🌙 crystals glow in the dark
     for (const c of sim.capsules) lights.push({ x: c.x, y: c.y, r: 46, color: 0xf2d24f, dayAlpha: 0.14 });
     for (const cv of sim.caves) lights.push({ x: cv.x, y: cv.y, r: 48, color: 0x66e0ff, dayAlpha: 0.12 });

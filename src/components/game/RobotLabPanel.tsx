@@ -50,7 +50,7 @@ export function RobotLabPanel() {
         stats: [
           `🛞 Follow speed: +${(s.robert.level - 1) * 12}%`,
           `⛏ Forager: a trip every ${robertForageEvery(s.robert.level).toFixed(1)} s, ${60 + s.robert.level * 8} px reach`,
-          `💡 Headlamp radius: ${40 + s.robert.level * 10} px`,
+          `💡 Headlamp radius: ${26 + s.robert.level * 5} px`,
           `➕ Med-bot: +${(ROBERT_MEDIC_HP_S * s.robert.level * 60).toFixed(1)} health / min`,
         ],
       }

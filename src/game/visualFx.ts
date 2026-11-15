@@ -230,29 +230,30 @@ export class NightLighting {
     let gi = 0;
     for (const l of lights) {
       if (gi >= this.glowPool.length) break;
-      if (!inView(l.x, l.y, l.r)) continue;
+      if (!inView(l.x, l.y, l.r) || effAlpha <= 0.05) continue; // no additive glows by day (they only washed the screen out)
       const spr = this.glowPool[gi++]!;
-      spr.setPosition(l.x, l.y).setScale((l.r * 0.9) / 64).setTint(l.color ?? 0xffc878)
-        .setAlpha(effAlpha > 0.05 ? 0.1 + effAlpha * 0.16 : Math.min(0.05, l.dayAlpha ?? 0.05)).setVisible(true);
+      // Small, faint coloured tint only — never larger than a third of the view, so phones (more zoom) don't turn white.
+      const r = Math.min(l.r * 0.6, vw * 0.33);
+      spr.setPosition(l.x, l.y).setScale(r / 64).setTint(l.color ?? 0xffc878).setAlpha(0.04 + effAlpha * 0.05).setVisible(true);
     }
     for (; gi < this.glowPool.length; gi++) this.glowPool[gi]!.setVisible(false);
 
     // Helmet flashlight: a visible pale-blue beam only when it's dark.
-    this.flashlight.setPosition(playerX, playerY).setRotation(aimRad).setScale(0.8, 0.55).setAlpha(effAlpha > 0.1 && !out ? 0.06 + effAlpha * 0.12 : 0);
+    this.flashlight.setPosition(playerX, playerY).setRotation(aimRad).setScale(0.8, 0.55).setAlpha(effAlpha > 0.1 && !out ? 0.03 + effAlpha * 0.04 : 0);
 
     if (effAlpha <= 0.02) { this.rt.setVisible(false); return; }
     this.rt.setVisible(true);
     this.rt.clear();
     this.rt.fill(0x03050f, effAlpha);
     // Small halo around the astronaut (you can always see your feet)…
-    this.brush.setScale(0.42).setAlpha(0.7);
+    this.brush.setScale(0.34).setAlpha(0.55);
     this.rt.erase(this.brush, playerX - rx, playerY - ry);
     // …and a long cone where the flashlight points.
     if (!out) { this.cone.setRotation(aimRad).setScale(0.9, 0.62).setAlpha(0.95); this.rt.erase(this.cone, playerX - rx, playerY - ry); }
     // Base lights, towers, crystals, capsules: soft partial pools (night stays night).
     for (const l of lights) {
       if (!inView(l.x, l.y, l.r)) continue;
-      this.brush.setScale((l.r * 0.62) / 64).setAlpha(0.78);
+      this.brush.setScale((Math.min(l.r, vw * 0.45) * 0.62) / 64).setAlpha(0.62); // lit areas stay a little dim: it's still night
       this.rt.erase(this.brush, l.x - rx, l.y - ry);
     }
   }
