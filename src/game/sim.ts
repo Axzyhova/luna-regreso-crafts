@@ -288,6 +288,22 @@ export function addItem(s: Sim, key: keyof Inv, n = 1) {
   }
   return true;
 }
+/**
+ * Give a reward: whatever fits goes to the inventory, the rest is left in a bag at your feet
+ * (so a full inventory never eats loot). Returns how many went straight to the inventory.
+ */
+export function giveItem(s: Sim, key: keyof Inv, n = 1) {
+  let got = 0;
+  while (got < n && addItem(s, key, 1)) got++;
+  const left = n - got;
+  if (left > 0) {
+    const bag = s.drops.find((d) => d.kind === "thrown" && Math.hypot(d.x - s.pos.x, d.y - (s.pos.y + 6)) < 12);
+    if (bag) bag.items[key] = (bag.items[key] ?? 0) + left;
+    else s.drops.push({ id: s.nextDropId++, x: Math.round(s.pos.x), y: Math.round(s.pos.y + 6), items: { [key]: left }, kind: "thrown" });
+    addLog(s, `Inventory full: ${left} ${key.replace(/_/g, " ")} left on the ground next to you.`);
+  }
+  return got;
+}
 export type Receta = (typeof recetas)[number];
 export function recipeBlock(s: Sim, r: Receta): string | null {
   if (!r.disponible) return "Coming soon";

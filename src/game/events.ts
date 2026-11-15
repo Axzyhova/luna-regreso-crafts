@@ -1,5 +1,5 @@
 import cfg from "@/data/eventos.json";
-import { addItem, addLog, diffCfg, isDay, isOn, hurt, notify, TIPOS, CYCLE, DAY_LEN, type Inv, type Sim } from "./sim";
+import { addItem, addLog, diffCfg, isDay, isOn, hurt, notify, TIPOS, CYCLE, DAY_LEN, type Inv, type Sim, giveItem } from "./sim";
 import { aliensEnabled, type World } from "./aliens";
 import { spawnCapsule } from "./loot";
 
@@ -105,9 +105,9 @@ export function stepEvents(s: Sim, dt: number, w: World): { x: number; y: number
 }
 
 const SPECIAL_CASES = [
-  { id: "caso_sonda", title: "SOS Probe Signal", desc: "A crashed survey probe is pinging from afar. Reach it and press E to recover parts.", x: 465, y: 90, reward: { pieza_motor: 1, racion: 2, metal: 3 } },
-  { id: "caso_crio", title: "Cryo-Vein Surge", desc: "A temporary cryo-fissure opened! Investigate (E) before it seals.", x: 240, y: 495, reward: { cristal_hielo: 3, hielo: 4, alga_lunar: 2 } },
-  { id: "caso_anomalia", title: "Thermal Anomaly", desc: "Strange heat signature in the Scorch Fields. Scan it (E) for rare salvage.", x: 910, y: 175, reward: { titanio: 3, kits: 2, comida_caliente: 1 } },
+  { id: "caso_sonda", title: "SOS Probe Signal", desc: "A crashed survey probe is pinging from afar. Reach it and press E to recover parts.", x: 920, y: 160, reward: { pieza_motor: 1, racion: 2, metal: 3 } },
+  { id: "caso_crio", title: "Cryo-Vein Surge", desc: "A temporary cryo-fissure opened! Investigate (E) before it seals.", x: 300, y: 800, reward: { cristal_hielo: 3, hielo: 4, alga_lunar: 2 } },
+  { id: "caso_anomalia", title: "Thermal Anomaly", desc: "Strange heat signature in the Scorch Fields. Scan it (E) for rare salvage.", x: 1400, y: 200, reward: { titanio: 3, kits: 2, comida_caliente: 1 } },
   { id: "caso_suministros", title: "Orbital Drop Pod", desc: "An emergency food & medical pod landed. Collect it (E).", x: 95, y: 75, reward: { racion: 2, botiquin: 1, estimulante: 1 } },
 ];
 
@@ -135,7 +135,7 @@ export function stepSpecialCases(s: Sim, dt: number, rnd: () => number) {
 export function resolveSpecialCase(s: Sim) {
   const sc = s.specialCase;
   if (!sc) return false;
-  for (const [k, n] of Object.entries(sc.reward)) addItem(s, k as keyof Inv, n);
+  for (const [k, n] of Object.entries(sc.reward)) giveItem(s, k as keyof Inv, n);
   s.casesDone++;
   s.sanity = Math.min(100, s.sanity + 10);
   addLog(s, `✔ Special case resolved (${sc.title}): ${Object.entries(sc.reward).map(([k, n]) => `+${n} ${k}`).join(", ")}`);
@@ -170,7 +170,7 @@ export function strikeCaveAlien(s: Sim, caveId: number, dmg: number): { killed: 
   const def = CAVE_ALIENS[cave.alienType]!;
   if (cave.alienHp <= 0) {
     s.stats.aliens++;
-    for (const [k, n] of Object.entries(def.loot)) addItem(s, k as keyof Inv, n);
+    for (const [k, n] of Object.entries(def.loot)) giveItem(s, k as keyof Inv, n);
     addLog(s, `🕳 Defeated ${def.nombre} inside the cave! Looted: ${Object.entries(def.loot).map(([k, n]) => `+${n} ${k}`).join(", ")}`);
     return { killed: true, counterDmg: 0 };
   }
@@ -185,9 +185,8 @@ export function openCaveChest(s: Sim, caveId: number, rnd: () => number = Math.r
   cave.explored = true;
   const rare = RARE_CAVE_LOOT[Math.floor(rnd() * RARE_CAVE_LOOT.length)]!;
   const got: string[] = [];
-  if (addItem(s, rare, 1)) got.push(rare);
-  if (addItem(s, "racion", 1)) got.push("racion");
-  if (addItem(s, "titanio", 2)) got.push("titanio");
+  giveItem(s, rare, 1); giveItem(s, "racion", 1); giveItem(s, "titanio", 2); // what doesn't fit stays at your feet
+  got.push(rare, "racion", "titanio");
   addLog(s, `💎 Cave chest opened: found rare ${rare.replace(/_/g, " ")}!`);
   return got;
 }
@@ -226,8 +225,8 @@ export function hitAndroid(s: Sim, px: number, py: number, dmg = 1) {
   best.x += ((best.x - px) / d) * 10; best.y += ((best.y - py) / d) * 10;
   if (best.hp <= 0) {
     s.androids = s.androids.filter((a) => a !== best);
-    addItem(s, "chatarra", 2);
-    addItem(s, "metal", 1);
+    giveItem(s, "chatarra", 2);
+    giveItem(s, "metal", 1);
     addLog(s, "🤖 Cleared rogue android: +2 Scrap, +1 Metal.");
   }
   return best;
