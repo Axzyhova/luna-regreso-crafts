@@ -112,7 +112,8 @@ export function Cinematic() {
   const go = useGame((s) => s.go);
   const [i, setI] = useState(0);
   const p = PANELS[i]!;
-  const typed = useTypewriter(p.text);
+  const typed = useTypewriter(p.text, 85);
+  const last = i === PANELS.length - 1;
   return (
     // Tall screens: scene on top, text and buttons below. Short (landscape phone): side by side.
     <div className="flex h-full flex-col items-center justify-center-safe gap-6 overflow-y-auto p-6 short:flex-row short:gap-5 short:p-3">
@@ -120,11 +121,11 @@ export function Cinematic() {
         <StoryScene scene={p.art as SceneId} />
       </div>
       <div className="flex w-full max-w-lg flex-col gap-4 short:max-w-[42vw] short:gap-3">
-        <p className="min-h-16 text-[10px] leading-5 short:min-h-0 short:text-[9px]">{typed}<span className="animate-blink">▌</span></p>
+        <p className="min-h-20 text-[9px] leading-5 short:min-h-0 short:text-[8px]">{typed}<span className="animate-blink">▌</span></p>
         <div className="text-[8px] text-muted-foreground">{i + 1}/{PANELS.length}</div>
         <div className="flex gap-3">
           <PixelButton tone="ghost" onClick={() => go("juego")}>Skip</PixelButton>
-          <PixelButton onClick={() => (i < PANELS.length - 1 ? setI(i + 1) : go("juego"))}>{i < PANELS.length - 1 ? "Next" : "Start"}</PixelButton>
+          <PixelButton onClick={() => (!last ? setI(i + 1) : go("juego"))}>{!last ? "Next" : "Start"}</PixelButton>
         </div>
       </div>
     </div>

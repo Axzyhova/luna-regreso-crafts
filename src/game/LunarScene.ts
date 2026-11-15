@@ -6,7 +6,7 @@ import { sfx } from "./audio";
 import { stepAliens, hitAlien, type World } from "./aliens";
 import { stepCountdown } from "./mission";
 import { touch } from "./touch";
-import { stepEffects, stepPsychology, effectMods } from "./effects";
+import { stepEffects, stepPsychology, effectMods, toggleEquip } from "./effects";
 import { stepEvents, stepSpecialCases, resolveSpecialCase, spawnCave, toast } from "./events";
 import { initCapsules, nearestCapsule, openCapsule } from "./loot";
 import { stepQuests } from "./quests";
@@ -484,7 +484,10 @@ export class LunarScene extends Phaser.Scene {
     let got = 0;
     for (let i = 0; i < Math.min(tool.yield, n.amount); i++) { if (!addItem(sim, n.type, 1)) break; got++; }
     if (!got) { this.say("INVENTORY FULL: DROP ITEMS OR USE A CHEST"); sfx.bad(); this.useCd = 0.6; return; }
-    if (n.type === "hielo") sim.stats.hielo += got;
+    if (n.type === "hielo") {
+      sim.stats.hielo += got;
+      if (sim.inv.agua < 5 && sim.stats.hielo <= 3) toast(sim, "🧊 Ice gathered! Take it to the Habitat and press E to melt it into Water.", 5);
+    }
     sim.fatigue = Math.min(100, sim.fatigue + 0.6);
     n.amount -= got; sfx.pick();
     this.floatText(n.spr.x, n.spr.y - 4, `+${got}`, got > 1 ? PAL.gold : PAL.white);
@@ -737,10 +740,16 @@ export class LunarScene extends Phaser.Scene {
   checkZone(ox: number, oy: number, dt: number) {
     this.blockT = Math.max(0, this.blockT - dt);
     const z: Zona = zoneAt(this.player.x, this.player.y);
-    const why = zoneBlock(sim, z);
+    let why = zoneBlock(sim, z);
+    if (why && z.req?.equip && ((sim.inv as unknown as Record<string, number>)[z.req.equip] ?? 0) >= 1) {
+      if (toggleEquip(sim, z.req.equip) === "Equipped") {
+        toast(sim, `🧥 Auto-equipped ${ITEMS[z.req.equip]?.nombre ?? z.req.equip}!`, 3);
+        why = zoneBlock(sim, z);
+      }
+    }
     if (why) {
       this.player.setPosition(ox, oy);
-      if (this.blockT <= 0) { toast(sim, `⛔ ${why}`, 3); sfx.bad(); this.blockT = 2.5; }
+      if (this.blockT <= 0) { toast(sim, `⛔ ${why}`, 4); sfx.bad(); this.blockT = 2.5; }
       return;
     }
     if (z.id !== this.lastZone) {
