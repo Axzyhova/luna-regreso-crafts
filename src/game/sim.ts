@@ -32,7 +32,7 @@ export const CYCLE = DAY_LEN + NIGHT_LEN;
 export const LH2_CAP = balance.lh2_cap_kg;
 export const LOX_CAP = balance.lox_cap_kg;
 
-export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cofre: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number }
+export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cofre: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number; alga_lunar: number; racion: number; comida_caliente: number }
 
 export function createSim(mode: Mode, difficulty: Difficulty) {
   return {
@@ -42,7 +42,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     battery: 60, energyIn: 0, energyOut: 0,
     habitatO2: 80,
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
-    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cofre: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0 } as Inv,
+    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cofre: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0, alga_lunar: 0, racion: 0, comida_caliente: 0 } as Inv,
     relay: false,
     // --- historia, efectos, eventos y botín ---
     effects: [] as string[],
@@ -54,9 +54,22 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     explored: [] as number[],
     pos: { x: 110, y: 200 },
     visited: ["base"] as string[],
+    subzonesVisited: [] as string[],
     bridge: false,
     hive: [] as { id: number; x: number; y: number; hp: number; stun: number }[],
     nextHiveId: 1,
+    bosses: [] as { id: string; tipo: string; x: number; y: number; hp: number; maxHp: number; stun: number; homeX: number; homeY: number }[],
+    bossesDefeated: [] as string[],
+    discoveredItems: ["chatarra", "metal", "kits"] as string[],
+    creaturesSeen: [] as string[],
+    // Crew psychology & lunar gravity (0.165g) + far-from-base neglect + special expedition cases.
+    sanity: 100,
+    psychCheckT: 25,
+    psychEffect: null as null | { id: string; t: number },
+    farNeglectT: 0,
+    specialCase: null as null | { id: string; title: string; desc: string; x: number; y: number; reward: Record<string, number>; t: number },
+    nextCaseT: 95,
+    casesDone: 0,
     // Space suit: indispensable outside. Integrity wears down with use; wearing it all the time makes you thirsty.
     suit: { owned: true, worn: true, integrity: 80 },
     hydration: 100,
@@ -238,6 +251,7 @@ export function addItem(s: Sim, key: keyof Inv, n = 1) {
   const next = { ...s.inv, [key]: s.inv[key] + n };
   if (usedSlots(next) > SLOTS) return false;
   s.inv[key] += n;
+  if (n > 0 && !s.discoveredItems.includes(key)) s.discoveredItems.push(key);
   return true;
 }
 export type Receta = (typeof recetas)[number];
@@ -347,7 +361,7 @@ export function canCraft(inv: Inv, ing: Record<string, number | undefined>) {
 }
 
 /** Advance the simulation by dt seconds (excluding positional effects handled by the scene). */
-export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: boolean; zoneTemp?: number | undefined }) {
+export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: boolean; zoneTemp?: number | undefined; distFromHab?: number | undefined }) {
   const d = diffCfg(s);
   const prevDay = isDay(s);
   s.time += dt;
@@ -436,7 +450,22 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
     const r = Math.min(100 - s.suitO2, 6 * dt);
     s.suitO2 += r; s.habitatO2 = Math.max(0, s.habitatO2 - r * 0.05);
   } else if (suitWorking(s)) {
-    s.suitO2 = Math.max(0, s.suitO2 - 0.28 * dt * d.consumo);
+    const farMult = (ctx.distFromHab ?? 0) > 340 ? 1.25 : 1;
+    s.suitO2 = Math.max(0, s.suitO2 - 0.28 * dt * d.consumo * farMult);
+  }
+  // Neglecting base crises while far from base causes system/rocket degradation.
+  if ((ctx.distFromHab ?? 0) > 340 && (s.leaks.length > 0 || s.aliens.length > 0)) {
+    s.farNeglectT += dt;
+    if (s.farNeglectT >= 25) {
+      s.farNeglectT = 0;
+      const targetSub = s.leaks.some((l) => l.target !== "habitat") ? "Propulsion" : "Structure";
+      s.rocket[targetSub] = Math.max(0, (s.rocket[targetSub] ?? 0) - 2);
+      const activeMod = s.modules.find((m) => isOn(m) && m.tipo !== "cofre");
+      if (activeMod) activeMod.durabilidad = Math.max(0, activeMod.durabilidad - 6);
+      addLog(s, `⚠ Base neglected from afar: ${targetSub} -2% and module wear!`);
+    }
+  } else {
+    s.farNeglectT = Math.max(0, s.farNeglectT - dt * 2);
   }
   if (!ctx.inHabitat) {
     if (suitWorking(s)) {
@@ -471,8 +500,8 @@ export function step(s: Sim, dt: number, ctx: { inHabitat: boolean; inShadow: bo
   s.health = Math.max(0, s.health);
 
   // alerts
-  s.alert = s.battery <= 0 && eIn <= 0 && s.modules.some((m) => TIPOS[m.tipo].energia < 0 && isOn(m)) ? "NO POWER: production stopped — wait for sunlight or add panels/batteries" : s.leaks.length ? `LEAK! ${s.leaks.map((l) => (l.target === "habitat" ? "HABITAT" : l.target.toUpperCase())).join(" · ")}` :
-    s.suitO2 < 20 ? "SUIT O2 LOW" : s.temp < 5 ? "HYPOTHERMIA" : s.battery < 5 ? "BATTERIES DEPLETED" : "";
+  s.alert = s.battery <= 0 && eIn <= 0 && s.modules.some((m) => TIPOS[m.tipo].energia < 0 && isOn(m)) ? "NO POWER: production stopped — wait for sunlight or add panels/batteries" : s.leaks.length ? `LEAK! ${s.leaks.map((l) => (l.target === "habitat" ? "HABITAT" : l.target.toUpperCase())).join(" · ")} — Need 1 Sealant kit (2 Scrap + 1 Metal) · Hold E` :
+    s.suitO2 < 20 ? "SUIT O2 LOW" : s.temp < 5 ? "HYPOTHERMIA" : s.battery < 5 ? "BATTERIES DEPLETED" : s.sanity < 25 ? "CREW MORALE CRITICAL: return to habitat or eat food" : "";
 
   // acts
   if (s.act === 1 && s.inv.hielo + s.inv.agua >= 6 && s.inv.chatarra >= 4 && s.actFlags.leakFixed) advanceAct(s);

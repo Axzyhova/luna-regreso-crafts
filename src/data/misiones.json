@@ -30,7 +30,7 @@
   {
    "id": "M1",
    "titulo": "Wake up",
-   "objetivo": "Seal a leak (hold E next to it)",
+   "objetivo": "Seal a leak (hold E with 1 Sealant kit — craft: 2 Scrap + 1 Metal)",
    "cond": "fuga_sellada",
    "inicio": [],
    "fin": [

@@ -32,6 +32,9 @@ export const ITEMS: Record<string, ItemInfo> = {
   botiquin: { nombre: "Medkit", desc: "Consumable: restores 40 health. Use it from the inventory or the hotbar.", icon: ["........", ".wwwwww.", ".wwrrww.", ".wrrrrw.", ".wwrrww.", ".wwwwww.", "........", "........"], colors: { w: c.white, r: c.red } },
   estimulante: { nombre: "Stimulant", desc: "Consumable: removes Fatigue instantly.", icon: ["...w....", "..www...", "..wgw...", "..wgw...", "..wgw...", "..www...", "........", "........"], colors: { w: c.white, g: c.ok } },
   pieza_motor: { nombre: "Engine part", desc: "Repairs the rocket's Propulsion subsystem.", icon: ["..gggg..", ".gooog..", ".goyog..", ".gooog..", "..gggg..", "...gg...", "..g..g..", "........"], colors: { g: c.moon3, o: c.alert, y: c.gold } },
+  alga_lunar: { nombre: "Lunar algae", desc: "Edible bioluminescent moss from the Shadowed Crater & Deep Glacial Rift. Used to craft Space rations and Hot meals.", icon: ["..g..g..", ".gg.gg..", ".gwgwgg.", "..gggg..", ".ggwgg..", "..ggg...", "...g....", "........"], colors: { g: c.ok, w: c.white } },
+  racion: { nombre: "Space ration", desc: "Food: restores +25 Health, +15 Sanity and +10 Hydration. Craft at Workshop (2 Lunar algae + 1 Scrap) or find in capsules.", icon: ["........", ".oooooo.", "owwwwwwo", "owrrrrwo", "owwwwwwo", ".oooooo.", "........", "........"], colors: { o: c.alert, w: c.white, r: c.red } },
+  comida_caliente: { nombre: "Hot meal", desc: "Food: restores +45 Health, +25 Sanity, +15 Hydration and clears Cold/Vertigo. Craft at Furnace (2 Lunar algae + 1 Metal).", icon: ["..w..w..", "...w.w..", ".rrrrrr.", "ryyyyyyr", ".mmmmmm.", "..mmmm..", "........", "........"], colors: { w: c.white, r: c.red, y: c.gold, m: c.moon3 } },
 };
 
 /** Display order for inventory grids: every item except base-stored ones (water lives in the habitat tank). */

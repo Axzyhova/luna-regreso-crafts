@@ -1,5 +1,5 @@
 import cfg from "@/data/eventos.json";
-import { addLog, isDay, isOn, hurt, TIPOS, CYCLE, DAY_LEN, type Sim } from "./sim";
+import { addItem, addLog, isDay, isOn, hurt, notify, TIPOS, CYCLE, DAY_LEN, type Inv, type Sim } from "./sim";
 import { aliensEnabled, type World } from "./aliens";
 import { spawnCapsule } from "./loot";
 
@@ -81,10 +81,58 @@ export function stepEvents(s: Sim, dt: number, w: World): { x: number; y: number
     }
   }
   if (ev.t <= 0) {
-    if (ev.id === "llamarada_solar" && ev.maxDose <= 40) s.stats.llamaradas++;
+    if (ev.id === "llamarada_solar") {
+      if (ev.maxDose <= 40) s.stats.llamaradas++;
+      if (ev.maxDose > 55) {
+        s.rocket["Communications"] = Math.max(0, (s.rocket["Communications"] ?? 0) - 4);
+        for (const m of s.modules) if (m.tipo === "panel" && isOn(m)) m.durabilidad = Math.max(0, m.durabilidad - 8);
+        addLog(s, "☀️ Solar flare radiation damaged unshielded electronics! (-4% Communications, solar panels worn)");
+        toast(s, "☀️ Solar flare nerfed Communications (-4%)!", 5);
+      }
+    }
     if (ev.id === "meteoritos") { spawnCapsule(s, ev.x, ev.y); addLog(s, "A supply capsule was left among the impact debris."); }
     addLog(s, `${e.nombre}: over.`);
     s.event = null;
   }
   return impacts;
+}
+
+const SPECIAL_CASES = [
+  { id: "caso_sonda", title: "SOS Probe Signal", desc: "A crashed survey probe is pinging from afar. Reach it and press E to recover parts.", x: 465, y: 90, reward: { pieza_motor: 1, racion: 2, metal: 3 } },
+  { id: "caso_crio", title: "Cryo-Vein Surge", desc: "A temporary cryo-fissure opened! Investigate (E) before it seals.", x: 240, y: 495, reward: { cristal_hielo: 3, hielo: 4, alga_lunar: 2 } },
+  { id: "caso_anomalia", title: "Thermal Anomaly", desc: "Strange heat signature in the Scorch Fields. Scan it (E) for rare salvage.", x: 910, y: 175, reward: { titanio: 3, kits: 2, comida_caliente: 1 } },
+  { id: "caso_suministros", title: "Orbital Drop Pod", desc: "An emergency food & medical pod landed. Collect it (E).", x: 95, y: 75, reward: { racion: 2, botiquin: 1, estimulante: 1 } },
+];
+
+/** Spawn and tick timed special expedition cases (not just base supervision). */
+export function stepSpecialCases(s: Sim, dt: number, rnd: () => number) {
+  if (s.specialCase) {
+    s.specialCase.t -= dt;
+    if (s.specialCase.t <= 0) {
+      addLog(s, `⭐ Special case expired: ${s.specialCase.title}`);
+      s.specialCase = null;
+    }
+    return;
+  }
+  if (s.countdown !== null) return;
+  s.nextCaseT -= dt;
+  if (s.nextCaseT <= 0) {
+    s.nextCaseT = 105 + rnd() * 60;
+    const c = SPECIAL_CASES[Math.floor(rnd() * SPECIAL_CASES.length)]!;
+    s.specialCase = { id: c.id, title: c.title, desc: c.desc, x: c.x, y: c.y, reward: { ...c.reward }, t: 110 };
+    addLog(s, `⭐ SPECIAL CASE: ${c.title} — ${c.desc}`);
+    toast(s, `⭐ Special case on Map: ${c.title}`, 6);
+  }
+}
+
+export function resolveSpecialCase(s: Sim) {
+  const sc = s.specialCase;
+  if (!sc) return false;
+  for (const [k, n] of Object.entries(sc.reward)) addItem(s, k as keyof Inv, n);
+  s.casesDone++;
+  s.sanity = Math.min(100, s.sanity + 10);
+  addLog(s, `✔ Special case resolved (${sc.title}): ${Object.entries(sc.reward).map(([k, n]) => `+${n} ${k}`).join(", ")}`);
+  notify(s, "mission", "Special Case Complete", sc.title);
+  s.specialCase = null;
+  return true;
 }

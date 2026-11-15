@@ -120,6 +120,18 @@ export function QuestLog() {
             );
           })}
         </ol>
+        <div className="mb-2 text-[8px] text-suit-light">SPECIAL EXPEDITION CASE</div>
+        <div className="mb-4 rounded border border-white/15 bg-black/25 p-2 text-[8px] leading-4">
+          {s.specialCase ? (
+            <>
+              <div className="font-bold text-gold">⭐ {s.specialCase.title} ({Math.ceil(s.specialCase.t)}s left)</div>
+              <div className="text-white/85">{s.specialCase.desc}</div>
+              <div className="text-[7px] text-ok">Reward: {Object.entries(s.specialCase.reward).map(([k, n]) => `${n} ${ITEMS[k]?.nombre ?? k}`).join(", ")}</div>
+            </>
+          ) : (
+            <div className="text-muted-foreground">No active special case right now ({s.casesDone} resolved). Watch the Map (M) for ⭐ expedition signals.</div>
+          )}
+        </div>
         <div className="mb-2 text-[8px] text-suit-light">SIDE MISSIONS</div>
         <ul className="space-y-2">
           {sideAvailable(s).map((q) => {

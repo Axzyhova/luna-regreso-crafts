@@ -10,6 +10,7 @@ import { StationPanel } from "./StationPanel";
 import { MapPanel } from "./MapPanel";
 import { ChestPanel } from "./ChestPanel";
 import { ArchivePanel } from "./ArchivePanel";
+import { FieldGuidePanel } from "./FieldGuidePanel";
 import { DeathScreen, NoticeToast, AchievementList, SuitControl } from "./SurvivalUI";
 import { EventBanner, EffectsBar, QuestTracker, QuestLog } from "./StoryUI";
 import { GEAR, CONSUMIBLES, toggleEquip, consumeItem } from "@/game/effects";
@@ -97,8 +98,9 @@ export function HUDBottom({ className = "", touch = false }: { className?: strin
           )}
           <Hotbar />
           {!touch && <button type="button" onClick={() => { sfx.click(); useGame.getState().setOverlay("mapa"); }} className="tr-btn pointer-events-auto ml-1 h-10 px-2 text-[10px]" title="Map (M)">🗺 MAP</button>}
+          {!touch && <button type="button" onClick={() => { sfx.click(); useGame.getState().setOverlay("guia"); }} className="tr-btn pointer-events-auto h-10 px-2 text-[10px]" title="Field Guide (G)">📖 GUIDE</button>}
         </div>
-        {!touch && <div className="text-[6px] text-muted-foreground">WASD move · SPACE pick up/hit · E interact (hold to seal/repair) · TAB inventory · C build · B base · L log · M map · J missions · K archive · V suit · ESC pause · 1-5 or click: pick item</div>}
+        {!touch && <div className="text-[6px] text-muted-foreground">WASD move · SPACE pick up/hit · E interact (hold to seal/repair) · TAB inventory · C build · B base · L log · M map · G guide · J missions · K archive · V suit · ESC pause · 1-5 or click: pick item</div>}
       </div>
   );
 }
@@ -378,6 +380,7 @@ function Pause() {
       <div className="flex flex-wrap gap-3">
         <PixelButton onClick={() => setOverlay(null)}>Continue</PixelButton>
         <PixelButton tone="ghost" onClick={() => setOverlay("archivo")}>📚 Archive</PixelButton>
+        <PixelButton tone="ghost" onClick={() => setOverlay("guia")}>📖 Field Guide</PixelButton>
         <PixelButton tone="ghost" onClick={() => { saveGame(); sfx.ok(); }}>Save</PixelButton>
         <PixelButton tone="alert" onClick={() => { saveGame(); setOverlay(null); go("intro"); }}>Quit to title</PixelButton>
       </div>
@@ -389,7 +392,7 @@ export function Overlays() {
   const overlay = useGame((g) => g.overlay);
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      const map: Record<string, "inv" | "base" | "log" | "pausa" | "misiones" | "mapa" | "archivo"> = { Tab: "inv", b: "base", B: "base", l: "log", L: "log", j: "misiones", J: "misiones", m: "mapa", M: "mapa", k: "archivo", K: "archivo", Escape: "pausa" };
+      const map: Record<string, "inv" | "base" | "log" | "pausa" | "misiones" | "mapa" | "archivo" | "guia"> = { Tab: "inv", b: "base", B: "base", l: "log", L: "log", j: "misiones", J: "misiones", m: "mapa", M: "mapa", k: "archivo", K: "archivo", g: "guia", G: "guia", Escape: "pausa" };
       const o = map[e.key];
       if (!o) return;
       if (e.key === "Escape" && sim.buildMode && !useGame.getState().overlay) { e.preventDefault(); sim.buildMode = null; useGame.getState().publish(); return; }
@@ -404,6 +407,6 @@ export function Overlays() {
   const panel =
     overlay === "inv" ? <Inventory /> : overlay === "base" ? <Base /> : overlay === "log" ? <Log /> : overlay === "pausa" ? <Pause /> :
     overlay === "cohete" ? <Rocket /> : overlay === "cubesat" ? <CubeSatDesigner /> : overlay === "misiones" ? <QuestLog /> :
-    overlay === "estacion" ? <StationPanel /> : overlay === "mapa" ? <MapPanel /> : overlay === "cofre" ? <ChestPanel /> : overlay === "archivo" ? <ArchivePanel /> : null;
+    overlay === "estacion" ? <StationPanel /> : overlay === "mapa" ? <MapPanel /> : overlay === "cofre" ? <ChestPanel /> : overlay === "archivo" ? <ArchivePanel /> : overlay === "guia" ? <FieldGuidePanel /> : null;
   return <>{panel}<NoticeToast /><DeathScreen /></>;
 }
