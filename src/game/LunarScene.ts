@@ -27,7 +27,9 @@ const W = 1280, H = 720; // landing site (night aliens, events and capsules stay
 const WW = WORLD.w, WH = WORLD.h; // whole explorable world (2560x1440)
 const isStation = (m: Module) => m.tipo === "taller" || m.tipo === "horno";
 /** How far beyond an object's edge E still reaches (world px): practically touching it. */
-export const INTERACT_EDGE = 7;
+export const INTERACT_EDGE = 2;
+/** Half-size of the astronaut's body (world px): reach is measured from its edge, not its centre. */
+const BODY_HW = 3, BODY_HH = 5;
 type TargetKind = "leak" | "special" | "cave" | "drop" | "bridge" | "poi" | "capsule" | "rocket" | "melt" | "chest" | "station" | "repair" | "upgrade" | "clean" | "farm" | "robert";
 interface Target { kind: TargetKind; x: number; y: number; ref?: unknown; label: string }
 type NodeType = "hielo" | "regolito" | "chatarra" | "cristal_hielo" | "titanio" | "aleacion" | "alga_lunar";
@@ -136,7 +138,7 @@ export class LunarScene extends Phaser.Scene {
     this.preview = this.add.graphics().setDepth(35);
     this.player = this.add.image(HAB.x, HAB.y + 30, "astro_idle0").setScale(1 / HD).setDepth(10);
     // Mini Robert follows you everywhere; click / tap him for help.
-    this.robert = this.add.image(HAB.x - 14, HAB.y + 36, "robert").setScale(1 / HD).setDepth(10)
+    this.robert = this.add.image(HAB.x - 10, HAB.y + 36, "robert").setScale(0.6 / HD).setDepth(10)
       .setInteractive(new Phaser.Geom.Circle(14, 12, 20), Phaser.Geom.Circle.Contains);
     this.robert.on("pointerdown", (_p: unknown, _x: number, _y: number, ev: { stopPropagation: () => void }) => { ev.stopPropagation(); this.openRobert(); });
     this.ring = this.add.graphics().setDepth(30);
@@ -155,7 +157,7 @@ export class LunarScene extends Phaser.Scene {
       const w = p.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
       if (sim.buildMode) { this.place(p.wasTouch ? { x: w.x, y: w.y } : undefined); return; }
       const clickedCave = sim.caves.find((c) => Phaser.Math.Distance.Between(c.x, c.y, w.x, w.y) < 16);
-      if (clickedCave && Phaser.Math.Distance.Between(clickedCave.x, clickedCave.y, this.player.x, this.player.y) < 38) {
+      if (clickedCave && this.pickTarget()?.ref === clickedCave) { // only when you are touching the cave
         sim.activeCaveId = clickedCave.id; sfx.click(); useGame.getState().publish(); useGame.getState().setOverlay("cueva"); return;
       }
       this.useTool();
@@ -524,9 +526,11 @@ export class LunarScene extends Phaser.Scene {
   pickTarget(): Target | null {
     const px = this.player.x, py = this.player.y;
     let best: Target | null = null, bs = Infinity;
-    const consider = (tg: Target, half: number) => {
+    // half: a radius, or [half-width, half-height] for boxes. Gap = box-to-body distance, so you must touch it.
+    const consider = (tg: Target, half: number | [number, number]) => {
+      const [hw, hh] = typeof half === "number" ? [half, half] : half;
       const dx = tg.x - px, dy = tg.y - py, d = Math.hypot(dx, dy);
-      const edge = Math.max(0, d - half);
+      const edge = Math.hypot(Math.max(0, Math.abs(dx) - hw - BODY_HW), Math.max(0, Math.abs(dy) - hh - BODY_HH));
       if (edge > INTERACT_EDGE) return;
       const facing = d > 1 ? (dx * this.faceX + dy * this.faceY) / d : 1;
       const score = edge + (facing < -0.25 ? 6 : 0) - facing;
@@ -534,14 +538,14 @@ export class LunarScene extends Phaser.Scene {
     };
     for (const l of sim.leaks) consider({ kind: "leak", x: l.x, y: l.y, ref: l, label: sim.inv.kits > 0 ? `HOLD E: SEAL LEAK (1 KIT · ${sim.inv.kits} LEFT)` : "NEED 1 SEALANT KIT (CRAFT IN TAB: 2 SCRAP + 1 METAL)" }, 4);
     if (sim.specialCase) consider({ kind: "special", x: sim.specialCase.x, y: sim.specialCase.y, label: `E: RESOLVE ${sim.specialCase.title.toUpperCase()}` }, 6);
-    for (const c of sim.caves) consider({ kind: "cave", x: c.x, y: c.y, ref: c, label: "E: ENTER METEOR CAVE" }, 8);
+    for (const c of sim.caves) consider({ kind: "cave", x: c.x, y: c.y, ref: c, label: "E: ENTER METEOR CAVE" }, [7, 5]);
     for (const d of sim.drops) consider({ kind: "drop", x: d.x, y: d.y, ref: d, label: d.kind === "thrown" ? "E: PICK UP " + this.dropText(d) : "E: PICK UP YOUR LOST ITEMS" }, 5);
     if (!sim.bridge) consider({ kind: "bridge", x: BRIDGE.x, y: BRIDGE.y, label: sim.inv.puente_kit > 0 ? "E: USE BRIDGE KIT" : "NEEDS A BRIDGE KIT (WORKSHOP: 4 METAL + 4 REGOLITH)" }, 8);
     for (const p of POIS) if (!sim.pois.includes(p.id)) consider({ kind: "poi", x: p.x, y: p.y, ref: p, label: `E: EXAMINE ${p.nombre.toUpperCase()}` }, 7);
-    for (const c of sim.capsules) consider({ kind: "capsule", x: c.x, y: c.y, ref: c, label: "E: OPEN SUPPLY CAPSULE" }, 6);
-    consider({ kind: "rocket", x: ROCKET.x, y: ROCKET.y, label: "E: CHECK ROCKET" }, 12);
+    for (const c of sim.capsules) consider({ kind: "capsule", x: c.x, y: c.y, ref: c, label: "E: OPEN SUPPLY CAPSULE" }, 5);
+    consider({ kind: "rocket", x: ROCKET.x, y: ROCKET.y + 2, label: "E: CHECK ROCKET" }, [10, 20]); // body + landing feet
     for (const m of sim.modules) {
-      const half = Math.max(TIPOS[m.tipo].w, TIPOS[m.tipo].h) / 2;
+      const half: [number, number] = [TIPOS[m.tipo].w / 2, TIPOS[m.tipo].h / 2];
       const name = TIPOS[m.tipo].nombre.toUpperCase();
       if (m.tipo === "habitat") { if (sim.inv.hielo > 0) consider({ kind: "melt", x: m.x, y: m.y, ref: m, label: sim.inv.agua >= WATER_TANK_KG ? "WATER TANK FULL" : "E: MELT ICE INTO WATER" }, half); continue; }
       if (m.tipo === "hidroponia" && m.activo && m.durabilidad > 0) { const f = farmOf(sim, m.uid); consider({ kind: "farm", x: m.x, y: m.y, ref: m, label: !f.crop ? (sim.inv.alga_lunar > 0 ? "E: PLANT LUNAR ALGAE" : "NEED 1 LUNAR ALGAE TO PLANT") : f.growth >= 1 ? "E: HARVEST ALGAE" : `GROWING ${Math.round(f.growth * 100)}%` }, half); continue; }
@@ -552,7 +556,7 @@ export class LunarScene extends Phaser.Scene {
       else if (m.tipo === "panel" && !sim.eds && sim.dust > 0.15) consider({ kind: "clean", x: m.x, y: m.y, ref: m, label: `E: CLEAN DUST OFF PANELS (−${Math.round(sim.dust * 50)}% POWER)` }, half);
     }
     // Mini Robert always rolls next to you, so he only answers E when nothing else is in reach.
-    if (!best && this.robert && Phaser.Math.Distance.Between(this.robert.x, this.robert.y, px, py) < 24) best = { kind: "robert", x: this.robert.x, y: this.robert.y, label: "E: ASK MINI ROBERT FOR HELP" };
+    if (!best && this.robert && Phaser.Math.Distance.Between(this.robert.x, this.robert.y, px, py) < 14) best = { kind: "robert", x: this.robert.x, y: this.robert.y, label: "E: ASK MINI ROBERT FOR HELP" };
     return best;
   }
 
@@ -598,7 +602,7 @@ export class LunarScene extends Phaser.Scene {
     {
       // Mini Robert trails behind you (opposite your facing), with a little hover bob.
       const rb = this.robert, p = this.player;
-      const tx = p.x - this.faceX * 14 - (this.faceY ? 8 : 0), ty = p.y - this.faceY * 12 + 6;
+      const tx = p.x - this.faceX * 10 - (this.faceY ? 6 : 0), ty = p.y - this.faceY * 9 + 5;
       const d = Phaser.Math.Distance.Between(rb.x, rb.y, tx, ty);
       if (d > 160) rb.setPosition(tx, ty); // after respawn / teleport
       else if (d > 1.5) { const k = Math.min(1, dt * (d > 30 ? 6 : 3.5)); rb.x += (tx - rb.x) * k; rb.y += (ty - rb.y) * k; if (Math.abs(tx - rb.x) > 0.5) rb.setFlipX(tx < rb.x); }

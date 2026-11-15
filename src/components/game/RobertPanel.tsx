@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useGame, sim } from "@/game/store";
+import { useGame, sim, saveGame } from "@/game/store";
 import { ROBERT, robertAdvice } from "@/game/robert";
 import { sfx } from "@/game/audio";
 import { useTouchDevice } from "@/hooks/use-device";
@@ -31,7 +31,7 @@ export function RobertIntro() {
   const slides = ROBERT.intro;
   const sl = slides[i]!;
   const last = i === slides.length - 1;
-  const next = () => { sfx.click(); if (last) { sim.robertMet = true; publish(); } else setI(i + 1); };
+  const next = () => { sfx.click(); if (last) { sim.robertMet = true; saveGame(); publish(); } else setI(i + 1); }; // saved at once so the intro never repeats
   return (
     <div className="absolute inset-0 z-[30] flex items-center justify-center bg-background/75 p-3 short:p-1">
       <div className="tr-panel w-full max-w-md p-4 short:p-2">
