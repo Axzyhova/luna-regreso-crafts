@@ -97,16 +97,33 @@ export function ModeSelect() {
 }
 
 const PANELS = [
-  { text: "Year 2026. You lift off on a routine mission beyond Earth orbit.", art: "launch" },
-  { text: "An alarm. A tank failure: the fuel is venting into space.", art: "fail" },
-  { text: "Out of options, you aim for the Moon's south pole and make an emergency descent.", art: "fall" },
-  { text: "You survived. But you're STRANDED. To get home you'll have to make your own fuel.", art: "land" },
+  {
+    text: "En el año 2034, la humanidad desplegó a la Selene Crew en la base Selene-IV (cráter Shackleton, polo sur lunar) para perforar permafrost, extraer oxígeno e hidrógeno del regolito y validar el lanzamiento reutilizable.",
+    art: "launch",
+  },
+  {
+    text: "Durante 42 días todo funcionó como un reloj orbital. Pero a 72 horas del relevo, una eyección de masa coronal de clase X amenazó con radiación letal en menos de 90 minutos: Houston activó el Protocolo Ícaro de evacuación inmediata.",
+    art: "fail",
+  },
+  {
+    text: "El polvo lunar provocó un cortocircuito en la refrigeración del reactor. Como especialista de sistemas, regresaste a purgarlo manualmente; salvaste la plataforma, pero la onda térmica dañó la ignición secundaria y Houston abortó tu rescate.",
+    art: "fall",
+  },
+  {
+    text: "El vehículo de ascenso despegó sin ti. Ahora estás solo a 384,400 km de casa: los paneles están cubiertos de polvo, hay fugas en la esclusa y tu única salida es un módulo experimental de carga a 300 metros.",
+    art: "land",
+  },
+  {
+    text: "Convierte los restos de Selene-IV en tu astillero: raciona energía, derrite hielo en el hábitat para hacer agua y combustible líquido (LH2/LOX), fabrica piezas en el taller y calcula tu Delta-V. La verdadera historia de Selene Crew empieza ahora.",
+    art: "land",
+  },
 ];
 export function Cinematic() {
   const go = useGame((s) => s.go);
   const [i, setI] = useState(0);
   const p = PANELS[i]!;
-  const typed = useTypewriter(p.text);
+  const typed = useTypewriter(p.text, 85);
+  const last = i === PANELS.length - 1;
   return (
     // Tall screens: scene on top, text and buttons below. Short (landscape phone): side by side.
     <div className="flex h-full flex-col items-center justify-center-safe gap-6 overflow-y-auto p-6 short:flex-row short:gap-5 short:p-3">
@@ -114,11 +131,11 @@ export function Cinematic() {
         <StoryAnimation scene={p.art as SceneId} />
       </div>
       <div className="flex w-full max-w-lg flex-col gap-4 short:max-w-[42vw] short:gap-3">
-        <p className="min-h-16 text-[10px] leading-5 short:min-h-0 short:text-[9px]">{typed}<span className="animate-blink">▌</span></p>
-        <div className="text-[8px] text-muted-foreground">{i + 1}/4</div>
+        <p className="min-h-20 text-[9px] leading-5 short:min-h-0 short:text-[8px]">{typed}<span className="animate-blink">▌</span></p>
+        <div className="text-[8px] text-muted-foreground">{i + 1}/{PANELS.length}</div>
         <div className="flex gap-3">
           <PixelButton tone="ghost" onClick={() => go("juego")}>Skip</PixelButton>
-          <PixelButton onClick={() => (i < 3 ? setI(i + 1) : go("juego"))}>{i < 3 ? "Next" : "Start"}</PixelButton>
+          <PixelButton onClick={() => (!last ? setI(i + 1) : go("juego"))}>{!last ? "Next" : "Start"}</PixelButton>
         </div>
       </div>
     </div>

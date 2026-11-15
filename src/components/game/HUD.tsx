@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import modos from "@/data/modos.json";
 import recetas from "@/data/recetas.json";
 import { useGame, sim, saveGame } from "@/game/store";
-import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft, PLACEABLE, dropItem, toolInfo, WATER_TANK_KG, upgradeCost, canUpgrade, upgradeModule, UPGRADES, SUBSISTEMAS, UMBRAL_VERDE, repairBlock, repairSubsystem, subCap } from "@/game/sim";
+import { clock, LH2_CAP, LOX_CAP, isDay, batteryCap, nightBatterySeconds, moduleEnergy, TIPOS, NIGHT_LEN, STACK, SLOTS, usedSlots, recipeBlock, craft, PLACEABLE, dropItem, toolInfo, WATER_TANK_KG, meltIce, upgradeCost, canUpgrade, upgradeModule, UPGRADES, SUBSISTEMAS, UMBRAL_VERDE, repairBlock, repairSubsystem, subCap } from "@/game/sim";
 import { launchBlockers, startLaunch, countdownLength, currentWindow, nextWindow, windowSecondsLeft, windowsUntil, VENTANAS_PROVISIONALES } from "@/game/mission";
 import { CubeSatDesigner } from "./CubeSatDesigner";
 import { Vitals, DayClock } from "./Vitals";
@@ -55,6 +55,7 @@ export function HUDTop({ className = "", touch = false }: { className?: string; 
           <span className="text-[7px]"><span className="text-muted-foreground">POWER</span> <span className={net >= 0 ? "text-ok" : "text-destructive"}>+{s.energyIn.toFixed(0)} / -{s.energyOut.toFixed(0)}</span> <span className="text-muted-foreground">BAT</span> {s.battery.toFixed(0)}/{batteryCap(s)}</span>
           <Bar label="LH2" v={s.lh2} max={LH2_CAP} tone="bg-suit-light" warn={0} />
           <Bar label="LOX" v={s.lox} max={LOX_CAP} tone="bg-suit" warn={0} />
+          <span className="text-[7px]"><span className="text-muted-foreground">💧 WATER</span> <span className="text-suit-light">{s.inv.agua.toFixed(0)}/{WATER_TANK_KG}kg</span></span>
           <span className="text-[7px]"><span className="text-muted-foreground">MIX O2:H2</span> <span className={Math.abs(ratio - 6) < 0.5 ? "text-ok" : "text-alert"}>{ratio.toFixed(1)}:1</span> <span className="text-muted-foreground">(target 6:1)</span></span>
         </div>
         {s.alert && <div className="animate-blink text-center text-[9px] text-alert">⚠ {s.alert}</div>}
@@ -276,6 +277,17 @@ function Base() {
         <div className={net >= 0 ? "text-ok" : "text-destructive"}>Power +{s.energyIn.toFixed(0)} / -{s.energyOut.toFixed(0)}</div>
         <div className="text-[8px]">Batteries {s.battery.toFixed(0)}/{batteryCap(s)} · They last tonight: <span className={nightSec < NIGHT_LEN ? "text-alert" : "text-ok"}>{fmtTime(nightSec)}</span> <span className="text-muted-foreground">(night lasts {NIGHT_LEN / 60} min)</span></div>
         <div className="text-[7px] text-muted-foreground">Habitat O2 {s.habitatO2.toFixed(0)}% · Water {s.inv.agua.toFixed(1)} kg · H2 gas {s.h2gas.toFixed(2)} kg · O2 gas {s.o2gas.toFixed(2)} kg</div>
+      </div>
+      <div className="mb-3 rounded border border-suit-light/30 bg-black/30 p-2 text-[7px] leading-4">
+        <div className="font-bold text-suit-light">💧 HOW TO MAKE WATER & ROCKET FUEL (LH2 / LOX)</div>
+        <div>1. Mine <b>Ice</b> in the Shadowed Crater (SPACE).</div>
+        <div>2. Melt Ice at the <b>Habitat</b> (press <b>E</b> next to it) → produces <b>Water</b> ({s.inv.agua.toFixed(1)}/{WATER_TANK_KG} kg).</div>
+        <div>3. Keep <b>Electrolysis plant</b> + <b>Cryotanks</b> ON (needs Power) → splits Water into <b>LH2 + LOX</b> fuel!</div>
+        {s.inv.hielo > 0 && s.near.habitat && (
+          <button type="button" onClick={() => { if (meltIce(sim) > 0) { sfx.ok(); publish(); } else sfx.bad(); }} className="tr-btn mt-1 px-2 py-1 text-[7px]">
+            💧 Melt carried Ice ({Math.floor(s.inv.hielo)}) → Water
+          </button>
+        )}
       </div>
       <div className="space-y-2">
         {s.modules.map((m) => {
