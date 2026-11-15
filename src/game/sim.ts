@@ -692,7 +692,7 @@ export function reveal(s: Sim, x: number, y: number, r = zonasCfg.radio_vision) 
 }
 export const BRIDGE = zonasCfg.puente;
 export function buildBridge(s: Sim) {
-  return useBridgeKit(s);
+  return applyBridgeKit(s);
 }
 
 // ---- Base automation and dust (Auto-Miner Rover, Algae Bioreactor, EDS) ----
@@ -747,7 +747,7 @@ export function moveIntoChest(s: Sim, uid: number, key: string, n: number) {
 }
 
 /** Use a Bridge Kit at the ravine. */
-export function useBridgeKit(s: Sim) {
+export function applyBridgeKit(s: Sim) {
   if (s.bridge || s.inv.puente_kit < 1) return false;
   s.inv.puente_kit -= 1; s.bridge = true;
   addLog(s, "🌉 You assembled the Bridge Kit across the ravine. The Alien Hive is now reachable.");
