@@ -16,7 +16,7 @@ import { Inventory } from "./InventoryPanel";
 import { ChestPanel } from "./ChestPanel";
 import { ArchivePanel } from "./ArchivePanel";
 import { Hotbar } from "./Hotbar";
-import { view, setZoom, defaultZoom, ZOOM_STEP } from "@/game/view";
+import { view, setZoom, defaultZoom, ZOOM_STEP, setFx } from "@/game/view";
 export { Hotbar } from "./Hotbar";
 import { MapPanel } from "./MapPanel";
 import { FieldGuidePanel } from "./FieldGuidePanel";
@@ -330,6 +330,7 @@ function Log() {
 function Pause() {
   const { setOverlay, go } = useGame();
   const [z, setZ] = useState(view.zoom);
+  const [fxq, setFxq] = useState(view.fx);
   return (
     <Panel title="PAUSED">
       <div className="mb-3 flex items-center gap-2 text-[9px] short:mb-2">
@@ -338,6 +339,12 @@ function Pause() {
         <span className="tr-text w-10 text-center tabular-nums">{z.toFixed(1)}×</span>
         <button type="button" aria-label="Zoom in" onClick={() => { setZoom(view.zoom + ZOOM_STEP); setZ(view.zoom); sfx.click(); }} className="tr-btn px-2 py-1">+</button>
         <button type="button" onClick={() => { setZoom(defaultZoom(matchMedia("(pointer: coarse)").matches, matchMedia("(max-height: 520px)").matches)); setZ(view.zoom); sfx.click(); }} className="tr-btn px-2 py-1 text-[7px]">RESET</button>
+      </div>
+      <div className="mb-3 flex items-center gap-2 text-[9px] short:mb-2">
+        <span className="text-white/80">EFFECTS</span>
+        {(["high", "low"] as const).map((q) => (
+          <button key={q} type="button" onClick={() => { setFx(q); setFxq(q); sfx.click(); }} className={`tr-btn px-2 py-1 ${fxq === q ? "!border-ok !bg-ok/35" : ""}`}>{q === "high" ? "HIGH (glow + particles)" : "LOW (smoother)"}</button>
+        ))}
       </div>
       <div className="flex flex-wrap gap-3">
         <PixelButton onClick={() => setOverlay(null)}>Continue</PixelButton>

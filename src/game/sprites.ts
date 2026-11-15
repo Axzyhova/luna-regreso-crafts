@@ -196,11 +196,21 @@ export function makeSprites(scene: Phaser.Scene) {
     r(9, 12, 14, 6, T.alert); r(11, 13, 10, 3, T.gold); r(13, 14, 6, 1, 0xfff0a0);
     r(4, 22, 24, 2, 0x45454f); r(26, 3, 3, 3, T.red);
   });
+  // Workshop: a wooden crafting workbench with a tool pegboard, vise, hammer and saw.
   tex(scene, "m_taller", 20, 14, (g, r) => {
-    block(r, 1, 5, 38, 22, 0x45454f, 0x6b6b75, 0x2a2a36);
-    block(r, 0, 1, 40, 6, 0x9a9aa3, 0xc9c9cf, 0x6b6b75);
-    block(r, 5, 12, 8, 8, T.alert, 0xffb066, 0x8a4410);
-    r(18, 12, 16, 3, 0xc9c9cf); r(18, 17, 10, 2, 0x9a9aa3); r(30, 16, 3, 6, 0x7a4416);
+    block(r, 3, 0, 34, 11, 0x5a3a1e, 0x7a5228, 0x3a2410);            // pegboard
+    for (const x of [6, 12, 18, 24, 30, 34]) r(x, 2, 1, 1, 0x2a1a0a);
+    r(7, 2, 1, 6, 0xc9c9cf); r(6, 2, 3, 2, 0x9a9aa3);                   // wrench
+    r(13, 3, 6, 2, 0x6b6b75); r(15, 5, 2, 5, 0x8a5a2a);                 // hammer
+    g.fillStyle(0xc9c9cf).fillTriangle(22, 3, 31, 3, 22, 8); r(31, 2, 3, 3, 0x8a5a2a); // saw
+    block(r, 0, 11, 40, 5, 0x9a6a36, 0xc89a5a, 0x6a4420);              // table top
+    r(1, 12, 38, 1, 0xd8aa6a);
+    for (const x of [2, 35]) block(r, x, 16, 3, 11, 0x6a4420, 0x8a5a2a, 0x4a2c14); // legs
+    r(5, 22, 30, 2, 0x5a3a1e);                                          // shelf
+    block(r, 26, 7, 8, 4, 0x6b6b75, 0x9a9aa3, 0x45454f); r(28, 5, 4, 2, 0x45454f); // vise
+    block(r, 6, 8, 6, 3, 0x2f8a45, 0x4fc26a, 0x1d5a2c);                 // blueprint box
+    r(14, 9, 7, 2, 0xe8f0ff); r(15, 9, 5, 1, 0x3b6fd6);                  // blueprint
+    r(8, 23, 4, 3, T.alert); r(20, 23, 6, 3, 0x9a9aa3);                  // parts on the shelf
   });
   tex(scene, "m_taladro", 10, 14, (g, r) => {
     block(r, 4, 1, 12, 12, T.alert, 0xffb066, 0x8a4410); r(7, 4, 6, 2, 0x2a2a36);
@@ -220,10 +230,18 @@ export function makeSprites(scene: Phaser.Scene) {
     for (const x of [3, 13, 23]) { block(r, x, 2, 7, 18, 0x2f8a45, 0x9ff0b4, 0x1d5a2c); r(x + 2, 5, 1, 10, 0xd8ffe4, 0.8); g.fillStyle(0xffffff, 0.8).fillCircle(x + 4, 8, 0.8); }
   });
   // Hydroponic farm: a tray with LED bar; algae drawn on top by the scene when planted.
+  // Hydroponic farm: a raised garden bed (wood frame, dark soil furrows) under a grow-light arch with a drip line.
   tex(scene, "m_hidroponia", 16, 12, (g, r) => {
-    block(r, 1, 12, 30, 10, 0x6b6b75, 0x9a9aa3, 0x45454f);
-    r(3, 14, 26, 4, 0x2a5aa8); r(3, 14, 26, 1, 0x7fa8ff);
-    r(2, 2, 2, 10, 0x45454f); r(28, 2, 2, 10, 0x45454f); r(2, 1, 28, 2, 0xc77dff); g.fillStyle(0xffffff, 0.7).fillRect(4, 3, 24, 1);
+    r(2, 3, 2, 10, 0x6b6b75); r(28, 3, 2, 10, 0x6b6b75);                // light posts
+    block(r, 2, 1, 28, 3, 0x45454f, 0x6b6b75, 0x2a2a36);
+    r(4, 3, 24, 1, 0xd08aff); g.fillStyle(0xd08aff, 0.18).fillRect(4, 4, 24, 9); // purple grow light + glow
+    block(r, 1, 12, 30, 11, 0x8a5a2a, 0xb07a3a, 0x5a3a1e);             // wooden bed
+    r(3, 13, 26, 7, 0x3a2414);                                          // soil
+    for (const y of [14, 16.5, 19]) { r(3, y, 26, 1, 0x4e3220); r(3, y + 1, 26, 0.5, 0x2a1a0e); } // furrows
+    for (const x of [6, 12, 18, 24]) for (const y of [14, 17]) r(x, y, 2, 1, 0x5a3a24);          // seed mounds
+    r(1, 22, 30, 1, 0x3a2410);
+    r(30, 9, 2, 13, 0x3b6fd6); r(30, 9, 2, 1, 0x7fa8ff); r(31, 21, 1, 1, 0x9fd8ff); // drip pipe
+    block(r, 24, 22, 6, 3, 0xd8b070, 0xf2d8a0, 0x8a6a3a);              // little sign
   });
   // Mini Robert: round solar rover (black cells, gold rim, two wheels on top, blue eye).
   tex(scene, "robert", 14, 12, (g, r) => {

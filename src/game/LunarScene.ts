@@ -22,6 +22,8 @@ import { twinkle, bobOffset, beamStrips, ringPhase, edgeMarker } from "./pickups
 import { canMine } from "./tools";
 import { view } from "./view";
 import { TerrainFx } from "./terrainFx";
+import { Phase3Fx } from "./fx3";
+import { loadFx } from "./view";
 import { createFxTextures, NightLighting, paintRichTerrain, sunShadow, updateSilhouetteShadow } from "./visualFx";
 import { PixelfxOverlay } from "./pixelfxBridge";
 import { HAB, ROCKET, SHADOW, RAVINE, BRIDGE_DECK } from "./world";
@@ -70,6 +72,7 @@ export class LunarScene extends Phaser.Scene {
   ring!: Phaser.GameObjects.Graphics;
   nightFx!: NightLighting;
   terrainFx!: TerrainFx;
+  fx3!: Phase3Fx;
   pixelfx!: PixelfxOverlay;
   playerShadow!: Phaser.GameObjects.Image;
   staticShadows: { spr: Phaser.GameObjects.Image; baseX: number; baseY: number; w: number; h: number }[] = [];
@@ -102,6 +105,9 @@ export class LunarScene extends Phaser.Scene {
     const g = this.add.graphics();
     paintRichTerrain(Phaser, this, g, W, H, SHADOW, PAL, FONT_KEY, toFont);
     this.terrainFx = new TerrainFx(Phaser, this, SHADOW); // Phase 2: animated biome detail
+    loadFx();
+    this.fx3 = new Phase3Fx(Phaser, this); // Phase 3: vignette, particles, glows, auto quality
+    this.fx3.onAutoLow = () => toast(sim, "⚙ Effects set to LOW for smoother play (change it in Pause).", 5);
     this.label(SHADOW.x, SHADOW.y - 3, "SHADOWED CRATER", PAL.moon2, 1);
 
     // rocket and tanks: separate sprites + 2.5D silhouette cast shadows
@@ -138,7 +144,8 @@ export class LunarScene extends Phaser.Scene {
     // Mini Robert follows you everywhere; click / tap him for help.
     this.robert = this.add.image(HAB.x - 10, HAB.y + 36, "robert").setScale(0.6 / HD).setDepth(10)
       .setInteractive(new Phaser.Geom.Circle(14, 12, 20), Phaser.Geom.Circle.Contains);
-    this.robert.on("pointerdown", (_p: unknown, _x: number, _y: number, ev: { stopPropagation: () => void }) => { ev.stopPropagation(); this.openRobert(); });
+    // Mouse click opens Robert's help; on phones/tablets he only answers the E button (no accidental taps).
+    this.robert.on("pointerdown", (p: Phaser.Input.Pointer, _x: number, _y: number, ev: { stopPropagation: () => void }) => { if (p.wasTouch || this.touchMode) return; ev.stopPropagation(); this.openRobert(); });
     this.ring = this.add.graphics().setDepth(30);
     this.beam = this.add.graphics().setDepth(22);
     this.zone = this.add.graphics().setDepth(24);
@@ -422,12 +429,25 @@ export class LunarScene extends Phaser.Scene {
       if (!g) { g = this.add.graphics().setDepth(sortDepth(groundLine(m.y, TIPOS[m.tipo].h), H) + 0.01); this.cropGfx.set(m.uid, g); }
       const f = farmOf(sim, m.uid); g.clear();
       if (CROPS[f.crop]) {
-        const h = 1 + Math.round(f.growth * 4), ripe = f.growth >= 1;
-        const col = f.crop === "trigo" ? (ripe ? 0xf2d24f : 0x9ccf5a) : f.crop === "papa" ? (ripe ? 0x6fbf4a : 0x4fc26a) : ripe ? PAL.gold : PAL.ok;
-        g.fillStyle(col); for (const dx of [-5, -2, 1, 4]) g.fillRect(m.x + dx, m.y - h, 2, h);
-        if (f.crop === "papa" && ripe) { g.fillStyle(0xc08a4a); for (const dx of [-4, 2]) g.fillRect(m.x + dx, m.y + 1, 2, 1); }
+        const ripe = f.growth >= 1, gr = f.growth, sway = Math.sin(this.time.now / 700 + m.uid) * 0.3;
+        // Two rows of 4 little plants growing out of the soil furrows.
+        for (const row of [0.5, 3]) for (const dx of [-5.5, -2.5, 0.5, 3.5]) {
+          const bx = m.x + dx, by = m.y + row, h = 0.5 + gr * (f.crop === "trigo" ? 5 : 3);
+          if (gr < 0.12) { g.fillStyle(0x6fbf4a).fillRect(bx, by - 0.5, 1, 0.5); continue; } // sprout
+          if (f.crop === "trigo") {
+            g.fillStyle(ripe ? 0xc8a040 : 0x7fb84a).fillRect(bx + sway, by - h, 0.5, h);
+            if (gr > 0.6) g.fillStyle(ripe ? 0xf2d24f : 0xb8d86a).fillRect(bx - 0.25 + sway, by - h - 1, 1, 1.5); // grain head
+          } else if (f.crop === "papa") {
+            g.fillStyle(0x3f9a3a).fillRect(bx, by - h, 0.5, h);
+            g.fillStyle(ripe ? 0x5fb84a : 0x4fc26a).fillEllipse(bx + 0.25 + sway, by - h, 1 + gr * 1.6, 0.8 + gr);    // leafy bush
+            if (ripe) g.fillStyle(0xc08a4a).fillEllipse(bx + 0.5, by + 0.3, 1.2, 0.8);                                   // potato peeking out
+          } else {
+            g.fillStyle(ripe ? 0x9ff0b4 : 0x4fc26a, 0.95).fillEllipse(bx + 0.25 + sway, by - h / 2, 0.8 + gr, h);          // algae frond
+            if (ripe) g.fillStyle(0xd8ffe4, 0.8).fillRect(bx + 0.25, by - h + 0.3, 0.5, 0.5);                             // glow tip
+          }
+        }
         if (f.water > 0) { g.fillStyle(0x4fc3ff, 0.8).fillRect(m.x - 7, m.y + 2, Math.max(1, Math.round(14 * f.water)), 1); } // water level bar
-        else if (!ripe && Math.sin(this.time.now / 200) > 0) { g.fillStyle(0x4fc3ff).fillRect(m.x - 1, m.y - h - 5, 2, 3); } // blinking drop: needs water
+        else if (!ripe && Math.sin(this.time.now / 200) > 0) { g.fillStyle(0x4fc3ff).fillRect(m.x - 1, m.y - 9, 2, 3); } // blinking drop: needs water
       }
     }
     const alive = new Set(sim.modules.map((m) => m.uid));
@@ -801,6 +821,7 @@ export class LunarScene extends Phaser.Scene {
     this.nightFx.update(this, sim, a, inShadow, this.player.x, this.player.y, this.aimRad, lights);
     this.pixelfx.update(this, dt);
     this.terrainFx.update(this.cameras.main);
+    this.fx3.update(dt, sim, this.player, this.wantsRun && !this.winded, this.nodes, this.androidSprites.values());
     if (this.vignetteFx) {
       const danger = sim.suitO2 < 20 || sim.effects.length > 0;
       this.vignetteFx.strength = danger ? 0.34 + Math.abs(Math.sin(this.time.now / 400)) * 0.12 : 0.16;
@@ -813,7 +834,7 @@ export class LunarScene extends Phaser.Scene {
         const spk = this.add.image(l.x + Phaser.Math.Between(-3, 3), l.y, "fx_spark").setTint(Phaser.Math.RND.pick([0xf2d24f, 0xf08a24])).setDepth(37).setScale(1 / HD);
         this.tweens.add({ targets: spk, x: spk.x + Phaser.Math.Between(-6, 6), y: spk.y - Phaser.Math.Between(6, 12), alpha: 0, duration: 360, onComplete: () => spk.destroy() });
       }
-      for (const c of sim.capsules) {
+      if (this.fx3.high) for (const c of sim.capsules) {
         const gl = this.add.image(c.x + Phaser.Math.Between(-5, 5), c.y - 2, "fx_spark").setTint(0xf2d24f).setDepth(12).setScale(1 / HD);
         this.tweens.add({ targets: gl, y: gl.y - 8, alpha: 0, duration: 480, onComplete: () => gl.destroy() });
       }
@@ -878,7 +899,7 @@ export class LunarScene extends Phaser.Scene {
     // screen tint for the worst state
     const e = sim.effects;
     const color = e.includes("radiacion") ? PAL.ok : e.includes("frio") ? PAL.suitL : e.includes("calor") ? PAL.alert : e.includes("miedo") ? PAL.alien : null;
-    if (color !== null) this.tint.setFillStyle(color, 0.08 + Math.abs(Math.sin(this.time.now / 600)) * 0.08);
+    if (color !== null) this.tint.setFillStyle(color, 0.03 + Math.abs(Math.sin(this.time.now / 600)) * 0.03); // the coloured vignette does the heavy lifting
     else this.tint.setFillStyle(PAL.red, 0);
   }
 
