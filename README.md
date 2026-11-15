@@ -1,56 +1,56 @@
 # THE LAST CONTACT ON EARTH
 
-**Un videojuego de supervivencia y exploración lunar en 2D, con estética pixel art de 8 bits.**
+**A 2D lunar survival and exploration game with an 8-bit pixel art style.**
 
-Imagina estar a miles de kilómetros de la Tierra, atrapado en la Luna, con una nave dañada y recursos limitados. No hay un equipo de rescate en camino. La única forma de regresar a casa es encontrar una solución por tu cuenta.
+Imagine being thousands of kilometers away from Earth, stranded on the Moon with a damaged spacecraft and limited resources. No rescue team is coming. Your only way home is to figure out how to get there yourself.
 
-En **The Last Contact on Earth**, tendrás que explorar la superficie lunar, recolectar recursos, administrar tu oxígeno y energía, reparar tu base y producir el combustible necesario para volver a despegar.
+In **The Last Contact on Earth**, you'll explore the lunar surface, collect resources, manage your oxygen and energy, repair your base, and produce the fuel needed to launch your spacecraft back into space.
 
-Cada decisión importa. El tiempo avanza, las temperaturas cambian y los sistemas pueden fallar cuando menos lo esperas.
+Every decision matters. Time keeps moving, temperatures change, and critical systems can fail when you least expect it.
 
-## ¿Qué puedes hacer?
+## What Can You Do?
 
-- **Explorar la Luna:** recorre un escenario inspirado en el polo sur lunar y encuentra hielo, regolito y materiales aprovechables.
-- **Sobrevivir:** administra tu oxígeno, salud, temperatura y energía mientras enfrentas las condiciones del entorno.
-- **Recolectar y construir:** utiliza los recursos disponibles para fabricar herramientas, reparar equipos y mejorar tu base.
-- **Resolver emergencias:** detecta fugas y repáralas antes de perder recursos esenciales.
-- **Planear tu regreso:** recupera los sistemas de tu nave y prepara todo lo necesario para volver a la Tierra.
+- **Explore the Moon:** Travel across a landscape inspired by the lunar south pole, searching for water ice, regolith, and valuable materials.
+- **Survive:** Manage your oxygen, health, temperature, and energy while facing the challenges of the lunar environment.
+- **Collect and Build:** Gather resources to craft tools, repair equipment, and upgrade your base.
+- **Handle Emergencies:** Detect and repair leaks before losing critical resources.
+- **Plan Your Return:** Restore your spacecraft's systems and prepare everything needed to make it back to Earth.
 
-## Modos de juego
+## Game Modes
 
-**Realista:** enfréntate a los desafíos de sobrevivir en la Luna, con recursos limitados, fallas técnicas y condiciones ambientales extremas.
+**Realistic:** Face the challenges of surviving on the Moon with limited resources, technical failures, and extreme environmental conditions.
 
-**Fantástico:** además de sobrevivir, tendrás que enfrentarte a formas de vida extraterrestre.
+**Fantastic:** Survive the lunar environment while encountering extraterrestrial lifeforms.
 
-**Terrorífico:** una experiencia de mayor tensión, con amenazas más agresivas, oscuridad y recursos todavía más escasos.
+**Terrifying:** A more intense survival experience featuring aggressive threats, darker environments, and even fewer resources.
 
-## Desarrollo
+## Development
 
-The Last Contact on Earth está desarrollado con React, TypeScript, Vite y Phaser 3. Combina mecánicas de supervivencia, exploración, gestión de recursos y construcción con una identidad visual inspirada en los videojuegos clásicos de 8 bits.
+The Last Contact on Earth is built with **React, TypeScript, Vite, and Phaser 3**. It combines survival, exploration, resource management, and crafting mechanics with a visual style inspired by classic 8-bit video games.
 
-El proyecto se encuentra en desarrollo. Esta primera versión se centra en la exploración lunar, la recolección de recursos, el ciclo de día y noche, la supervivencia y la reparación de fugas.
+The project is currently in development. The first version focuses on lunar exploration, resource collection, the day-and-night cycle, survival mechanics, and leak repairs.
 
-Las siguientes versiones ampliarán las mecánicas de construcción, fabricación de combustible, comunicaciones espaciales y regreso a la Tierra.
+Future updates will expand the building and crafting systems, fuel production, space communications, and the journey back to Earth.
 
-## Ejecutar el proyecto localmente
+## Running the Project Locally
 
-Necesitas tener instalados Node.js y npm.
+Make sure you have **Node.js** and **npm** installed.
 
 ```bash
-git clone <URL_DEL_REPOSITORIO>
-cd <NOMBRE_DEL_PROYECTO>
+git clone <REPOSITORY_URL>
+cd <PROJECT_DIRECTORY>
 npm install
 npm run dev
 ```
 
-Después, abre en tu navegador la dirección local que aparezca en la terminal.
+Once the development server starts, open the local URL displayed in your terminal.
 
-## Jugar
+## Play the Game
 
-**Versión web:** https://luna-regreso-crafts.lovable.app
+**Live version:** https://luna-regreso-crafts.lovable.app
 
 ---
 
 **THE LAST CONTACT ON EARTH**
 
-*Sobrevivir es solo el comienzo. El verdadero reto es volver a casa.*
+*Survival is only the beginning. The real challenge is making it back home.*
