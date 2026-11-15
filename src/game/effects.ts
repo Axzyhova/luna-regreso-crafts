@@ -117,7 +117,8 @@ export function effectMods(s: Sim) {
   }
   if (s.perks.includes("salto_gravedad")) speed *= 1.25;
   if (s.equip.includes("botas_gravedad")) speed *= 1.15;
-  return { speed, gather, repair };
+  // Stacked effects hurt, but never make the game unplayable.
+  return { speed: Math.max(0.42, speed), gather: Math.min(2.2, gather), repair: Math.min(2, repair) };
 }
 
 /** Equip or unequip a piece of gear (max slots). Returns a message for the player. */

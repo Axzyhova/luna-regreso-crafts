@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { PAL } from "./palette";
 import { sim, useGame, saveGame } from "./store";
-import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, dropItem, TIPOS, PLACEABLE, leakAllowed, hurt, visitPoi, tendFarm, farmOf, phaseOf, ROBERT_SKINS, robertForageEvery, CROPS, seedToPlant, FARM_WATER_KG, applyBridgeKit, type Leak, toolInfo, meltIce, WATER_TANK_KG, nextLeakDelay, pickUpDrop, toggleSuit, WORLD, ZONAS, zoneAt, zoneBlock, reveal, BRIDGE, buildBridge, canUpgrade, upgradeCost, upgradeModule, lvl, type Zona, type LeakTarget, type Module, type ModType } from "./sim";
+import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, dropItem, TIPOS, PLACEABLE, leakAllowed, hurt, visitPoi, tendFarm, farmOf, stepRoversOnly, phaseOf, ROBERT_SKINS, robertForageEvery, CROPS, seedToPlant, FARM_WATER_KG, applyBridgeKit, type Leak, toolInfo, meltIce, WATER_TANK_KG, nextLeakDelay, pickUpDrop, toggleSuit, WORLD, ZONAS, zoneAt, zoneBlock, reveal, BRIDGE, buildBridge, canUpgrade, upgradeCost, upgradeModule, lvl, type Zona, type LeakTarget, type Module, type ModType } from "./sim";
 import { sfx } from "./audio";
 import { stepAliens, hitAlien, type World } from "./aliens";
 import { stepCountdown } from "./mission";
@@ -87,7 +87,7 @@ export class LunarScene extends Phaser.Scene {
   faceX = 1; faceY = 0;
   robert!: Phaser.GameObjects.Image;
   robErr: { n: RNode; t: number } | null = null; robForageT = 0;
-  stumble = { vx: 0, vy: 0, t: 0, next: 2 }; shiverT = 0;
+  stumble = { vx: 0, vy: 0, t: 0, next: 2 }; shiverT = 0; mapPubT = 0;
   touchMode = false;
   pubT = 0; saveT = 0; repairT = 0; leakT = 0; useCd = 0; facing = 1;
   constructor() { super("lunar"); }
@@ -296,7 +296,8 @@ export class LunarScene extends Phaser.Scene {
   /** Everything the astronaut bumps into: the rocket, its tanks and every built module. */
   solids(): Box[] {
     const out: Box[] = STATIC_SPRITES.map((s) => ("foot" in s ? s.foot : footprint(s.x, s.y, s.w, s.h)));
-    for (const m of sim.modules) { const t = TIPOS[m.tipo]; out.push(footprint(m.x, m.y, t.w, t.h)); }
+    // Rovers drive around, so they never block (their old parking spot used to leave an invisible wall).
+    for (const m of sim.modules) { if (m.tipo === "rover") continue; const t = TIPOS[m.tipo]; out.push(footprint(m.x, m.y, t.w, t.h)); }
     return out;
   }
   suitToggle() {
@@ -604,6 +605,8 @@ export class LunarScene extends Phaser.Scene {
     for (const m of sim.modules) {
       const half: [number, number] = [TIPOS[m.tipo].w / 2, TIPOS[m.tipo].h / 2];
       const name = TIPOS[m.tipo].nombre.toUpperCase();
+      // A damaged habitat is repaired with HOLD E (if you carry a kit); otherwise E takes you inside.
+      if (m.tipo === "habitat" && m.durabilidad < 60 && sim.inv.kits > 0) { consider({ kind: "repair", x: m.x, y: m.y, ref: m, label: "HOLD E: REPAIR HABITAT (1 KIT) · INSIDE: REPAIR BUTTON" }, half); continue; }
       if (m.tipo === "habitat") { consider({ kind: "home", x: m.x, y: m.y, ref: m, label: sim.inv.hielo > 0 ? "E: ENTER HABITAT (MELT ICE · BED · DIARY)" : "E: ENTER HABITAT (BED · DIARY · ALBUM)" }, half); continue; }
       if (m.tipo === "hidroponia" && m.activo && m.durabilidad > 0) { const f = farmOf(sim, m.uid); const c = CROPS[f.crop]; const seed = seedToPlant(sim, sim.hotbarItems[sim.hotbar - 1]);
         consider({ kind: "farm", x: m.x, y: m.y, ref: m, label: !c ? (seed ? `E: PLANT ${CROPS[seed]!.nombre.toUpperCase()}` : "NEED SEEDS (CAPSULES / CHEST) OR LUNAR ALGAE") : f.growth >= 1 ? `E: HARVEST ${c.nombre.toUpperCase()}` : f.water < 0.5 ? `E: WATER CROP (${FARM_WATER_KG} KG FROM TANK)` : `GROWING ${Math.round(f.growth * 100)}% · WATER ${Math.round(f.water * 100)}%` }, half); continue; }
@@ -691,6 +694,11 @@ export class LunarScene extends Phaser.Scene {
     if (Math.abs(this.cameras.main.zoom - wantZoom) > 0.001) this.cameras.main.setZoom(wantZoom);
     const overlay = useGame.getState().overlay;
     if (sim.respawned) { sim.respawned = false; this.player.setPosition(HAB.x, HAB.y + 30); }
+    if (overlay === "mapa" && !sim.dead) { // the map shows rovers live: keep only them moving
+      stepRoversOnly(sim, dt); this.mapPubT -= dt;
+      if (this.mapPubT <= 0) { this.mapPubT = 0.2; useGame.getState().publish(); }
+      return;
+    }
     if (overlay || sim.dead || !sim.robertMet) return;
     {
       // Mini Robert trails behind you (opposite your facing), with a little hover bob.

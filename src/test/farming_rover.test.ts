@@ -71,3 +71,15 @@ describe("where materials come from", () => {
     expect(itemSources("kits").join(" ")).toMatch(/Craft at/);
   });
 });
+
+describe("rovers on the live map", () => {
+  it("keep driving while only the rovers are stepped", async () => {
+    const { stepRoversOnly } = await import("@/game/sim");
+    const s = createSim("realista", "normal");
+    const rover = add(s, "rover");
+    const t0 = s.time;
+    for (let i = 0; i < 20; i++) stepRoversOnly(s, 0.25);
+    expect(Math.hypot(rover.rx! - rover.x, rover.ry! - rover.y)).toBeGreaterThan(50);
+    expect(s.time).toBe(t0); // the rest of the world stays paused
+  });
+});

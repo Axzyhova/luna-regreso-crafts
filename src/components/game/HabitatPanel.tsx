@@ -78,6 +78,12 @@ export function HabitatPanel() {
   };
   const suit = () => { const m = toggleSuit(sim, true); sfx.click(); setMsg(`🧑‍🚀 ${m}${!sim.suit.worn ? " — you can drink and rest now. Put it back on before going out!" : ""}`); publish(); };
   const drink = () => { const r = drinkWater(sim); if (r.ok) sfx.ok(); else sfx.bad(); setMsg(`💧 ${r.msg}`); publish(); };
+  const hab = s.modules.find((m) => m.tipo === "habitat");
+  const repair = () => {
+    const m = sim.modules.find((x) => x.tipo === "habitat");
+    if (!m || sim.inv.kits < 1) { sfx.bad(); setMsg("You need 1 Sealant kit (2 Scrap + 1 Metal)."); return; }
+    sim.inv.kits -= 1; m.durabilidad = 100; sim.stats.reparaciones++; addLog(sim, "Repaired: Habitat. -1 kit."); sfx.ok(); setMsg("🔧 Habitat repaired to 100%."); publish();
+  };
   const sleep = () => { const r = sleepUntilDawn(sim); if (r.ok) sfx.ok(); else sfx.bad(); setMsg(r.msg); publish(); if (r.ok) setView("room"); };
   const go = (v: View) => { sfx.click(); setMsg(null); setView(v); };
   const Spot = ({ x, y, w, h, label, onClick }: { x: number; y: number; w: number; h: number; label: string; onClick: () => void }) => (
@@ -96,6 +102,12 @@ export function HabitatPanel() {
           <button type="button" onClick={() => { sfx.click(); setOverlay(null); }} className="tr-btn px-2 py-1 text-[9px]">✕</button>
         </div>
         {msg && <div className="mb-2 rounded bg-black/45 px-2 py-1 text-[9px] text-ok">{msg}</div>}
+        {hab && hab.durabilidad < 90 && (
+          <div className="mb-2 flex flex-wrap items-center gap-2 rounded border border-alert/60 bg-alert/15 px-2 py-1 text-[9px]">
+            <span>⚠ Habitat condition {Math.round(hab.durabilidad)}%</span>
+            <button type="button" disabled={s.inv.kits < 1} onClick={repair} className="tr-btn tr-btn-primary px-2 py-1 text-[9px] disabled:opacity-40">🔧 REPAIR (1 Sealant kit · {s.inv.kits} left)</button>
+          </div>
+        )}
 
         <div className="min-h-0 flex-1 overflow-auto text-[9px] leading-4 text-white">
           {view === "room" && (

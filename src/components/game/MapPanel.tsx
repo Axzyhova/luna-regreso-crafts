@@ -88,6 +88,22 @@ export function MapPanel() {
       g.fillText(`${why ? "🔒 " : ""}${z.nombre}`, x * S + 8, y * S + 7);
       if (why) { g.font = "9px sans-serif"; g.fillStyle = "rgba(255,255,255,0.8)"; g.fillText(why.length > 46 ? why.slice(0, 45) + "…" : why, x * S + 8, y * S + 20); g.font = "bold 10px sans-serif"; }
     }
+    // Auto-Miner Rovers (always visible: they are yours) with their route to the site
+    const rovers = s.modules.filter((m) => m.tipo === "rover");
+    rovers.forEach((m, i) => {
+      const x = (m.rx ?? m.x) * S, y = (m.ry ?? m.y) * S;
+      if ((m.rst === "go" || m.rst === "mine") && m.tx !== undefined) {
+        g.setLineDash([3, 3]); g.strokeStyle = "rgba(255,170,60,0.75)"; g.lineWidth = 1;
+        g.beginPath(); g.moveTo(x, y); g.lineTo(m.tx * S, m.ty! * S); g.stroke(); g.setLineDash([]);
+      }
+      g.fillStyle = "#1b1b22"; g.fillRect(x - 5, y - 4, 10, 8);
+      g.fillStyle = m.rst === "idle" && m.note && /full|reach|chest/i.test(m.note) ? "#ff5c5c" : "#ffaa3c"; g.fillRect(x - 4, y - 3, 8, 6);
+      g.fillStyle = "#1b1b22"; g.fillRect(x - 4, y + 3, 2, 2); g.fillRect(x + 2, y + 3, 2, 2);
+      g.font = "bold 8px sans-serif"; g.textAlign = "center"; g.textBaseline = "bottom";
+      const label = `R${i + 1}`;
+      g.fillStyle = "rgba(0,0,0,0.75)"; g.fillRect(x - 8, y - 15, 16, 10);
+      g.fillStyle = "#ffcf8a"; g.fillText(label, x, y - 5);
+    });
     // player
     g.fillStyle = "#3b8fe6"; g.strokeStyle = "#ffffff"; g.lineWidth = 2;
     g.beginPath(); g.arc(s.pos.x * S, s.pos.y * S, 5, 0, Math.PI * 2); g.fill(); g.stroke();
@@ -113,6 +129,16 @@ export function MapPanel() {
           <button type="button" onClick={() => setOverlay(null)} className="tr-btn px-2 py-1 text-[9px]">✕</button>
         </div>
         <canvas ref={ref} onClick={handleClick} width={WORLD.w * S} height={WORLD.h * S} className="min-h-0 w-full flex-1 cursor-crosshair rounded-[6px] border-2 border-[#0b1230] object-contain [image-rendering:pixelated]" aria-label="World map" />
+        {s.modules.some((m) => m.tipo === "rover") && (
+          <div className="mt-2 flex flex-wrap gap-1.5 text-[8px]">
+            <span className="animate-pulse text-[#ff5c5c]">● LIVE</span>
+            {s.modules.filter((m) => m.tipo === "rover").map((m, i) => (
+              <span key={m.uid} className="rounded bg-black/50 px-1.5 py-0.5 text-white/85">
+                <b className="text-[#ffcf8a]">R{i + 1}</b> {ITEMS[m.mat ?? "regolito"]?.nombre} · {m.rst === "go" ? "driving out" : m.rst === "mine" ? "mining" : m.rst === "back" ? `returning (${m.load ?? 0})` : (m.note ?? "waiting")} · ({Math.round(m.rx ?? m.x)}, {Math.round(m.ry ?? m.y)})
+              </span>
+            ))}
+          </div>
+        )}
         {selected && (
           <div className="mt-2 rounded bg-black/55 px-2.5 py-1.5 text-[9px] text-white">
             <div className="flex items-center justify-between gap-2">
@@ -130,6 +156,7 @@ export function MapPanel() {
           <span><b className="text-[#3b8fe6]">●</b> You</span><span><b className="text-[#7fa8ff]">■</b> Habitat</span><span><b className="text-white">▮</b> Rocket</span>
           <span><b className="text-[#4ee68a]">●</b> Resource Land</span><span><b className="text-[#ff5c77]">●</b> Far Boss Zone</span>
           {s.specialCase && <span><b className="text-gold">★</b> Special Case</span>}
+          <span><b className="text-[#ffaa3c]">■</b> Auto-Miner (live) <span className="text-white/50">- - route</span></span>
           <span>■ ? Unexplored</span><span>🔒 Locked zone</span>
           <span className="ml-auto text-white/60">Click a site pin for details</span>
         </div>

@@ -775,6 +775,11 @@ export function roverSite(s: Sim, mat: string, from: { x: number; y: number }) {
   }
   return best;
 }
+/** Advance only the Auto-Miner Rovers (used while the map is open, so you can watch them live). */
+export function stepRoversOnly(s: Sim, dt: number) {
+  const chests = s.modules.filter((m) => m.tipo === "cofre");
+  for (const m of s.modules) if (m.tipo === "rover" && isOn(m)) stepRover(s, m, dt, chests);
+}
 function stepRover(s: Sim, m: Module, dt: number, chests: Module[]) {
   m.rx ??= m.x; m.ry ??= m.y; m.rst ??= "idle"; m.mat ??= "regolito"; m.load ??= 0;
   const home = chests.reduce<Module | undefined>((b, c) => (!b || Math.hypot(c.x - m.x, c.y - m.y) < Math.hypot(b.x - m.x, b.y - m.y) ? c : b), undefined);
