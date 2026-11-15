@@ -5,6 +5,7 @@ import { recipeBlock, craft, addLog, TIPOS, STACK, SLOTS, type Receta } from "@/
 import { ITEMS, INV_ORDER } from "@/game/items";
 import { sfx } from "@/game/audio";
 import { PixelIcon } from "./PixelIcon";
+import { itemSources } from "@/game/sources";
 
 const TITLE = { taller: "WORKSHOP", horno: "FURNACE" } as const;
 const NOTE = {
@@ -23,6 +24,19 @@ function Slot({ item, n, big, warn, active, dim, onClick, title }: { item?: stri
   );
 }
 
+function WhereBox({ item, onClose }: { item: string; onClose: () => void }) {
+  return (
+    <div className="mt-1 rounded border border-suit-light/60 bg-black/50 p-2 text-[8px] leading-4 text-white">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1 text-gold"><PixelIcon item={item} size={14} /> 📍 Where to get {ITEMS[item]?.nombre ?? item}</span>
+        <button type="button" onClick={onClose} className="text-white/60 hover:text-white">✕</button>
+      </div>
+      <ul className="mt-1 list-disc pl-4">{itemSources(item).map((w) => <li key={w}>{w}</li>)}</ul>
+      {!itemSources(item).length && <p className="text-white/70">No known source yet.</p>}
+    </div>
+  );
+}
+
 /**
  * Crafting-station interface (opened with E at the Workshop or Furnace): recipe list on
  * the left, the selected recipe as ingredients → result, and your inventory below.
@@ -34,6 +48,7 @@ export function StationPanel() {
   const station = s.station ?? "taller";
   const list = recetas.filter((r) => r.lugar === station || r.lugar === "mano");
   const [selId, setSelId] = useState(list[0]?.id ?? "");
+  const [where, setWhere] = useState<string | null>(null);
   const sel: Receta | undefined = list.find((r) => r.id === selId) ?? list[0];
   const inv = s.inv as unknown as Record<string, number>;
   const mod = s.modules.find((m) => m.uid === s.stationUid);
@@ -99,13 +114,14 @@ export function StationPanel() {
                     if (!ing) return <Slot key={i} />;
                     const [k, need] = ing;
                     const have = Math.floor(inv[k] ?? 0);
-                    return <Slot key={i} item={k} n={`${have}/${need}`} warn={have < (need ?? 0)} title={ITEMS[k]?.nombre} />;
+                    return <Slot key={i} item={k} n={`${have}/${need}`} warn={have < (need ?? 0)} title={`${ITEMS[k]?.nombre ?? k} — tap: where to get it`} onClick={() => { sfx.click(); setWhere(where === k ? null : k); }} active={where === k} />;
                   })}
                 </div>
                 <span className="tr-title text-[22px] text-white/80">➜</span>
                 <Slot item={result[0]} n={result[1]} big dim={!!block} title={ITEMS[result[0]]?.nombre} />
               </div>
               <p className="text-[9px] leading-4 text-white/80">{ITEMS[result[0]]?.desc}</p>
+              {where ? <WhereBox item={where} onClose={() => setWhere(null)} /> : <p className="text-[8px] text-suit-light">Tip: tap an ingredient to see where to find it.</p>}
               {"ref" in sel && sel.ref && <p className="rounded bg-[#e8f0ff] px-1.5 py-1 text-[8px] leading-4 text-[#1d3f8a]">🚀 {String(sel.ref)}</p>}
               <div className="flex items-center gap-2">
                 <button type="button" disabled={!!block} onClick={() => { if (craft(sim, sel)) { sfx.ok(); publish(); } else sfx.bad(); }}

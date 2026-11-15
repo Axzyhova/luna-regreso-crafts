@@ -8,7 +8,7 @@ export const UMBRALES = cfg.umbrales;
 export const EQUIPO_MAX = cfg.equipo_max;
 export const GEAR = ["traje_termico", "capa_reflectante", "escudo_radiacion", "armadura_lunar", "botas_gravedad"];
 /** Items you use up from the inventory or the hotbar. Water is drunk from the suit's drink bag. */
-export const CONSUMIBLES = ["botiquin", "estimulante", "racion", "comida_caliente", "agua"];
+export const CONSUMIBLES = ["botiquin", "estimulante", "racion", "comida_caliente", "papa_horneada", "pan", "galleta", "agua"];
 const PSYCH_EFFECTS: EffectId[] = ["vertigo_gravedad", "aislamiento", "panico"];
 
 export const PERKS: Record<string, { nombre: string; icono: string; desc: string }> = {
@@ -153,10 +153,17 @@ export function consumeItem(s: Sim, item: string): boolean {
     if (s.psychEffect && (s.psychEffect.id === "vertigo_gravedad" || s.psychEffect.id === "aislamiento")) s.psychEffect = null;
     addLog(s, "🍲 You ate a Hot meal: +45 health, +25 sanity, Cold & Vertigo cleared.");
   }
+  const FARM_FOOD: Record<string, [number, number, number, string]> = { papa_horneada: [30, 15, 10, "🥔 Baked potato"], pan: [35, 15, 0, "🍞 Bread"], galleta: [15, 25, 0, "🍪 Space cookies"] };
+  const ff = FARM_FOOD[item];
+  if (ff) {
+    s.health = Math.min(100, s.health + ff[0]); s.sanity = Math.min(100, s.sanity + ff[1]); s.hydration = Math.min(100, s.hydration + ff[2]);
+    if (item === "papa_horneada") s.coldT = 0;
+    addLog(s, `${ff[3]}: +${ff[0]} health, +${ff[1]} sanity.`);
+  }
   return true;
 }
 
-const CONSUME_MSG: Record<string, string> = { botiquin: "Health +40", estimulante: "Fatigue gone", racion: "Health +25 · sanity +15", comida_caliente: "Health +45 · sanity +25 · warm again" };
+const CONSUME_MSG: Record<string, string> = { botiquin: "Health +40", estimulante: "Fatigue gone", racion: "Health +25 · sanity +15", comida_caliente: "Health +45 · sanity +25 · warm again", papa_horneada: "Health +30 · sanity +15 · warm", pan: "Health +35 · sanity +15", galleta: "Health +15 · sanity +25" };
 /** Use a consumable and say what happened, for the on-screen message. */
 export function applyConsumable(s: Sim, item: string): { ok: boolean; msg: string } {
   if (item === "agua") return drinkWater(s);

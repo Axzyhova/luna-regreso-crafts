@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { itemSources } from "@/game/sources";
 import recetas from "@/data/recetas.json";
 import { useGame, sim } from "@/game/store";
 import { SLOTS, STACK, WATER_TANK_KG, usedSlots, recipeBlock, craft, dropItem, pourWater, healInHabitat } from "@/game/sim";
@@ -33,6 +34,7 @@ export function Inventory() {
   const [tab, setTab] = useState<"inv" | "craft">("inv");
   const [sel, setSel] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [where, setWhere] = useState<string | null>(null);
   const inv = s.inv as unknown as Record<string, number>;
   const cells = Array.from({ length: SLOTS }, (_, i) => inventoryStacks(inv)[i] ?? null);
   const say = (m: string) => { setNote(m); setTimeout(() => setNote((c) => (c === m ? null : c)), 2600); };
@@ -147,6 +149,7 @@ export function Inventory() {
         </div>
       ) : (
         <div className="space-y-1.5">
+          <div className="text-[7px] text-suit-light">Tip: tap an ingredient name to see where to find it.</div>
           <div className="text-[7px] text-white/60">Near: {s.near.taller ? <span className="text-ok">Workshop</span> : "—"} {s.near.horno ? <span className="text-ok">· Furnace</span> : ""}</div>
           {recetas.map((r) => {
             const block = recipeBlock(s, r);
@@ -158,10 +161,13 @@ export function Inventory() {
                     <div>{r.nombre} <span className="text-[6px] text-suit-light">[{r.lugar === "mano" ? "BY HAND" : r.lugar.toUpperCase()}]</span></div>
                     <div className="mt-0.5 flex flex-wrap gap-x-2">
                       {Object.entries(r.ingredientes).map(([k, v]) => (
-                        <span key={k} className={(inv[k] ?? 0) >= (v ?? 0) ? "text-white/60" : "text-destructive"}>{v} {ITEMS[k]?.nombre ?? k} ({Math.floor(inv[k] ?? 0)})</span>
+                        <button type="button" key={k} onClick={() => { sfx.click(); setWhere(where === `${r.id}:${k}` ? null : `${r.id}:${k}`); }} title="Where to get it" className={`underline decoration-dotted ${(inv[k] ?? 0) >= (v ?? 0) ? "text-white/60" : "text-destructive"}`}>{v} {ITEMS[k]?.nombre ?? k} ({Math.floor(inv[k] ?? 0)})</button>
                       ))}
                     </div>
                     {block && block !== "Missing materials" && <div className="text-[6px] text-alert">{block}</div>}
+                    {where?.startsWith(`${r.id}:`) && (() => { const k = where.slice(r.id.length + 1); return (
+                      <div className="mt-1 rounded bg-black/45 px-1.5 py-1 text-[7px] leading-4 text-white">📍 {ITEMS[k]?.nombre ?? k}: {itemSources(k).join(" · ") || "no known source yet"}</div>
+                    ); })()}
                   </div>
                 </div>
                 <button disabled={!!block} onClick={() => { if (craft(sim, r)) { sfx.ok(); publish(); } }} className="tr-btn tr-btn-primary px-2 py-1 disabled:opacity-30">CRAFT</button>

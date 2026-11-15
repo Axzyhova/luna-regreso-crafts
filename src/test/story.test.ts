@@ -78,7 +78,7 @@ describe("cápsulas de suministro", () => {
     const found = openCapsule(s, c.id, () => 0.01);
     expect(found.length).toBeGreaterThan(0);
     expect(s.stats.capsulas).toBe(1);
-    expect(rollLoot(() => 0.999).item).toBe("baterias");
+    expect(rollLoot(() => 0.999).item).toBe("semilla_trigo"); // seeds are the last loot entries
   });
 });
 

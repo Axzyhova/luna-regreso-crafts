@@ -1,3 +1,4 @@
+import { ITEMS } from "./items";
 import modos from "@/data/modos.json";
 import modulos from "@/data/modulos.json";
 import recetas from "@/data/recetas.json";
@@ -19,7 +20,9 @@ export interface TipoInfo { nombre: string; energia: number; desgaste: number; w
 export const TIPOS = modulos.tipos as Record<ModType, TipoInfo>;
 export type AlienTipo = "abductor" | "rastreador" | "saboteador" | "nodriza";
 export interface Alien { id: number; tipo: AlienTipo; x: number; y: number; hp: number; stun: number; target?: LeakTarget | undefined }
-export interface Module { uid: number; tipo: ModType; x: number; y: number; durabilidad: number; activo: boolean; level?: number; acc?: number; tick?: number }
+export interface Module { uid: number; tipo: ModType; x: number; y: number; durabilidad: number; activo: boolean; level?: number; acc?: number; tick?: number;
+  /** Rover trip state: live position, phase, chosen material and cargo. */
+  rx?: number; ry?: number; rst?: "go" | "mine" | "back" | "idle"; mat?: string; load?: number; tx?: number; ty?: number; note?: string }
 export const STACK = 50;
 export const SLOTS = 20;
 /** Inventory item -> module type it places. */
@@ -33,7 +36,7 @@ export const CYCLE = DAY_LEN + NIGHT_LEN;
 export const LH2_CAP = balance.lh2_cap_kg;
 export const LOX_CAP = balance.lox_cap_kg;
 
-export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cofre: number; puente_kit: number; rover: number; biorreactor: number; hidroponia: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number; alga_lunar: number; racion: number; comida_caliente: number; pico_plasma: number; armadura_lunar: number; botas_gravedad: number }
+export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cofre: number; puente_kit: number; rover: number; biorreactor: number; hidroponia: number; semilla_papa: number; semilla_trigo: number; papa: number; trigo: number; papa_horneada: number; pan: number; galleta: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number; alga_lunar: number; racion: number; comida_caliente: number; pico_plasma: number; armadura_lunar: number; botas_gravedad: number }
 
 export function createSim(mode: Mode, difficulty: Difficulty) {
   return {
@@ -43,7 +46,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     battery: 60, energyIn: 0, energyOut: 0,
     habitatO2: 80,
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
-    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: difficulty === "facil" ? 3 : 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cofre: 0, puente_kit: 0, rover: 0, biorreactor: 0, hidroponia: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0, alga_lunar: 0, racion: difficulty === "facil" ? 1 : 0, comida_caliente: 0, pico_plasma: 0, armadura_lunar: 0, botas_gravedad: 0 } as Inv,
+    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: difficulty === "facil" ? 3 : 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cofre: 0, puente_kit: 0, rover: 0, biorreactor: 0, hidroponia: 0, semilla_papa: 0, semilla_trigo: 0, papa: 0, trigo: 0, papa_horneada: 0, pan: 0, galleta: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0, alga_lunar: 0, racion: difficulty === "facil" ? 1 : 0, comida_caliente: 0, pico_plasma: 0, armadura_lunar: 0, botas_gravedad: 0 } as Inv,
     relay: false,
     // --- historia, efectos, eventos y botín ---
     effects: [] as string[],
@@ -55,12 +58,14 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     pois: [] as string[],
     scanner: false,
     destino: "earth" as "earth" | "mars",
-    chests: {} as Record<string, Record<string, number>>,
+    // The base chest starts with a few seeds for the hydroponic farm.
+    chests: { [String(modulos.iniciales.findIndex((m) => m.tipo === "cofre") + 1)]: { semilla_papa: 2, semilla_trigo: 2 } } as Record<string, Record<string, number>>,
     modStatus: {} as Record<number, "ok" | "nopower" | "idle" | "off">,
     archive: [] as string[],
     // Exploration: fog-of-war cells (1 = seen), last position, zones visited, ravine bridge, hive creatures.
     explored: [] as number[],
     pos: { x: 110, y: 200 },
+    worldW: zonasCfg.mundo.w, // map size this save was made on (the map shrank 30% once)
     visited: ["base"] as string[],
     subzonesVisited: [] as string[],
     bridge: false,
@@ -144,9 +149,10 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     leakFreeNight: true,
     drillAcc: 0,
     shed: false,
-    robertMet: false, // saw Mini Robert's mandatory intro
+    robertMet: false,
+    roverUid: null as number | null, // rover whose panel is open // saw Mini Robert's mandatory intro
     machineFx: [] as { x: number; y: number; text: string }[],
-    farms: {} as Record<string, { crop: number; growth: number }>,
+    farms: {} as Record<string, { crop: string | number; growth: number; water?: number }>,
   };
 }
 export type Sim = ReturnType<typeof createSim>;
@@ -729,17 +735,8 @@ export function stepBaseTech(s: Sim, dt: number, day: boolean) {
   const inv = s.inv as unknown as Record<string, number>;
   for (const m of s.modules) {
     if (!isOn(m)) continue;
-    if (m.tipo === "rover") { // own radioisotope power: works day and night
-      if (!chests.length) { s.modStatus[m.uid] = "idle"; continue; }
-      m.acc = (m.acc ?? 0) + dt / ROVER_PERIOD_S;
-      while (m.acc >= 1) {
-        m.acc -= 1; m.tick = (m.tick ?? 0) + 1;
-        const item = m.tick % 2 === 0 ? "hielo" : "regolito";
-        const target = chests.find((c) => moveIntoChest(s, c.uid, item, 1));
-        if (!target) s.modStatus[m.uid] = "idle";
-        else { s.modStatus[m.uid] = "ok"; s.machineFx.push({ x: m.x, y: m.y - 8, text: `+1 ${item === "hielo" ? "Ice" : "Regolith"} → chest` }); }
-      }
-    } else if (m.tipo === "biorreactor") {
+    if (m.tipo === "rover") stepRover(s, m, dt, chests); // own radioisotope power: works day and night
+    else if (m.tipo === "biorreactor") {
       if (!powered) { s.modStatus[m.uid] = "nopower"; continue; }
       const water = 0.02 * dt;
       if (s.inv.agua < water) { s.modStatus[m.uid] = "idle"; continue; }
@@ -757,32 +754,116 @@ export function stepBaseTech(s: Sim, dt: number, day: boolean) {
   if (s.machineFx.length > 12) s.machineFx.splice(0, s.machineFx.length - 12);
 }
 
-// ---- Hydroponic farm: plant Lunar algae with E, it grows on water (and grow-lamp power), harvest with E ----
-export const FARM_GROW_S = 90;          // seconds to grow with power (half speed without)
-export const FARM_HARVEST = 3;          // algae per harvest (plant 1, get 3)
-export function farmOf(s: Sim, uid: number) { return (s.farms[String(uid)] ??= { crop: 0, growth: 0 }); }
-function stepFarm(s: Sim, m: Module, dt: number, powered: boolean) {
-  const f = farmOf(s, m.uid);
-  if (!f.crop || f.growth >= 1) { s.modStatus[m.uid] = f.crop ? "ok" : "idle"; return; }
-  const water = 0.005 * dt;
-  if (s.inv.agua < water) { s.modStatus[m.uid] = "idle"; return; }
-  s.inv.agua -= water;
-  f.growth = Math.min(1, f.growth + (dt / FARM_GROW_S) * (powered ? 1 : 0.5) * lvMult(m));
-  s.modStatus[m.uid] = powered ? "ok" : "nopower";
-  if (f.growth >= 1) s.machineFx.push({ x: m.x, y: m.y - 10, text: "Algae ready!" });
-}
-/** E on a farm: plant if empty, harvest if ripe. Returns a message for the player. */
-export function tendFarm(s: Sim, m: Module): string {
-  const f = farmOf(s, m.uid);
-  if (!f.crop) {
-    if (s.inv.alga_lunar < 1) return "Need 1 Lunar algae to plant (Shadowed Crater / Glacial Rift)";
-    s.inv.alga_lunar -= 1; f.crop = 1; f.growth = 0;
-    return "🌱 Planted Lunar algae. Keep water in the tank.";
+// ---- Auto-Miner Rover: drives to where its material is, mines, drives back and fills the chest ----
+export const ROVER_MATS = ["regolito", "hielo", "chatarra", "metal", "alga_lunar", "cristal_hielo", "titanio", "aleacion"] as const;
+export const ROVER_SPEED = 45;   // world px per second
+export const ROVER_MINE_S = 6;   // seconds digging at the site
+export const ROVER_LOAD = 3;     // units per trip
+type SubzonaCfg = { id: string; zona: string; nombre: string; x: number; y: number; recursos: string[] };
+const SITES = (zonasCfg.subzonas ?? []) as SubzonaCfg[];
+/** Nearest place (subzone) that has this material and that the rover can reach (the Hive needs the bridge). */
+export function roverSite(s: Sim, mat: string, from: { x: number; y: number }) {
+  let best: SubzonaCfg | undefined, bd = Infinity;
+  for (const z of SITES) {
+    if (!z.recursos.includes(mat) || (z.zona === "hive" && !s.bridge)) continue;
+    const d = Math.hypot(z.x - from.x, z.y - from.y);
+    if (d < bd) { bd = d; best = z; }
   }
-  if (f.growth < 1) return `🌱 Growing… ${Math.round(f.growth * 100)}%${s.inv.agua <= 0 ? " (NO WATER: melt ice)" : ""}`;
-  if (!addItem(s, "alga_lunar", FARM_HARVEST)) return "Inventory full";
-  f.crop = 0; f.growth = 0;
-  return `🌿 Harvested +${FARM_HARVEST} Lunar algae`;
+  return best;
+}
+function stepRover(s: Sim, m: Module, dt: number, chests: Module[]) {
+  m.rx ??= m.x; m.ry ??= m.y; m.rst ??= "idle"; m.mat ??= "regolito"; m.load ??= 0;
+  const home = chests.reduce<Module | undefined>((b, c) => (!b || Math.hypot(c.x - m.x, c.y - m.y) < Math.hypot(b.x - m.x, b.y - m.y) ? c : b), undefined);
+  if (!home) { m.rst = "idle"; m.note = "Needs a storage chest"; s.modStatus[m.uid] = "idle"; return; }
+  const drive = (x: number, y: number) => {
+    const dx = x - m.rx!, dy = y - m.ry!, d = Math.hypot(dx, dy), step = ROVER_SPEED * dt;
+    if (d <= step) { m.rx = x; m.ry = y; return true; }
+    m.rx! += (dx / d) * step; m.ry! += (dy / d) * step; return false;
+  };
+  s.modStatus[m.uid] = "ok";
+  if (m.rst === "idle") {
+    const site = roverSite(s, m.mat, { x: m.rx, y: m.ry });
+    if (!site) { m.note = "That material is out of reach (build the bridge)"; s.modStatus[m.uid] = "idle"; return; }
+    m.tx = site.x; m.ty = site.y; m.rst = "go"; m.note = `Heading to ${site.nombre}`;
+  }
+  if (m.rst === "go" && drive(m.tx!, m.ty!)) { m.rst = "mine"; m.acc = 0; m.note = "Mining…"; }
+  else if (m.rst === "mine") {
+    m.acc = (m.acc ?? 0) + dt;
+    if (m.acc >= ROVER_MINE_S) { m.load = ROVER_LOAD; m.rst = "back"; m.note = "Returning to base"; }
+  } else if (m.rst === "back" && drive(home.x, home.y + 10)) {
+    const name = ITEMS[m.mat]?.nombre ?? m.mat;
+    let put = 0;
+    while (put < (m.load ?? 0) && moveIntoChest(s, home.uid, m.mat, 1)) put++;
+    m.load = (m.load ?? 0) - put;
+    if (put) { s.machineFx.push({ x: home.x, y: home.y - 10, text: `+${put} ${name} → chest` }); m.tick = (m.tick ?? 0) + put; }
+    if (m.load > 0) { m.note = "Chest full: empty it"; s.modStatus[m.uid] = "idle"; return; }
+    m.rst = "idle"; m.note = "Unloaded";
+  }
+}
+/** Pick the rover's material (from its panel); it heads out on the next trip. */
+export function setRoverMat(s: Sim, m: Module, mat: string) {
+  if (!(ROVER_MATS as readonly string[]).includes(mat)) return false;
+  m.mat = mat; if (m.rst !== "back") m.rst = "idle";
+  return true;
+}
+
+// ---- Hydroponic farm: plant Lunar algae with E, it grows on water (and grow-lamp power), harvest with E ----
+export const FARM_GROW_S = 90;          // algae: seconds to grow with power (half speed without)
+export const FARM_HARVEST = 3;          // algae per harvest (plant 1, get 3)
+export const FARM_WATER_S = 60;         // one watering lasts this long
+export const FARM_WATER_KG = 2;         // tank water per watering
+/** What a farm can grow: the seed you plant, what you cut, and how long it takes. */
+export const CROPS: Record<string, { seed: string; out: string; n: number; back: number; grow: number; nombre: string }> = {
+  alga_lunar: { seed: "alga_lunar", out: "alga_lunar", n: FARM_HARVEST, back: 0, grow: FARM_GROW_S, nombre: "Lunar algae" },
+  papa: { seed: "semilla_papa", out: "papa", n: 3, back: 1, grow: 120, nombre: "Potatoes" },
+  trigo: { seed: "semilla_trigo", out: "trigo", n: 4, back: 1, grow: 150, nombre: "Wheat" },
+};
+export function farmOf(s: Sim, uid: number) {
+  const f = (s.farms[String(uid)] ??= { crop: "", growth: 0, water: 0 });
+  if (f.crop === 1) f.crop = "alga_lunar"; else if (f.crop === 0) f.crop = ""; // older saves
+  f.water ??= 1;
+  return f as { crop: string; growth: number; water: number };
+}
+function stepFarm(s: Sim, m: Module, dt: number, powered: boolean) {
+  const f = farmOf(s, m.uid), c = CROPS[f.crop];
+  if (!c || f.growth >= 1) { s.modStatus[m.uid] = c ? "ok" : "idle"; return; }
+  if (f.water <= 0) { s.modStatus[m.uid] = "idle"; return; } // dry: needs watering
+  f.water = Math.max(0, f.water - dt / FARM_WATER_S);
+  if (f.water === 0) s.machineFx.push({ x: m.x, y: m.y - 10, text: "Needs water!" });
+  f.growth = Math.min(1, f.growth + (dt / c.grow) * (powered ? 1 : 0.5) * lvMult(m));
+  s.modStatus[m.uid] = powered ? "ok" : "nopower";
+  if (f.growth >= 1) s.machineFx.push({ x: m.x, y: m.y - 10, text: `${c.nombre} ready!` });
+}
+/** The seed E would plant now: the one in your hand if it is a seed, else potatoes, wheat, algae. */
+export function seedToPlant(s: Sim, held?: string | null) {
+  const inv = s.inv as unknown as Record<string, number>;
+  const byHeld = Object.entries(CROPS).find(([, c]) => c.seed === held && (inv[c.seed] ?? 0) >= 1);
+  if (byHeld) return byHeld[0];
+  return ["papa", "trigo", "alga_lunar"].find((k) => (inv[CROPS[k]!.seed] ?? 0) >= 1);
+}
+/** E on a farm: plant if empty, water if dry, cut (harvest) if ripe. Returns a message for the player. */
+export function tendFarm(s: Sim, m: Module, held?: string | null): string {
+  const f = farmOf(s, m.uid);
+  const inv = s.inv as unknown as Record<string, number>;
+  const c = CROPS[f.crop];
+  if (!c) {
+    const k = seedToPlant(s, held);
+    if (!k) return "No seeds: find Potato / Wheat seeds in capsules and chests, or use Lunar algae";
+    inv[CROPS[k]!.seed]! -= 1; f.crop = k; f.growth = 0; f.water = 0;
+    return `🌱 Planted ${CROPS[k]!.nombre}. Now WATER it (E, ${FARM_WATER_KG} kg from the tank).`;
+  }
+  if (f.growth < 1) {
+    if (f.water < 0.5) {
+      if (s.inv.agua < FARM_WATER_KG) return "💧 Not enough water in the tank: melt ice at the habitat";
+      s.inv.agua -= FARM_WATER_KG; f.water = 1;
+      return `💧 Watered. ${c.nombre} growing… ${Math.round(f.growth * 100)}%`;
+    }
+    return `🌱 ${c.nombre} growing… ${Math.round(f.growth * 100)}% · water ${Math.round(f.water * 100)}%`;
+  }
+  if (!addItem(s, c.out as keyof Inv, c.n)) return "Inventory full";
+  if (c.back) giveItem(s, c.seed as keyof Inv, c.back);
+  f.crop = ""; f.growth = 0; f.water = 0;
+  return `✂ Harvested +${c.n} ${ITEMS[c.out]?.nombre ?? c.out}${c.back ? ` (+${c.back} seed back)` : ""}. Cook it at the Furnace!`;
 }
 
 /** Put an item straight into a chest (used by machines). */

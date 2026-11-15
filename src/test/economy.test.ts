@@ -106,7 +106,7 @@ describe("storage chest", () => {
   });
 
   it("deposits and withdrawals conserve every item and respect the capacity", () => {
-    const s = fresh(); const uid = s.modules.find((m) => m.tipo === "cofre")!.uid; s.inv.metal = 40;
+    const s = fresh(); const uid = s.modules.find((m) => m.tipo === "cofre")!.uid; s.chests[String(uid)] = {}; s.inv.metal = 40; // start empty (no starter seeds)
     expect(moveToChest(s, uid, "metal", 25)).toBe(25); expect(s.inv.metal).toBe(15);
     expect(moveFromChest(s, uid, "metal", 10)).toBe(10); expect(s.inv.metal).toBe(25);
     s.inv.metal = STACK * (CHEST_SLOTS + 2);
@@ -157,7 +157,7 @@ describe("tools matter", () => {
 
 describe("every recipe can actually be made", () => {
   it("each result is reachable from raw resources (nothing needs its own output, nothing is orphaned)", () => {
-    const raw = new Set(["hielo", "agua", "regolito", "chatarra", "titanio", "cristal_hielo", "aleacion", "metal", "kits", "alga_lunar"]);
+    const raw = new Set(["hielo", "agua", "regolito", "chatarra", "titanio", "cristal_hielo", "aleacion", "metal", "kits", "alga_lunar", "papa", "trigo"]); // crops come from the farm
     const have = new Set(raw);
     for (let pass = 0; pass < 30; pass++) for (const r of recetas) if (Object.keys(r.ingredientes).every((k) => have.has(k))) for (const k of Object.keys(r.resultado)) have.add(k);
     const stuck = recetas.filter((r) => !Object.keys(r.resultado).every((k) => have.has(k))).map((r) => r.id);

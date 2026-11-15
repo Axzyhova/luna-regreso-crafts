@@ -73,8 +73,8 @@ describe("rewards are never lost to a full inventory", () => {
 
 describe("special cases are where their text says", () => {
   it("the cryo vein is in the Frozen Basin and the thermal anomaly in the Scorch Fields", () => {
-    expect(zoneAt(300, 800).id).toBe("ice");
-    expect(zoneAt(1400, 200).id).toBe("fire");
-    expect(zoneAt(920, 160).id).toBe("base");
+    expect(zoneAt(210, 560).id).toBe("ice"); // map shrunk 30%
+    expect(zoneAt(980, 140).id).toBe("fire");
+    expect(zoneAt(644, 112).id).toBe("base");
   });
 });

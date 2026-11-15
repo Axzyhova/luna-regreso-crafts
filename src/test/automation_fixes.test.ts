@@ -21,7 +21,9 @@ describe("automation fixes", () => {
     s.inv.alga_lunar = 1; s.inv.agua = 50; s.battery = 50;
     expect(tendFarm(s, farm)).toMatch(/Planted/);
     expect(s.inv.alga_lunar).toBe(0);
-    for (let i = 0; i < FARM_GROW_S * 2 + 4; i++) stepBaseTech(s, 0.5, true);
+    for (let i = 0; i < 20; i++) stepBaseTech(s, 0.5, true);
+    expect(farmOf(s, farm.uid).growth).toBe(0); // dry: nothing grows until you water it
+    for (let i = 0; i < FARM_GROW_S * 2 + 4; i++) { if (farmOf(s, farm.uid).water < 0.5) expect(tendFarm(s, farm)).toMatch(/Watered|Harvested|growing/); stepBaseTech(s, 0.5, true); }
     expect(farmOf(s, farm.uid).growth).toBe(1);
     expect(tendFarm(s, farm)).toMatch(/Harvested/);
     expect(s.inv.alga_lunar).toBe(FARM_HARVEST);

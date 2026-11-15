@@ -1,8 +1,8 @@
 {
  "nota": "World regions. Coordinates in world px (the world is 2560x1440).",
  "mundo": {
-  "w": 2560,
-  "h": 1440
+  "w": 1792,
+  "h": 1008
  },
  "celda_niebla": 64,
  "radio_vision": 110,
@@ -13,8 +13,8 @@
    "rect": [
     0,
     0,
-    1280,
-    720
+    896,
+    504
    ],
    "color": "#45454f",
    "suelo": "#45454f"
@@ -24,9 +24,9 @@
    "nombre": "Frozen Basin",
    "rect": [
     0,
-    720,
-    1280,
-    720
+    504,
+    896,
+    504
    ],
    "color": "#26456e",
    "suelo": "#32557e",
@@ -41,10 +41,10 @@
    "id": "fire",
    "nombre": "Scorch Fields",
    "rect": [
-    1280,
+    896,
     0,
-    1280,
-    720
+    896,
+    504
    ],
    "color": "#6e3418",
    "suelo": "#7a3e20",
@@ -59,10 +59,10 @@
    "id": "hive",
    "nombre": "Alien Hive",
    "rect": [
-    1280,
-    720,
-    1280,
-    720
+    896,
+    504,
+    896,
+    504
    ],
    "color": "#3c1a4e",
    "suelo": "#3a2448",
@@ -74,8 +74,8 @@
   }
  ],
  "puente": {
-  "x": 1920,
-  "y": 712,
+  "x": 1344,
+  "y": 498,
   "costo": {
    "puente_kit": 1
   }
@@ -93,9 +93,9 @@
    "zona": "base",
    "nombre": "Scrapyard Flats",
    "tipo": "recurso",
-   "x": 920,
-   "y": 160,
-   "radio": 95,
+   "x": 644,
+   "y": 112,
+   "radio": 66,
    "recursos": [
     "chatarra",
     "metal"
@@ -108,9 +108,9 @@
    "zona": "base",
    "nombre": "Shadowed Crater",
    "tipo": "recurso",
-   "x": 640,
-   "y": 520,
-   "radio": 130,
+   "x": 448,
+   "y": 364,
+   "radio": 91,
    "recursos": [
     "hielo",
     "alga_lunar"
@@ -123,9 +123,9 @@
    "zona": "base",
    "nombre": "Regolith Ridge",
    "tipo": "recurso",
-   "x": 190,
-   "y": 130,
-   "radio": 90,
+   "x": 262,
+   "y": 70,
+   "radio": 63,
    "recursos": [
     "regolito"
    ],
@@ -137,9 +137,9 @@
    "zona": "ice",
    "nombre": "Crystal Cavern",
    "tipo": "recurso",
-   "x": 480,
-   "y": 990,
-   "radio": 105,
+   "x": 336,
+   "y": 693,
+   "radio": 74,
    "recursos": [
     "cristal_hielo",
     "hielo"
@@ -152,9 +152,9 @@
    "zona": "ice",
    "nombre": "Deep Glacial Rift",
    "tipo": "jefe",
-   "x": 220,
-   "y": 1270,
-   "radio": 110,
+   "x": 154,
+   "y": 889,
+   "radio": 77,
    "recursos": [
     "cristal_hielo",
     "hielo",
@@ -169,9 +169,9 @@
    "zona": "fire",
    "nombre": "Titanium Quarry",
    "tipo": "recurso",
-   "x": 1820,
-   "y": 350,
-   "radio": 105,
+   "x": 1274,
+   "y": 245,
+   "radio": 74,
    "recursos": [
     "titanio",
     "regolito"
@@ -184,9 +184,9 @@
    "zona": "fire",
    "nombre": "Far Scorch Caldera",
    "tipo": "jefe",
-   "x": 2330,
-   "y": 180,
-   "radio": 110,
+   "x": 1631,
+   "y": 126,
+   "radio": 77,
    "recursos": [
     "titanio",
     "pieza_motor",
@@ -201,9 +201,9 @@
    "zona": "hive",
    "nombre": "Alloy Spires",
    "tipo": "recurso",
-   "x": 1830,
-   "y": 1020,
-   "radio": 105,
+   "x": 1281,
+   "y": 714,
+   "radio": 74,
    "recursos": [
     "aleacion"
    ],
@@ -215,9 +215,9 @@
    "zona": "hive",
    "nombre": "Hive Matriarch Lair",
    "tipo": "jefe",
-   "x": 2310,
-   "y": 1260,
-   "radio": 110,
+   "x": 1617,
+   "y": 882,
+   "radio": 77,
    "recursos": [
     "aleacion",
     "racion",

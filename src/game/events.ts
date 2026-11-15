@@ -105,9 +105,9 @@ export function stepEvents(s: Sim, dt: number, w: World): { x: number; y: number
 }
 
 const SPECIAL_CASES = [
-  { id: "caso_sonda", title: "SOS Probe Signal", desc: "A crashed survey probe is pinging from afar. Reach it and press E to recover parts.", x: 920, y: 160, reward: { pieza_motor: 1, racion: 2, metal: 3 } },
-  { id: "caso_crio", title: "Cryo-Vein Surge", desc: "A temporary cryo-fissure opened! Investigate (E) before it seals.", x: 300, y: 800, reward: { cristal_hielo: 3, hielo: 4, alga_lunar: 2 } },
-  { id: "caso_anomalia", title: "Thermal Anomaly", desc: "Strange heat signature in the Scorch Fields. Scan it (E) for rare salvage.", x: 1400, y: 200, reward: { titanio: 3, kits: 2, comida_caliente: 1 } },
+  { id: "caso_sonda", title: "SOS Probe Signal", desc: "A crashed survey probe is pinging from afar. Reach it and press E to recover parts.", x: 644, y: 112, reward: { pieza_motor: 1, racion: 2, metal: 3 } },
+  { id: "caso_crio", title: "Cryo-Vein Surge", desc: "A temporary cryo-fissure opened! Investigate (E) before it seals.", x: 210, y: 560, reward: { cristal_hielo: 3, hielo: 4, alga_lunar: 2 } },
+  { id: "caso_anomalia", title: "Thermal Anomaly", desc: "Strange heat signature in the Scorch Fields. Scan it (E) for rare salvage.", x: 980, y: 140, reward: { titanio: 3, kits: 2, comida_caliente: 1 } },
   { id: "caso_suministros", title: "Orbital Drop Pod", desc: "An emergency food & medical pod landed. Collect it (E).", x: 95, y: 75, reward: { racion: 2, botiquin: 1, estimulante: 1 } },
 ];
 

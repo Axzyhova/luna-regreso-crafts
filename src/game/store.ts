@@ -1,8 +1,8 @@
 import { create } from "zustand";
-import { createSim, LH2_CAP, LOX_CAP, type Sim, type Mode, type Difficulty } from "./sim";
+import { createSim, LH2_CAP, LOX_CAP, type Sim, type Mode, type Difficulty, WORLD } from "./sim";
 
 export type Screen = "intro" | "rechazo" | "modo" | "cinematica" | "juego" | "fuentes" | "final" | "archivo";
-export type Overlay = null | "inv" | "base" | "log" | "pausa" | "cohete" | "cubesat" | "misiones" | "estacion" | "mapa" | "cofre" | "archivo" | "guia" | "cueva" | "robert";
+export type Overlay = null | "inv" | "base" | "log" | "pausa" | "cohete" | "cubesat" | "misiones" | "estacion" | "mapa" | "cofre" | "archivo" | "guia" | "cueva" | "robert" | "rover";
 
 /** Mutable simulation owned by the Phaser scene; UI reads `snap`, a copy published ~8x/s. */
 export let sim: Sim = createSim("realista", "normal");
@@ -36,6 +36,11 @@ export const useGame = create<State>((set, get) => ({
       sim = { ...base, ...saved, inv: { ...base.inv, ...saved.inv }, rocket: { ...base.rocket, ...saved.rocket }, leaks: [], aliens: [], abduction: 0, countdown: null,
         stats: { ...base.stats, ...saved.stats }, quest: { ...base.quest, ...saved.quest }, tut: { ...base.tut, ...saved.tut }, hive: [], bosses: [], chests: saved.chests ?? {}, archive: saved.archive ?? [], discoveredItems: saved.discoveredItems ?? base.discoveredItems, creaturesSeen: saved.creaturesSeen ?? [], bossesDefeated: saved.bossesDefeated ?? [], subzonesVisited: saved.subzonesVisited ?? [], perks: saved.perks ?? [], caves: saved.caves ?? [], pickupFeed: [], event: null, impacts: [], dialog: [] };
       sim.lh2 = Math.min(sim.lh2, LH2_CAP); sim.lox = Math.min(sim.lox, LOX_CAP);
+      if (saved.worldW !== base.worldW) { // save from the bigger map: re-place things that lived out in the world
+        Object.assign(sim, { worldW: base.worldW, explored: [], pos: base.pos, capsules: [], capsulesSpawned: false, caves: [], specialCase: null });
+        sim.drops = sim.drops.filter((d) => d.x < WORLD.w && d.y < WORLD.h);
+        for (const m of sim.modules) if (m.tipo === "rover") { m.rst = "idle"; m.rx = m.x; m.ry = m.y; }
+      }
       get().publish();
       return true;
     } catch { return false; }

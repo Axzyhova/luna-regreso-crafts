@@ -405,5 +405,45 @@
   },
   "disponible": true,
   "ref": "NASA Ref: NASA's Moon to Mars plan uses the Moon to test the systems that will later take crews to Mars."
+ },
+ {
+  "id": "papa_horneada",
+  "nombre": "Baked potato",
+  "lugar": "horno",
+  "ingredientes": {
+   "papa": 2
+  },
+  "resultado": {
+   "papa_horneada": 1
+  },
+  "disponible": true,
+  "ref": "NASA Ref: potatoes were the first crop grown in space (Columbia, 1995) and are a candidate crop for lunar and Mars bases."
+ },
+ {
+  "id": "pan",
+  "nombre": "Bread",
+  "lugar": "horno",
+  "ingredientes": {
+   "trigo": 3
+  },
+  "resultado": {
+   "pan": 1
+  },
+  "disponible": true,
+  "ref": "NASA Ref: dwarf wheat (Apogee) was bred with NASA support for growing in space habitats."
+ },
+ {
+  "id": "galleta",
+  "nombre": "Space cookies",
+  "lugar": "horno",
+  "ingredientes": {
+   "trigo": 2,
+   "alga_lunar": 1
+  },
+  "resultado": {
+   "galleta": 2
+  },
+  "disponible": true,
+  "ref": "NASA Ref: in 2019 the first cookies were baked in space, on the ISS, in a special zero-g oven."
  }
 ]
