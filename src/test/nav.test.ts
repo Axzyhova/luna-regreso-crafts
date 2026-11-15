@@ -34,7 +34,7 @@ describe("cinemática animada", () => {
       get: (_t, k) => (["fillStyle", "strokeStyle", "font", "globalAlpha", "globalCompositeOperation", "lineWidth"].includes(String(k)) ? "" : (..._a: unknown[]) => { calls.push(String(k)); return gradient; }),
       set: () => true,
     }) as unknown as CanvasRenderingContext2D;
-    for (const sc of ["launch", "fail", "fall", "land"] as const) for (const t of [0, 1, 2.5, 4, 6.9]) drawScene(g, sc, t);
+    for (const sc of ["launch", "fail", "fall", "land", "reentry", "chutes", "splash", "rescue", "ship"] as const) for (const t of [0, 1, 2.5, 4, 6.9]) drawScene(g, sc, t);
     expect(calls.filter((c) => c === "fillRect").length).toBeGreaterThan(100);
     expect(calls.filter((c) => c === "arc").length).toBeGreaterThan(500); // fire, smoke and dust particles
   });

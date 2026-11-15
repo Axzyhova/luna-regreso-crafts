@@ -5,7 +5,7 @@ import { useGame, hasSave } from "@/game/store";
 import type { Mode, Difficulty } from "@/game/sim";
 import { sfx } from "@/game/audio";
 import { GAME_TITLE } from "@/game/title";
-import type { SceneId } from "./StoryAnimation";
+import { ENDING_PANELS, type SceneId } from "./scenes";
 import { StoryScene } from "./StoryGif";
 
 /** Reveals text letter by letter, like an old console. */
@@ -120,10 +120,20 @@ const PANELS = [
 ];
 export function Cinematic() {
   const go = useGame((s) => s.go);
+  return <StoryPanels panels={PANELS} onDone={() => go("juego")} lastLabel="Start" />;
+}
+
+export function Regreso() {
+  const go = useGame((s) => s.go);
+  return <StoryPanels panels={ENDING_PANELS} onDone={() => go("final")} lastLabel="Mission report" />;
+}
+
+/** A sequence of story panels: animated scene, typed text, Skip / Next. */
+function StoryPanels({ panels, onDone, lastLabel }: { panels: { text: string; art: string }[]; onDone: () => void; lastLabel: string }) {
   const [i, setI] = useState(0);
-  const p = PANELS[i]!;
+  const p = panels[i]!;
   const typed = useTypewriter(p.text, 85);
-  const last = i === PANELS.length - 1;
+  const last = i === panels.length - 1;
   return (
     // Tall screens: scene on top, text and buttons below. Short (landscape phone): side by side.
     <div className="flex h-full flex-col items-center justify-center-safe gap-6 overflow-y-auto p-6 short:flex-row short:gap-5 short:p-3">
@@ -132,10 +142,10 @@ export function Cinematic() {
       </div>
       <div className="flex w-full max-w-lg flex-col gap-4 short:max-w-[42vw] short:gap-3">
         <p className="min-h-20 text-[9px] leading-5 short:min-h-0 short:text-[8px]">{typed}<span className="animate-blink">▌</span></p>
-        <div className="text-[8px] text-muted-foreground">{i + 1}/{PANELS.length}</div>
+        <div className="text-[8px] text-muted-foreground">{i + 1}/{panels.length}</div>
         <div className="flex gap-3">
-          <PixelButton tone="ghost" onClick={() => go("juego")}>Skip</PixelButton>
-          <PixelButton onClick={() => (!last ? setI(i + 1) : go("juego"))}>{!last ? "Next" : "Start"}</PixelButton>
+          <PixelButton tone="ghost" onClick={onDone}>Skip</PixelButton>
+          <PixelButton onClick={() => (!last ? setI(i + 1) : onDone())}>{!last ? "Next" : lastLabel}</PixelButton>
         </div>
       </div>
     </div>
@@ -180,7 +190,12 @@ export function Final() {
               <p className="text-suit-light">Destination: Jezero Crater, an ancient lake bed where NASA's Perseverance rover landed in February 2021 and MOXIE made oxygen from Martian air.</p>
               <p className="text-suit-light">That's NASA's Moon to Mars idea: learn to live off the land on the Moon, then go further.</p>
             </>
-          ) : MISIONES.final.map((l) => <p key={l} className="text-suit-light">{l}</p>)}
+          ) : (
+            <>
+              {MISIONES.final.map((l) => <p key={l} className="text-suit-light">{l}</p>)}
+              <p className="text-suit-light">Splashdown in the Pacific Ocean off Arriaga–Tonalá (Chiapas, Mexico); the crew was picked up by a recovery ship and its rescue team.</p>
+            </>
+          )}
           <p className="pt-2">You launched on day {r.dia} in window {r.ventana}.</p>
           <p>Side missions: {s.quest.sideDone.length}/{sideAvailable(s).length} · Capsules opened: {s.stats.capsulas} · Repairs: {s.stats.reparaciones}</p>
           <p>Fuel left over: LH2 {r.lh2Sobra.toFixed(1)} kg · LOX {r.loxSobra.toFixed(1)} kg</p>
@@ -188,7 +203,10 @@ export function Final() {
           <p className="text-[7px] text-muted-foreground">Return windows and required fuel are provisional until computed with GMAT.</p>
         </div>
       )}
-      <PixelButton onClick={() => go("intro")}>Back to title</PixelButton>
+      <div className="flex flex-wrap justify-center gap-3">
+        {r && r.destino !== "mars" && <PixelButton tone="ghost" onClick={() => go("regreso")}>Watch the way home</PixelButton>}
+        <PixelButton onClick={() => go("intro")}>Back to title</PixelButton>
+      </div>
     </div>
   );
 }

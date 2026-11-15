@@ -27,6 +27,7 @@ import { loadFx } from "./view";
 import { createFxTextures, NightLighting, paintRichTerrain, sunShadow, updateSilhouetteShadow } from "./visualFx";
 import { PixelfxOverlay } from "./pixelfxBridge";
 import { HAB, ROCKET, SHADOW, RAVINE, BRIDGE_DECK } from "./world";
+import { boardingTimeline, boardingAt, ladderBase, hatchPos, type BoardTimeline } from "./ending";
 
 const W = 896, H = 504; // landing site (night aliens, events and capsules stay here)
 const WW = WORLD.w, WH = WORLD.h; // whole explorable world (1792x1008)
@@ -90,6 +91,10 @@ export class LunarScene extends Phaser.Scene {
   stumble = { vx: 0, vy: 0, t: 0, next: 2 }; shiverT = 0; mapPubT = 0;
   touchMode = false;
   pubT = 0; saveT = 0; repairT = 0; leakT = 0; useCd = 0; facing = 1;
+  /** Rocket + tank sprites and their ground shadows, so the launch ending can lift them off. */
+  rocketParts: { key: string; img: Phaser.GameObjects.Image; baseY: number; shadow: Phaser.GameObjects.Image }[] = [];
+  /** The launch ending (walk → ladder → hatch → ignition → liftoff); null while playing. */
+  ending: { t: number; tl: BoardTimeline; fx: Phaser.GameObjects.Graphics; text: Phaser.GameObjects.BitmapText; sparkT: number; stage: string; left: boolean } | null = null;
   constructor() { super("lunar"); }
 
   create() {
@@ -116,7 +121,8 @@ export class LunarScene extends Phaser.Scene {
     for (const s of STATIC_SPRITES) {
       const sh = this.add.image(s.x, s.y + s.h / 2, s.key).setDepth(5.5);
       this.staticShadows.push({ spr: sh, baseX: s.x, baseY: s.y + s.h / 2, w: s.w + 6, h: 8 });
-      this.add.image(s.x, s.y, s.key).setScale(1 / HD).setDepth(sortDepth(groundLine(s.y, s.h), H));
+      const img = this.add.image(s.x, s.y, s.key).setScale(1 / HD).setDepth(sortDepth(groundLine(s.y, s.h), H));
+      this.rocketParts.push({ key: s.key, img, baseY: s.y, shadow: sh });
     }
     this.label(ROCKET.x, ROCKET.y + 29, "ROCKET", PAL.moon4);
     this.label(ROCKET.x - 25, ROCKET.y + 23, "LH2", PAL.suitL); this.label(ROCKET.x + 25, ROCKET.y + 23, "LOX", PAL.ice);
@@ -197,6 +203,111 @@ export class LunarScene extends Phaser.Scene {
     for (const p of POIS) this.add.image(p.x, p.y, `poi_${p.id}`).setDepth(p.y).setScale(1 / HD);
     if (!sim.log.length) addLog(sim, "Emergency landing at the lunar south pole. No fuel.");
     this.leakT = 90;
+    // Reloaded right after liftoff (the result is saved at T-0): play the ending again.
+    if (sim.result) this.time.delayedCall(300, () => this.startEnding());
+  }
+
+  /** T-0: hand the astronaut over to the boarding + liftoff animation. */
+  startEnding() {
+    if (this.ending) return;
+    sim.buildMode = null; sim.countdown = null;
+    this.preview.clear(); this.ring.clear();
+    this.prompt.setVisible(false); this.promptBg.setVisible(false);
+    this.input.keyboard!.enabled = false;
+    const cam = this.cameras.main;
+    cam.stopFollow();
+    cam.pan(ROCKET.x, ROCKET.y - 4, 1100, "Sine.easeInOut");
+    const tl = boardingTimeline({ x: this.player.x, y: this.player.y }, ROCKET);
+    const fx = this.add.graphics().setDepth(this.rocketDepth() + 0.2);
+    const text = this.add.bitmapText(ROCKET.x, ROCKET.y - 62, FONT_KEY, toFont("BOARDING")).setScale(1 / HD).setOrigin(0.5).setTint(PAL.gold).setDepth(60);
+    this.ending = { t: 0, tl, fx, text, sparkT: 0, stage: "walk", left: false };
+    addLog(sim, "T-0: the commander climbs aboard the Selene-7.");
+  }
+
+  rocketDepth() { return this.rocketParts.find((p) => p.key === "rocket")?.img.depth ?? 6; }
+
+  /** One frame of the launch ending. */
+  stepEnding(dt: number) {
+    const e = this.ending!;
+    e.t += dt;
+    const p = boardingAt(e.t, e.tl);
+    const cam = this.cameras.main;
+    const rd = this.rocketDepth();
+    // the astronaut: walking frames on the way, idle frames on the ladder (bobbing like climbing)
+    const ox = this.player.x;
+    const climbBob = p.phase === "climb" ? Math.sin(e.t * 18) * 0.6 : 0;
+    this.player.setPosition(p.px + climbBob, p.py).setAlpha(p.alpha).setVisible(p.alpha > 0.01);
+    if (p.phase === "walk") { if (Math.abs(p.px - ox) > 0.01) this.player.setFlipX(p.px < ox); this.animatePlayer(dt, true, false); }
+    else this.animatePlayer(dt, p.phase === "climb", false);
+    this.player.setDepth(p.phase === "walk" && p.k < 0.85 ? sortDepth(this.player.y + PLAYER_FOOT_Y, H) : rd + 0.5);
+    this.playerShadow.setVisible(p.phase === "walk").setPosition(this.player.x, this.player.y + PLAYER_FOOT_Y);
+    // Mini Robert rolls right behind and boards too
+    const rb = this.robert;
+    rb.x += (p.px - 8 - rb.x) * Math.min(1, dt * 4); rb.y += (p.py + 6 - rb.y) * Math.min(1, dt * 4);
+    rb.setAlpha(p.phase === "walk" || p.phase === "climb" ? 1 : p.alpha).setDepth(this.player.depth - 0.01);
+    // ladder + hatch, drawn on the rocket while it is still on the pad
+    const g = e.fx; g.clear();
+    const base = ladderBase(ROCKET), top = hatchPos(ROCKET);
+    const dy = p.rocketDy;
+    if (p.phase !== "rise" && p.phase !== "done") {
+      g.lineStyle(0.6, 0x9aa0b4, 1).lineBetween(base.x - 2.5, base.y + 4, top.x - 2.5, top.y + 3).lineBetween(base.x + 2.5, base.y + 4, top.x + 2.5, top.y + 3);
+      for (let y = top.y + 5; y < base.y + 4; y += 3.5) g.lineBetween(base.x - 2.5, y, base.x + 2.5, y);
+    }
+    const hy = top.y - 3 + dy;
+    g.fillStyle(0x1a1f33, 1).fillRect(top.x - 4, hy - 4, 8, 8);
+    if (p.hatch > 0) { g.fillStyle(0xffe08a, 0.9 * p.hatch).fillRect(top.x - 3.5, hy - 3.5, 7, 7); g.fillStyle(0xd8dde8, 1).fillRect(top.x - 4 - 7 * p.hatch, hy - 4, 7 * p.hatch, 8); }
+    else g.fillStyle(0xd8dde8, 1).fillRect(top.x - 3.5, hy - 3.5, 7, 7).lineStyle(0.5, 0x6a7088, 1).strokeRect(top.x - 3.5, hy - 3.5, 7, 7);
+    // rocket and tanks: shake on ignition, then the rocket climbs (the tanks stay on the pad)
+    const shake = p.shake ? (Math.sin(e.t * 70) + Math.sin(e.t * 53)) * 0.35 * p.shake : 0;
+    for (const part of this.rocketParts) {
+      if (part.key === "rocket") { part.img.setPosition(ROCKET.x + shake, part.baseY + dy); part.shadow.setAlpha(Math.max(0, 1 + dy / 60)); }
+      else part.img.setX(part.img.x + (shake ? (Math.random() - 0.5) * 0.3 : 0));
+    }
+    // engine fire and the dust it blasts off the pad
+    if (p.flame > 0) {
+      e.sparkT -= dt;
+      const nz = { x: ROCKET.x + shake, y: ROCKET.y + 24 + dy };
+      g.fillStyle(0xfff2c0, 0.9).fillEllipse(nz.x, nz.y + 2 + 3 * p.flame, 5 + 2 * p.flame, 6 + 14 * p.flame);
+      g.fillStyle(0xffa040, 0.55).fillEllipse(nz.x, nz.y + 6 + 7 * p.flame, 8 + 3 * p.flame, 10 + 26 * p.flame);
+      if (e.sparkT <= 0) {
+        e.sparkT = 0.02;
+        for (let i = 0; i < 3; i++) {
+          const f = this.add.image(nz.x + (Math.random() - 0.5) * 5, nz.y + 4, "fx_spark").setTint(Phaser.Math.RND.pick([0xfff2c0, 0xffc04a, 0xf08a24, 0xff5a2a])).setDepth(rd + 0.1).setScale(1.5 / HD);
+          this.tweens.add({ targets: f, x: f.x + (Math.random() - 0.5) * 16, y: f.y + 18 + Math.random() * 26 * p.flame, alpha: 0, scale: 3 / HD, duration: 420 + Math.random() * 250, onComplete: () => f.destroy() });
+        }
+        if (dy > -90) for (const side of [-1, 1]) {
+          const d = this.add.image(ROCKET.x + side * (6 + Math.random() * 6), ROCKET.y + 26, "dust").setScale(2 / HD).setAlpha(0.8).setTint(0xc8c8d0).setDepth(rd + 0.15);
+          this.tweens.add({ targets: d, x: d.x + side * (30 + Math.random() * 50), y: d.y - Math.random() * 10, alpha: 0, scale: (6 + Math.random() * 6) / HD, duration: 900 + Math.random() * 500, ease: "Quad.easeOut", onComplete: () => d.destroy() });
+        }
+      }
+      if (p.phase === "ignite") cam.shake(60, 0.002 * p.flame, false);
+    }
+    // words on the pad, and the camera rides up with the rocket
+    const stage = p.phase;
+    if (stage !== e.stage) {
+      e.stage = stage;
+      if (stage === "climb") e.text.setText(toFont("CLIMBING ABOARD"));
+      if (stage === "hatch") { e.text.setText(toFont("HATCH SECURED")); sfx.click(); }
+      if (stage === "ignite") { e.text.setText(toFont("IGNITION")).setTint(PAL.alert); sfx.alert(); }
+      if (stage === "rise") { e.text.setText(toFont("LIFTOFF! GOING HOME")).setTint(PAL.ok); sfx.ok(); cam.removeBounds(); }
+    }
+    if (stage === "rise" || stage === "done") cam.centerOn(ROCKET.x, ROCKET.y - 4 + dy * 0.85);
+    e.text.setPosition(ROCKET.x, (stage === "rise" || stage === "done" ? cam.midPoint.y - 50 : ROCKET.y - 62));
+    if (p.fade > 0 && !cam.fadeEffect.isRunning && !e.left) cam.fadeOut(900, 0, 0, 0);
+    if (stage === "done" && !e.left) {
+      e.left = true;
+      saveGame(); useGame.getState().publish();
+      this.time.delayedCall(250, () => useGame.getState().go(sim.result?.destino === "mars" ? "final" : "regreso"));
+    }
+    const tt = sim.time % CYCLE, dark = modeCfg(sim).noche_oscuridad;
+    let night = tt < DAY_LEN ? 0 : dark;
+    if (tt > DAY_LEN - 20 && tt < DAY_LEN) night = ((tt - (DAY_LEN - 20)) / 20) * dark;
+    if (tt > CYCLE - 20) night = ((CYCLE - tt) / 20) * dark;
+    this.nightFx.update(this, sim, night, false, this.player.x, this.player.y, this.aimRad, [
+      { x: HAB.x, y: HAB.y, r: 70, color: 0xffb85c, dayAlpha: 0 },
+      { x: ROCKET.x, y: ROCKET.y + dy, r: 70 + 90 * p.flame, color: 0xffb060, dayAlpha: 0.1 * p.flame },
+    ], false);
+    this.pixelfx.update(this, dt);
   }
 
   /** Resource node. Zone resources spawn in their zone; the landing-site ones keep the old rules. */
@@ -697,6 +808,7 @@ export class LunarScene extends Phaser.Scene {
     const dt = Math.min(0.1, ms / 1000);
     const wantZoom = HD * view.zoom; // the player can zoom in or out from the pause menu
     if (Math.abs(this.cameras.main.zoom - wantZoom) > 0.001) this.cameras.main.setZoom(wantZoom);
+    if (this.ending) { this.stepEnding(dt); return; }
     const overlay = useGame.getState().overlay;
     if (sim.respawned) { sim.respawned = false; this.player.setPosition(HAB.x, HAB.y + 30); }
     if (overlay === "mapa" && !sim.dead) { // the map shows rovers live: keep only them moving
@@ -783,7 +895,7 @@ export class LunarScene extends Phaser.Scene {
     this.updateAndroids(dt);
     stepEmergingProblems(sim, dt, () => Math.random());
     const cd = stepCountdown(sim, dt);
-    if (cd === "launched") { sfx.ok(); saveGame(); useGame.getState().publish(); useGame.getState().go("final"); return; }
+    if (cd === "launched") { saveGame(); useGame.getState().publish(); useGame.getState().setOverlay(null); this.startEnding(); return; }
     if (cd === "aborted") { sfx.bad(); this.say("LAUNCH ABORTED: CHECK THE ROCKET (E)"); }
 
     // leaks

@@ -4,7 +4,7 @@ import { StoryScene, STORY_GIFS } from "@/components/game/StoryGif";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const SCENES = ["briefing", "launch", "coast", "orbit", "fail", "fall", "land", "stranded"] as const;
+const SCENES = ["briefing", "launch", "coast", "orbit", "fail", "fall", "land", "stranded", "reentry", "chutes", "splash", "rescue", "ship"] as const;
 
 afterEach(() => { cleanup(); delete (window as { matchMedia?: unknown }).matchMedia; });
 

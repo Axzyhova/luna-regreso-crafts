@@ -160,5 +160,10 @@
   "tipo": "FICTION",
   "url": "",
   "nota": "Made up for the game."
+ },
+ {
+  "titulo": "Splashdown off Arriaga–Tonalá, Chiapas (Mexico)",
+  "tipo": "FICTION",
+  "nota": "The return capsule's splashdown in the Pacific in front of Arriaga and Tonalá, and its recovery ship, are made up for the game. Reentry speed (~11 km/s), heat-shield temperature (~2,700 °C), drogue + three main parachutes and a recovery ship with divers follow how NASA brings Orion crews home."
  }
 ]

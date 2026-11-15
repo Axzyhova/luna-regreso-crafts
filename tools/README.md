@@ -2,12 +2,13 @@
 
 ## bake-story-gifs.tsx
 
-The intro story scenes (`src/components/game/StoryAnimation.tsx`) are shipped as real GIF files in
+The story scenes (`src/components/game/StoryAnimation.tsx`, ids in `scenes.ts`) are shipped as real GIF files in
 `src/assets/story/`. They are drawn by the game's own `drawScene()` and encoded by this tool, so the GIFs
 look exactly like the live canvas version. **If you change how a scene is drawn, bake it again.**
 (The canvas version stays in the game as a fallback if a GIF fails to load.)
 
-Scenes: `briefing`, `launch`, `coast`, `orbit`, `fail`, `fall`, `land`, `stranded`.
+Intro scenes: `briefing`, `launch`, `coast`, `orbit`, `fail`, `fall`, `land`, `stranded`.
+Way home (shown after liftoff): `reentry`, `chutes`, `splash`, `rescue`, `ship` (splashdown in the Pacific off Arriaga–Tonalá, Chiapas).
 Output: 320×160, 88 frames at 12.5 fps (one 7 s loop), looping forever, about 0.2–1 MB each.
 
 ### How to bake one scene

@@ -7,8 +7,8 @@ import { GLYPHS, toFont } from "@/game/pixelfont";
  * like a looping launch GIF. Everything is computed from the time `t`, so a frame is
  * a pure function of (scene, t) and stays smooth at any frame rate.
  */
-/** The story in order: briefing → launch → coast to the Moon → lunar orbit → tank failure → descent → landing → stranded. */
-export type SceneId = "briefing" | "launch" | "coast" | "orbit" | "fail" | "fall" | "land" | "stranded";
+import type { SceneId } from "./scenes";
+export type { SceneId } from "./scenes";
 
 const W = 320, H = 160;
 const LOOP = 7; // seconds per scene loop
@@ -304,9 +304,331 @@ function sceneStranded(g: CanvasRenderingContext2D, t: number) {
   pxText(g, "SELENE-7", 6, 6, "#f2d24f");
 }
 
+// ---------------------------------------------------------------------------------------------
+// The way home: the Selene-7 capsule returns to Earth and splashes down in the Pacific Ocean,
+// off the coast of Chiapas, Mexico (in front of Arriaga and Tonalá), where a recovery ship waits.
+// ---------------------------------------------------------------------------------------------
+
+/** Splashdown point used by the ending (open sea in front of Arriaga–Tonalá, Chiapas). */
+const SPLASHDOWN = { lat: 15.8, lon: -93.9, label: "15.8N 93.9W" };
+
+/**
+ * Crew capsule seen from the side, heat shield down: white cone, dark windows, brown heat shield.
+ * (x, y) is the centre of the heat shield's top edge; k scales it.
+ */
+function capsule(g: CanvasRenderingContext2D, x: number, y: number, k = 1, rot = 0, char = 0) {
+  g.save(); g.translate(x, y); g.rotate(rot); g.scale(k, k);
+  g.fillStyle = "#14141c"; g.beginPath(); g.moveTo(-11, 1); g.lineTo(-5, -15); g.lineTo(5, -15); g.lineTo(11, 1); g.fill(); // outline
+  g.fillStyle = "#e9e9ef"; g.beginPath(); g.moveTo(-10, 0); g.lineTo(-4.5, -14); g.lineTo(4.5, -14); g.lineTo(10, 0); g.fill();
+  g.fillStyle = "#b8b8c4"; g.beginPath(); g.moveTo(4, 0); g.lineTo(4.5, -14); g.lineTo(10, 0); g.fill();         // shaded side
+  g.fillStyle = char > 0.5 ? "#6b5a4a" : "#c9c9d2"; g.fillRect(-4, -16, 8, 2);                               // docking hatch on top
+  g.fillStyle = "#1d3f8a"; g.fillRect(-4, -9, 2, 2); g.fillRect(0, -9, 2, 2);                                 // windows
+  g.fillStyle = "#74b4ff"; g.fillRect(-4, -9, 1, 1); g.fillRect(0, -9, 1, 1);
+  g.fillStyle = char > 0.3 ? "#3a2414" : "#5a3a22"; g.fillRect(-11, 0, 22, 3);                                // heat shield
+  g.fillStyle = "#2a1a10"; g.fillRect(-11, 2, 22, 1);
+  g.restore();
+}
+
+/** Parachute canopy with orange and white gores (like the real crew capsule chutes), lines down to (cx, cy). */
+function chute(g: CanvasRenderingContext2D, x: number, y: number, r: number, cx: number, cy: number, open = 1) {
+  if (r <= 0.5) return;
+  const rw = r * (0.35 + 0.65 * open), rh = r * 0.62;
+  g.strokeStyle = "rgba(230,230,240,0.75)"; g.lineWidth = 0.6;
+  g.beginPath(); for (const f of [-1, -0.5, 0, 0.5, 1]) { g.moveTo(x + f * rw, y); g.lineTo(cx, cy); } g.stroke();
+  g.save(); g.beginPath(); g.ellipse(x, y, rw, rh, 0, Math.PI, 0); g.closePath(); g.clip();
+  for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? "#f2f2f2" : "#f07a24"; g.fillRect(x - rw + (i * 2 * rw) / 8, y - rh, (2 * rw) / 8 + 0.5, rh); }
+  g.fillStyle = "rgba(0,0,0,0.18)"; g.fillRect(x + rw * 0.25, y - rh, rw, rh);
+  g.restore();
+  g.strokeStyle = "#14141c"; g.lineWidth = 1; g.beginPath(); g.ellipse(x, y, rw, rh, 0, Math.PI, 0); g.closePath(); g.stroke();
+}
+
+/** Sea surface from the horizon down: deep blue, sun glints and moving swell lines. */
+function sea(g: CanvasRenderingContext2D, t: number, hy: number, warm = 0) {
+  const gr = g.createLinearGradient(0, hy, 0, H);
+  gr.addColorStop(0, warm ? "#4a6aa0" : "#3f86c4"); gr.addColorStop(0.4, warm ? "#28406e" : "#1f5c9a"); gr.addColorStop(1, "#0d2a52");
+  g.fillStyle = gr; g.fillRect(0, hy, W, H - hy);
+  for (let i = 0; i < 46; i++) {
+    const row = rnd(i, 71), y = hy + 2 + row * row * (H - hy - 2);
+    const len = 3 + row * 14, sp = 4 + row * 10;
+    const x = ((rnd(i, 72) * (W + 40) + t * sp) % (W + 40)) - 20;
+    g.globalAlpha = 0.25 + 0.35 * rnd(i, 73);
+    g.fillStyle = warm && rnd(i, 74) > 0.6 ? "#ffc070" : "#bfe0ff";
+    g.fillRect(Math.round(x), Math.round(y), Math.round(len), 1);
+  }
+  g.globalAlpha = 1;
+}
+
+/** Clouds as soft pixel blobs drifting slowly. */
+function clouds(g: CanvasRenderingContext2D, t: number, y0: number, n: number, tint = "#ffffff", a = 0.85) {
+  for (let i = 0; i < n; i++) {
+    const x = ((rnd(i, 81) * (W + 80) + t * (2 + rnd(i, 82) * 3)) % (W + 80)) - 40;
+    const y = y0 + rnd(i, 83) * 26, w = 14 + rnd(i, 84) * 26;
+    g.globalAlpha = a * (0.6 + 0.4 * rnd(i, 85)); g.fillStyle = tint;
+    g.beginPath(); g.ellipse(x, y, w, w * 0.22, 0, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.ellipse(x - w * 0.3, y - w * 0.12, w * 0.45, w * 0.2, 0, 0, Math.PI * 2); g.fill();
+  }
+  g.globalAlpha = 1;
+}
+
+/**
+ * The Chiapas coast seen from the sea: a flat sandy shore with lagoons and palms in front of the
+ * Sierra Madre de Chiapas. hy = horizon line; dusk tints it for the sunset scene.
+ */
+function chiapasCoast(g: CanvasRenderingContext2D, hy: number, scale = 1, dusk = 0, labels = true) {
+  const far = dusk ? "#3a2d55" : "#5a7fa8", mid = dusk ? "#2a2240" : "#3f6b6a";
+  g.fillStyle = far; g.beginPath(); g.moveTo(0, hy);
+  for (let x = 0; x <= W; x += 8) g.lineTo(x, hy - (10 + 9 * Math.sin(x * 0.045) + 6 * Math.sin(x * 0.11 + 1) + 4 * rnd(x, 91)) * scale);
+  g.lineTo(W, hy); g.fill();
+  g.fillStyle = mid; g.beginPath(); g.moveTo(0, hy);
+  for (let x = 0; x <= W; x += 6) g.lineTo(x, hy - (4 + 3 * Math.sin(x * 0.07 + 2) + 2 * rnd(x, 92)) * scale);
+  g.lineTo(W, hy); g.fill();
+  g.fillStyle = dusk ? "#c9a070" : "#e8d8a8"; g.fillRect(0, hy - 1, W, Math.max(1, Math.round(1.5 * scale)));          // beach
+  g.fillStyle = dusk ? "#1e1830" : "#2f5a3a";
+  for (let i = 0; i < 26; i++) { const x = rnd(i, 93) * W, h = (2 + rnd(i, 94) * 3) * scale; g.fillRect(Math.round(x), Math.round(hy - 1 - h), 1, Math.round(h)); g.fillRect(Math.round(x - 1), Math.round(hy - 1 - h), 3, 1); } // palms
+  if (labels) {
+    for (const [x, name] of [[86, "ARRIAGA"], [214, "TONALA"]] as const) {
+      g.fillStyle = dusk ? "#ffe08a" : "#fff7c0"; g.fillRect(x - 2, hy - 3, 1, 1); g.fillRect(x, hy - 2, 1, 1); g.fillRect(x + 2, hy - 3, 1, 1); // town lights
+      pxText(g, name, x, hy - 14 * scale - 10, "#ffffff", 1, "center");
+      g.fillStyle = "rgba(255,255,255,0.6)"; g.fillRect(x, hy - 14 * scale - 3, 1, 14 * scale - 1);
+    }
+  }
+}
+
+/** Little astronaut (white suit, blue visor) standing; wave = 0..1 raises the right arm. */
+function astronaut(g: CanvasRenderingContext2D, x: number, y: number, wave = 0, k = 1) {
+  g.save(); g.translate(x, y); g.scale(k, k);
+  g.fillStyle = "#14141c"; g.fillRect(-4, -11, 8, 15);
+  g.fillStyle = "#e6e6ec"; g.fillRect(-3, -5, 6, 8);
+  g.fillStyle = "#f2f2f2"; g.beginPath(); g.arc(0, -7, 3.6, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#1d3f8a"; g.fillRect(-1, -9, 4, 3); g.fillStyle = "#74b4ff"; g.fillRect(0, -9, 1, 1);
+  g.fillStyle = "#e6e6ec"; g.fillRect(-5, -4, 2, 5);
+  const a = -0.4 - wave * 1.6;
+  g.save(); g.translate(3, -4); g.rotate(a); g.fillRect(0, -1, 5, 2); g.restore();
+  g.fillStyle = "#c9c9d2"; g.fillRect(-3, 3, 2, 2); g.fillRect(1, 3, 2, 2);
+  g.restore();
+}
+
+/** Rescue diver in a black wetsuit with an orange buoyancy vest, bobbing at the surface. */
+function diver(g: CanvasRenderingContext2D, x: number, y: number, t: number, i: number) {
+  const by = y + Math.sin(t * 2.4 + i) * 0.8;
+  g.fillStyle = "#14141c"; g.beginPath(); g.arc(x, by - 3, 2.2, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#f07a24"; g.fillRect(x - 2.5, by - 1, 5, 2);
+  g.fillStyle = "#74b4ff"; g.fillRect(x - 1, by - 4, 2, 1);
+  g.fillStyle = "rgba(255,255,255,0.5)"; g.fillRect(x - 4, by + 1, 8, 1);
+}
+
+/** Small rigid-hull inflatable rescue boat with a crew, moving along x. */
+function rhib(g: CanvasRenderingContext2D, x: number, y: number, t: number, wake: number) {
+  if (wake > 0) for (let i = 0; i < 14; i++) { g.globalAlpha = (1 - i / 14) * 0.7 * wake; g.fillStyle = "#e8f4ff"; g.fillRect(x - 12 - i * 2.5, y + 1 + (i % 2), 3, 1); }
+  g.globalAlpha = 1;
+  const by = y + Math.sin(t * 3 + x) * 0.6;
+  g.fillStyle = "#14141c"; g.fillRect(x - 12, by - 3, 25, 5);
+  g.fillStyle = "#f07a24"; g.fillRect(x - 11, by - 2, 23, 3);
+  g.fillStyle = "#2a2a36"; g.fillRect(x - 11, by + 1, 23, 1);
+  g.fillStyle = "#c9c9d2"; g.fillRect(x - 2, by - 6, 6, 3);
+  for (const cx of [x - 7, x - 3, x + 6]) { g.fillStyle = "#14141c"; g.fillRect(cx - 1, by - 7, 3, 4); g.fillStyle = "#f07a24"; g.fillRect(cx - 1, by - 5, 3, 1); }
+}
+
+/** The recovery ship, side view: grey hull, superstructure, crane and an open well deck at the stern (left). */
+function recoveryShip(g: CanvasRenderingContext2D, x: number, y: number, k: number, t: number, dusk = 0) {
+  g.save(); g.translate(x, y); g.scale(k, k);
+  const hull = dusk ? "#4a4a5e" : "#7a8494", dark = dusk ? "#2a2a3a" : "#4a5260", light = dusk ? "#6a6a80" : "#a8b2c0";
+  g.fillStyle = "#14141c"; g.beginPath(); g.moveTo(-61, -13); g.lineTo(61, -13); g.lineTo(54, 1); g.lineTo(-58, 1); g.fill();
+  g.fillStyle = hull; g.beginPath(); g.moveTo(-60, -12); g.lineTo(60, -12); g.lineTo(53, 0); g.lineTo(-57, 0); g.fill();
+  g.fillStyle = dark; g.fillRect(-57, -3, 110, 3);
+  g.fillStyle = "#0b1020"; g.fillRect(-58, -11, 14, 9);                         // open well deck at the stern
+  g.fillStyle = "#ffe08a"; g.fillRect(-57, -10, 12, 1);                         // well-deck lights
+  g.fillStyle = light; g.fillRect(-36, -24, 42, 12); g.fillRect(-26, -32, 22, 8); g.fillRect(-18, -40, 6, 8); // superstructure + mast
+  g.fillStyle = dark; for (let i = 0; i < 7; i++) g.fillRect(-33 + i * 5.5, -21, 3, 2);
+  g.fillStyle = "#1d3f8a"; g.fillRect(-24, -30, 18, 2);
+  g.strokeStyle = dark; g.lineWidth = 1; g.beginPath(); g.moveTo(20, -12); g.lineTo(32, -30); g.lineTo(44, -18); g.stroke(); // crane
+  g.fillStyle = "#f2d24f"; g.fillRect(31, -31, 2, 2);
+  if (Math.floor(t * 2) % 2) { g.fillStyle = "#ff4040"; g.fillRect(-16, -42, 2, 2); }
+  g.restore();
+  if (k >= 1) pxText(g, "RECOVERY", x + 20 * k, Math.round(y - 9 * k), "#ffffff", 1, "center");
+}
+
+function sceneReentry(g: CanvasRenderingContext2D, t: number) {
+  sky(g, "#02030a", "#0a1638"); stars(g, t, 0, 50);
+  // Earth seen from above the Pacific, coming up fast
+  const r = 380, cx = W / 2 + 60, cy = 140 + r - t * 3;
+  glow(g, cx, cy - r, 240, "rgba(110,170,255,0.6)", 0.65);
+  const gr = g.createLinearGradient(0, cy - r, 0, H); gr.addColorStop(0, "#5aa0ff"); gr.addColorStop(0.2, "#1f5c9a"); gr.addColorStop(1, "#0d2a52");
+  g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+  g.save(); g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.clip();
+  g.fillStyle = "#4f8a4c"; g.beginPath(); g.ellipse(250, cy - r + 26, 70, 9, -0.12, 0, Math.PI * 2); g.fill(); // Mexico's Pacific coast
+  g.fillStyle = "#c9b27a"; g.fillRect(186, Math.round(cy - r + 31), 60, 1);
+  g.globalAlpha = 0.45; g.fillStyle = "#ffffff"; for (let i = 0; i < 7; i++) { g.beginPath(); g.ellipse(40 + i * 46, cy - r + 14 + (i % 3) * 8, 18, 3, 0, 0, Math.PI * 2); g.fill(); } g.globalAlpha = 1;
+  g.restore();
+  // the service module separates first, then the capsule plunges in shield-first, wrapped in plasma
+  const sep = clamp01(t / 1.4);
+  const k = clamp01((t - 0.8) / 5.5);
+  const x = lerp(70, 178, k), y = lerp(34, 82, k), rot = Math.atan2(48, 108) - Math.PI / 2; // heat shield faces the way it flies
+  if (t < 3) {
+    g.save(); g.globalAlpha = 1 - clamp01((t - 1.6) / 1.4);
+    g.fillStyle = "#c9a24a"; g.translate(x - 16 - sep * 26, y - 16 - sep * 10); g.rotate(rot + sep * 0.8); g.fillRect(-6, -5, 12, 10);
+    g.fillStyle = "#1f3f8a"; g.fillRect(-16, -2, 8, 4); g.fillRect(8, -2, 8, 4);
+    g.restore(); g.globalAlpha = 1;
+  }
+  const heat = clamp01((t - 1.2) / 1.5) * (1 - clamp01((t - 6.2) / 0.8) * 0.6);
+  if (heat > 0) {
+    const dx = Math.cos(rot + Math.PI / 2), dy = Math.sin(rot + Math.PI / 2); // direction of travel (shield first)
+    for (let i = 0; i < 90; i++) { // plasma trail streaming back from the shield
+      const age = ((t * 1.8 + rnd(i, 101)) % 1);
+      const side = (rnd(i, 102) - 0.5) * 18 * (0.4 + age);
+      const px = x + dx * 6 - dx * age * 120 + -dy * side, py = y + dy * 6 - dy * age * 120 + dx * side;
+      g.globalAlpha = (1 - age) * heat * 0.8;
+      g.fillStyle = age < 0.15 ? "#fff6e0" : age < 0.4 ? "#ffb060" : age < 0.7 ? "#ff5a7a" : "#8a4aff";
+      g.fillRect(Math.round(px), Math.round(py), age < 0.3 ? 2 : 1, age < 0.3 ? 2 : 1);
+    }
+    g.globalAlpha = 1;
+    glow(g, x + dx * 8, y + dy * 8, 34, "rgba(255,170,90,1)", heat * (0.8 + 0.2 * Math.sin(t * 40)));
+    glow(g, x + dx * 8, y + dy * 8, 14, "rgba(255,255,230,1)", heat);
+  }
+  capsule(g, x, y, 1.1, rot, heat);
+  pxText(g, "REENTRY", 6, 6, "#f2d24f", 2);
+  pxText(g, "11 KM/S · HEAT SHIELD 2700 C", 6, 20, "#ffffff");
+  if (t > 2 && t < 5.2) { if (Math.floor(t * 3) % 2) pxText(g, "COMMS BLACKOUT", W - 6, 6, "#ff6b6b", 1, "right"); }
+  else if (t >= 5.2) pxText(g, "SIGNAL ACQUIRED · HOUSTON", W - 6, 6, "#4fc26a", 1, "right");
+}
+
+function sceneChutes(g: CanvasRenderingContext2D, t: number) {
+  sky(g, "#2f7fd0", "#bfe4ff");
+  glow(g, 34, 58, 50, "rgba(255,250,210,1)", 0.7);
+  g.fillStyle = "#fffbe0"; g.beginPath(); g.arc(34, 58, 7, 0, Math.PI * 2); g.fill();
+  clouds(g, t, 30, 6);
+  const hy = 118;
+  chiapasCoast(g, hy, 1, 0, true);
+  sea(g, t, hy);
+  pxText(g, "PACIFIC OCEAN", W / 2, 148, "#e8f4ff", 1, "center");
+  // drogues first, then three mains pop open and the capsule slows right down
+  const main = clamp01((t - 1.6) / 1.2);
+  const fall = t < 1.6 ? t * 12 : 19 + (t - 1.6) * 5;
+  const sway = Math.sin(t * 1.4) * 0.06 * main;
+  const cx = 165 + Math.sin(t * 0.9) * 3, cy = 48 + fall;
+  if (t < 2.2) { const a = 1 - clamp01((t - 1.7) / 0.5); g.globalAlpha = a; chute(g, cx - 5, cy - 22, 4, cx, cy - 14, 1); chute(g, cx + 5, cy - 23, 4, cx, cy - 14, 1); g.globalAlpha = 1; }
+  if (main > 0) {
+    const r = 6 + 10 * main;
+    chute(g, cx - 16 * main, cy - 30 - 14 * main, r * 0.95, cx, cy - 14, main);
+    chute(g, cx + 16 * main, cy - 30 - 14 * main, r * 0.95, cx, cy - 14, main);
+    chute(g, cx, cy - 38 - 18 * main, r, cx, cy - 14, main);
+  }
+  capsule(g, cx, cy, 1, sway, 1);
+  const alt = Math.round(lerp(7600, 1200, clamp01(t / 7)) / 100) * 100;
+  const kmh = Math.round(t < 1.6 ? lerp(480, 200, t / 1.6) : lerp(200, 30, clamp01((t - 1.6) / 2.4)));
+  pxText(g, t < 1.6 ? "DROGUE CHUTES" : "MAIN CHUTES OPEN", 6, 6, "#ffffff", 2);
+  pxText(g, `ALT ${alt} M · ${kmh} KM/H`, 6, 20, "#0b1230");
+  pxText(g, "CHIAPAS, MEXICO", 6, 30, "#0b1230");
+}
+
+function sceneSplash(g: CanvasRenderingContext2D, t: number) {
+  sky(g, "#3a8ad8", "#cfeaff");
+  clouds(g, t, 12, 5);
+  const hy = 74;
+  chiapasCoast(g, hy, 0.8, 0, false);
+  sea(g, t, hy);
+  const touch = 1.5;
+  const bob = t > touch ? Math.sin((t - touch) * 2.2) * 1.2 * Math.min(1, (t - touch)) : 0;
+  const cx = 150, cy = t < touch ? lerp(26, 112, t / touch) : 112 + bob;
+  // chutes: carry it down, then are cut loose and settle onto the water to the right
+  const cut = clamp01((t - touch - 0.3) / 1.6);
+  if (cut < 1) {
+    g.globalAlpha = 1 - cut;
+    const drift = cut * 50, sink = cut * 40;
+    chute(g, cx - 16 + drift, cy - 44 + sink, 15, cx, cy - 14, 1 - cut * 0.7);
+    chute(g, cx + 16 + drift, cy - 44 + sink, 15, cx, cy - 14, 1 - cut * 0.7);
+    chute(g, cx + drift, cy - 56 + sink, 16, cx, cy - 14, 1 - cut * 0.7);
+    g.globalAlpha = 1;
+  }
+  if (cut > 0.6) for (let i = 0; i < 3; i++) { g.fillStyle = i % 2 ? "#f2f2f2" : "#f07a24"; g.globalAlpha = 0.85; g.beginPath(); g.ellipse(214 + i * 14, 120 + i * 2, 9, 2, 0, 0, Math.PI * 2); g.fill(); }
+  g.globalAlpha = 1;
+  // splash: spray arcs and spreading rings
+  const sp = t - touch;
+  if (sp > 0) {
+    for (let r = 0; r < 3; r++) { const rr = ((sp * 1.2 + r / 3) % 1); g.strokeStyle = `rgba(230,245,255,${0.6 * (1 - rr)})`; g.lineWidth = 1; g.beginPath(); g.ellipse(cx, 116, 14 + rr * 70, 3 + rr * 9, 0, 0, Math.PI * 2); g.stroke(); }
+    if (sp < 1.6) for (let i = 0; i < 80; i++) {
+      const a = Math.PI + rnd(i, 111) * Math.PI, v = 30 + rnd(i, 112) * 50;
+      const px = cx + Math.cos(a) * v * sp, py = 114 + Math.sin(a) * v * sp + 60 * sp * sp;
+      if (py > 118) continue;
+      g.globalAlpha = 1 - sp / 1.6; g.fillStyle = rnd(i, 113) > 0.5 ? "#ffffff" : "#bfe4ff"; g.fillRect(Math.round(px), Math.round(py), 2, 2);
+    }
+    g.globalAlpha = 1;
+  }
+  capsule(g, cx, cy, 1.4, Math.sin(t * 1.7) * 0.05 * Math.min(1, Math.max(0, sp)), 1);
+  if (sp > 0) { g.fillStyle = "rgba(13,42,82,0.55)"; g.fillRect(cx - 18, 116, 36, 4); } // waterline
+  // uprighting bags inflate on top, then the recovery beacon flashes
+  const bags = clamp01((t - 3) / 1.2);
+  if (bags > 0) for (const dx of [-4, 0, 4]) { g.fillStyle = "#f07a24"; g.beginPath(); g.arc(cx + dx * 1.4, cy - 22 - 2 * bags, 3 * bags, 0, Math.PI * 2); g.fill(); }
+  if (t > 3.8 && Math.floor(t * 3) % 2) glow(g, cx + 8, cy - 22, 10, "rgba(120,200,255,1)", 0.95);
+  if (sp > 0 && sp < 2.4 && Math.floor(t * 4) % 2) pxText(g, "SPLASHDOWN!", W / 2, 8, "#ffffff", 2, "center");
+  pxText(g, "PACIFIC OCEAN · OFF ARRIAGA-TONALA", 6, 140, "#ffffff");
+  pxText(g, SPLASHDOWN.label, W - 6, 150, "#ffe08a", 1, "right");
+  pxText(g, "CHIAPAS, MEXICO", 6, 150, "#bfe4ff");
+}
+
+function sceneRescue(g: CanvasRenderingContext2D, t: number) {
+  sky(g, "#3a8ad8", "#d8eeff");
+  clouds(g, t, 10, 4);
+  const hy = 70;
+  chiapasCoast(g, hy, 0.6, 0, false);
+  sea(g, t, hy);
+  recoveryShip(g, 70, hy + 4, 0.75, t);
+  // two rescue boats race in, divers jump in and fit the flotation collar
+  const arrive = clamp01(t / 2.2);
+  rhib(g, lerp(-30, 150, arrive), 120, t, 1 - arrive * 0.6);
+  rhib(g, lerp(-60, 240, arrive * 0.95), 132, t, 1 - arrive * 0.6);
+  const cx = 196, cy = 116 + Math.sin(t * 2.2) * 1;
+  const collar = clamp01((t - 2.4) / 1.2);
+  if (collar > 0) { g.fillStyle = "#f2d24f"; g.fillRect(cx - 16 * collar, cy - 1, 32 * collar, 3); g.fillStyle = "#14141c"; g.fillRect(cx - 16 * collar, cy + 2, 32 * collar, 1); }
+  capsule(g, cx, cy, 1.4, Math.sin(t * 1.7) * 0.04, 1);
+  g.fillStyle = "rgba(13,42,82,0.5)"; g.fillRect(cx - 20, cy + 2, 40, 4);
+  if (t > 2) for (let i = 0; i < 3; i++) diver(g, cx - 22 + i * 22, cy + 6 + (i % 2) * 3, t, i);
+  // the side hatch opens and the commander waves to the boats
+  const hatch = clamp01((t - 4) / 0.6);
+  if (hatch > 0) {
+    g.fillStyle = "#0b1020"; g.fillRect(cx - 4, cy - 17, 8, 9);
+    g.fillStyle = "#e9e9ef"; g.fillRect(cx + 4, cy - 17, 6 * hatch, 9);
+    if (t > 4.5) astronaut(g, cx, cy - 14 - Math.min(4, (t - 4.5) * 6), clamp01((t - 5) * 2) * (0.6 + 0.4 * Math.sin(t * 8)), 1);
+  }
+  pxText(g, "RECOVERY TEAM ON SITE", 6, 6, "#ffffff", 2);
+  pxText(g, t > 5 ? "COMMANDER RIVERA IS OUT AND SAFE" : "DIVERS · RESCUE BOATS · RECOVERY SHIP", W / 2, 148, "#ffffff", 1, "center");
+}
+
+function sceneShip(g: CanvasRenderingContext2D, t: number) {
+  // sunset over the Pacific with the Sierra Madre de Chiapas behind
+  sky(g, "#2a2a6a", "#ff9a5a");
+  glow(g, 250, 92, 90, "rgba(255,180,90,1)", 0.7);
+  g.fillStyle = "#ffd27a"; g.beginPath(); g.arc(250, 94, 12, 0, Math.PI * 2); g.fill();
+  clouds(g, t, 30, 4, "#ffb08a", 0.5);
+  const hy = 98;
+  chiapasCoast(g, hy, 1, 1, true);
+  sea(g, t, hy, 1);
+  for (let i = 0; i < 18; i++) { g.globalAlpha = 0.5 * rnd(i, 121); g.fillStyle = "#ffd27a"; g.fillRect(244 + (rnd(i, 122) - 0.5) * 20 + Math.sin(t * 2 + i) * 2, hy + 3 + i * 3, 4 + rnd(i, 123) * 8, 1); } // sun glitter
+  g.globalAlpha = 1;
+  // the capsule is winched into the well deck at the stern of the ship
+  const sx = 150, sy = 128;
+  recoveryShip(g, sx, sy, 1.25, t, 1);
+  const k = clamp01(t / 4.2);
+  const cxp = lerp(300, sx - 58, k), cyp = lerp(130, 120, k);
+  g.strokeStyle = "#ffe08a"; g.lineWidth = 0.6; g.beginPath(); g.moveTo(sx - 64, 118); g.lineTo(cxp, cyp - 6); g.stroke(); // tow line
+  if (k < 1) { capsule(g, cxp, cyp + Math.sin(t * 2) * 0.8, 0.9, 0, 1); g.fillStyle = "rgba(20,24,50,0.6)"; g.fillRect(cxp - 12, cyp + 1, 24, 3); }
+  else { g.fillStyle = "#e9e9ef"; g.fillRect(sx - 72, 118, 10, 4); }
+  // the crew on deck, and the commander waving from the flight deck
+  for (let i = 0; i < 6; i++) { const x = sx + 6 + i * 7; g.fillStyle = "#14141c"; g.fillRect(x, 105 + (i % 2), 3, 6); g.fillStyle = i % 3 === 0 ? "#f07a24" : "#3b6fd6"; g.fillRect(x, 107 + (i % 2), 3, 2); }
+  if (t > 4.2) astronaut(g, sx + 52, 104, 0.5 + 0.5 * Math.sin(t * 8), 1);
+  if (t > 4.6) pxText(g, "WELCOME HOME, COMMANDER", W / 2, 10, "#ffe08a", 2, "center");
+  else pxText(g, "ON BOARD THE RECOVERY SHIP", W / 2, 10, "#ffffff", 1, "center");
+  pxText(g, "COAST OF CHIAPAS, MEXICO", W / 2, 150, "#ffffff", 1, "center");
+}
+
 /** One frame of a scene at time t (seconds since the scene started). */
 export function drawScene(g: CanvasRenderingContext2D, scene: SceneId, t: number) {
   g.save();
+  if (scene === "reentry" || scene === "chutes" || scene === "splash" || scene === "rescue" || scene === "ship") {
+    ({ reentry: sceneReentry, chutes: sceneChutes, splash: sceneSplash, rescue: sceneRescue, ship: sceneShip })[scene](g, t);
+    g.restore();
+    return;
+  }
   if (scene === "briefing" || scene === "coast" || scene === "orbit" || scene === "stranded") {
     ({ briefing: sceneBriefing, coast: sceneCoast, orbit: sceneOrbit, stranded: sceneStranded })[scene](g, t);
     g.restore();
