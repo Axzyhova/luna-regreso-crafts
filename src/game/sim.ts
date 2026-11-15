@@ -18,7 +18,9 @@ export interface TipoInfo { nombre: string; energia: number; desgaste: number; w
 export const TIPOS = modulos.tipos as Record<ModType, TipoInfo>;
 export type AlienTipo = "abductor" | "rastreador" | "saboteador" | "nodriza";
 export interface Alien { id: number; tipo: AlienTipo; x: number; y: number; hp: number; stun: number; target?: LeakTarget | undefined }
-export interface Module { uid: number; tipo: ModType; x: number; y: number; durabilidad: number; activo: boolean; level?: number }
+export interface Module { uid: number; tipo: ModType; x: number; y: number; durabilidad: number; activo: boolean; level?: number; /** Contents of a storage chest. */ storage?: Record<string, number> }
+/** An item stack the player threw on the ground (can be picked up again with E). */
+export interface GroundItem { id: number; x: number; y: number; key: string; n: number }
 export const STACK = 50;
 export const SLOTS = 20;
 /** Inventory item -> module type it places. */
@@ -32,7 +34,7 @@ export const CYCLE = DAY_LEN + NIGHT_LEN;
 export const LH2_CAP = balance.lh2_cap_kg;
 export const LOX_CAP = balance.lox_cap_kg;
 
-export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number }
+export interface Inv { hielo: number; agua: number; regolito: number; chatarra: number; metal: number; kits: number; baterias: number; pala_mejorada: number; aislamiento: number; paneles: number; taladro: number; taller: number; horno: number; torres_luz: number; planta_electrolisis: number; criotanque: number; pieza_motor: number; cristal_hielo: number; titanio: number; aleacion: number; pala_titanio: number; baton: number; traje_termico: number; capa_reflectante: number; escudo_radiacion: number; botiquin: number; estimulante: number; cofre: number }
 
 export function createSim(mode: Mode, difficulty: Difficulty) {
   return {
@@ -42,7 +44,7 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     battery: 60, energyIn: 0, energyOut: 0,
     habitatO2: 80,
     lh2: 0, lox: 0, h2gas: 0, o2gas: 0,
-    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0 } as Inv,
+    inv: { hielo: 0, agua: 0, regolito: 0, chatarra: 2, metal: 1, kits: 1, baterias: 0, pala_mejorada: 0, aislamiento: 0, paneles: 0, taladro: 0, taller: 1, horno: 0, torres_luz: 0, planta_electrolisis: 0, criotanque: 0, pieza_motor: 0, cristal_hielo: 0, titanio: 0, aleacion: 0, pala_titanio: 0, baton: 0, traje_termico: 0, capa_reflectante: 0, escudo_radiacion: 0, botiquin: 0, estimulante: 0, cofre: 0 } as Inv,
     relay: false,
     // --- historia, efectos, eventos y botín ---
     effects: [] as string[],
@@ -62,6 +64,9 @@ export function createSim(mode: Mode, difficulty: Difficulty) {
     respawned: false,
     drops: [] as { id: number; x: number; y: number; items: Record<string, number> }[],
     nextDropId: 1,
+    ground: [] as GroundItem[],
+    nextGroundId: 1,
+    chestUid: 0,
     notices: [] as { id: number; kind: "achievement" | "mission"; title: string; text: string }[],
     nextNoticeId: 1,
     tut: { step: 0, skipped: false, moved: 0, invOpened: false, kitCrafted: false },
@@ -169,8 +174,10 @@ export function nightBatterySeconds(s: Sim) {
   const net = out - inp;
   return net <= 0 ? Infinity : s.battery / (net * BATTERY_RATE);
 }
+/** Water is stored in the habitat tank (up to WATER_CAP kg), so it never takes inventory slots. */
+export const WATER_CAP = 150;
 export function usedSlots(inv: Inv) {
-  return Object.values(inv).reduce((n, v) => n + Math.ceil(Math.floor(v) / STACK), 0);
+  return Object.entries(inv).reduce((n, [k, v]) => (k === "agua" ? n : n + Math.ceil(Math.floor(v) / STACK)), 0);
 }
 /** Adds items if the 4x5 inventory (stacks of 50) has room. */
 export function addItem(s: Sim, key: keyof Inv, n = 1) {
@@ -268,6 +275,30 @@ export function toggleSuit(s: Sim, inHabitat: boolean): string {
   s.suit.worn = !s.suit.worn;
   addLog(s, s.suit.worn ? "You put on the space suit." : "You took off the space suit. Drink and rest.");
   return s.suit.worn ? "Suit on" : "Suit off";
+}
+
+/**
+ * Melt ice into water in the habitat's tank. Only as much as fits is melted; the rest stays as ice,
+ * so a full tank never wastes ice. Returns what happened so the UI can explain it.
+ */
+export function meltIce(s: Sim): { ice: number; water: number; full: boolean } {
+  const room = Math.max(0, WATER_CAP - s.inv.agua);
+  const ice = Math.min(Math.floor(s.inv.hielo), Math.floor(room / balance.hielo_a_agua_kg));
+  const water = ice * balance.hielo_a_agua_kg;
+  s.inv.hielo -= ice; s.inv.agua += water;
+  const full = s.inv.hielo >= 1; // ice left over means the tank had no more room
+  if (ice > 0) addLog(s, `You melted ${ice} ice: +${water} kg of water (tank ${Math.round(s.inv.agua)}/${WATER_CAP}).`);
+  return { ice, water, full };
+}
+
+/** Real suits carry an in-suit drink bag (~0.9 L). Here: 4 kg of water from the tank restores 25 hydration. */
+export const DRINK_KG = 4, DRINK_GAIN = 25;
+export function drinkWater(s: Sim): { ok: boolean; msg: string } {
+  if (s.inv.agua < DRINK_KG) return { ok: false, msg: `Not enough water (a drink takes ${DRINK_KG} kg)` };
+  if (s.hydration >= 92) return { ok: false, msg: "You're not thirsty yet" };
+  s.inv.agua -= DRINK_KG; s.hydration = Math.min(100, s.hydration + DRINK_GAIN);
+  addLog(s, `You drank from the suit's drink bag: hydration ${Math.round(s.hydration)}%.`);
+  return { ok: true, msg: `Hydration +${DRINK_GAIN}` };
 }
 
 /** Electrolysis: water mass splits into H2:O2 = 1:8 by mass. */

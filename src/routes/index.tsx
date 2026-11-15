@@ -6,6 +6,7 @@ import { GameCanvas } from "@/components/game/GameCanvas";
 import { HUD, Overlays } from "@/components/game/HUD";
 import { DialogBox, TutorialCard } from "@/components/game/StoryUI";
 import { MobileGame, RotateNotice } from "@/components/game/MobileLayout";
+import { ArchiveScreen } from "@/components/game/ArchivePanel";
 import { usePortrait, useTouchDevice } from "@/hooks/use-device";
 import { GAME_TITLE } from "@/game/title";
 
@@ -50,6 +51,7 @@ function Index() {
       {screen === "modo" && <ModeSelect />}
       {screen === "cinematica" && <Cinematic />}
       {screen === "fuentes" && <Fuentes />}
+      {screen === "archivo" && <ArchiveScreen />}
       {screen === "final" && <Final />}
       {screen === "juego" && <Game />}
     </main>

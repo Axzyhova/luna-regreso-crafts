@@ -7,9 +7,9 @@ const COLD = "#3b8fe6", HOT = "#f08a24";
 function VBar({ icon, v, color, text, thick }: { icon: string; v: number; color: string; text?: string | undefined; thick?: boolean }) {
   const pct = Math.max(0, Math.min(100, v));
   return (
-    <div className="flex items-center gap-1.5">
-      <span className="w-3 text-center text-[10px] leading-none text-white">{icon}</span>
-      <div className={`relative flex-1 overflow-hidden rounded-[3px] bg-black/55 ${thick ? "h-3.5" : "h-1.5"}`}>
+    <div className="flex items-center gap-1.5 short:gap-1">
+      <span className="w-3 text-center text-[10px] leading-none text-white short:text-[8px]">{icon}</span>
+      <div className={`relative flex-1 overflow-hidden rounded-[3px] bg-black/55 ${thick ? "h-3.5 short:h-2.5" : "h-1.5 short:h-1"}`}>
         <div className="h-full rounded-[3px] transition-[width] duration-300" style={{ width: `${pct}%`, background: color }} />
         {text && <span className="tr-text absolute inset-0 flex items-center pl-1.5 text-[6px] leading-none">{text}</span>}
       </div>
@@ -39,7 +39,7 @@ export function Thermometer() {
   const left = Math.max(0, Math.ceil(UMBRALES.gracia_s - t));
   return (
     <div className={`flex flex-col items-center ${danger ? "animate-pulse" : ""}`} title={`Suit ${s.temp.toFixed(0)} °C`}>
-      <svg width="58" height="36" viewBox="0 0 64 40" aria-label={`Suit temperature ${s.temp.toFixed(0)} degrees`}>
+      <svg width="58" height="36" viewBox="0 0 64 40" className="short:h-7 short:w-11" aria-label={`Suit temperature ${s.temp.toFixed(0)} degrees`}>
         <path d={arc(26, -90, 90)} stroke="rgba(0,0,0,0.55)" strokeWidth="9" fill="none" strokeLinecap="round" />
         <path d={arc(26, -90, aCold)} stroke={COLD} strokeWidth="6" fill="none" strokeLinecap="round" />
         <path d={arc(26, aCold, aHot)} stroke="#d9d9de" strokeWidth="6" fill="none" />
@@ -79,7 +79,7 @@ export function Vitals({ className = "" }: { className?: string }) {
   const s = useGame((g) => g.snap);
   return (
     <div className={`pointer-events-none flex items-center gap-2 ${className}`}>
-      <div className="flex w-36 flex-col gap-1 sm:w-44">
+      <div className="flex w-36 flex-col gap-1 sm:w-44 short:w-24 short:gap-0.5">
         <VBar icon="🫧" v={s.suitO2} color="#3b8fe6" />
         <VBar icon="♥" v={s.health} color="#3fbf6a" thick text={`${Math.round(s.health)} / 100`} />
         <VBar icon="⚡" v={100 - s.fatigue} color="#f08a24" />

@@ -4,6 +4,7 @@ import { sfx } from "@/game/audio";
 import { EFECTOS, type EffectId } from "@/game/effects";
 import { eventBanner } from "@/game/events";
 import { PRINCIPALES, currentMain, sideAvailable, MISIONES } from "@/game/quests";
+import { expedicion } from "@/game/history";
 import { ITEMS } from "@/game/items";
 import { PixelIcon } from "./PixelIcon";
 import { navigation } from "@/game/nav";
@@ -174,6 +175,7 @@ export function QuestLog() {
               <li key={q.id} className={`text-[8px] leading-4 ${done ? "text-ok" : cur ? "text-foreground" : "text-muted-foreground"}`}>
                 {done ? "✔" : cur ? "▶" : "🔒"} {i + 1}. {cur || done ? q.titulo : "???"}
                 {(cur || done) && <div className="pl-4 text-[7px] text-muted-foreground">{q.objetivo}</div>}
+                {(cur || done) && expedicion(q.inspirado) && <div className="pl-4 text-[6px] text-suit-light">📚 Inspired by {expedicion(q.inspirado)!.nombre}</div>}
               </li>
             );
           })}
@@ -204,13 +206,13 @@ export function TutorialCard({ className = "" }: { className?: string }) {
   const st = tutorialStep(s);
   if (!st) return null;
   return (
-    <div className={`pointer-events-auto w-[min(92vw,340px)] rounded-[12px] border-2 border-gold/70 bg-card/95 p-2.5 shadow-lg ${className}`}>
+    <div className={`pointer-events-auto w-[min(92vw,340px)] rounded-[12px] border-2 border-gold/70 bg-card/95 p-2.5 shadow-lg short:w-[min(52vw,250px)] short:rounded-[9px] short:p-1.5 ${className}`}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[9px] font-semibold text-gold">🎓 TUTORIAL {s.tut.step + 1}/{TUTORIAL.length} · {st.title}</span>
-        <button type="button" onClick={() => { sim.tut.skipped = true; sfx.click(); publish(); }} className="shrink-0 rounded bg-secondary px-2 py-1 text-[8px]">Skip</button>
+        <span className="text-[9px] font-semibold text-gold short:text-[7px]">🎓 TUTORIAL {s.tut.step + 1}/{TUTORIAL.length} · {st.title}</span>
+        <button type="button" onClick={() => { sim.tut.skipped = true; sfx.click(); publish(); }} className="shrink-0 rounded bg-secondary px-2 py-1 text-[8px] short:px-1.5 short:py-0.5 short:text-[6px]">Skip</button>
       </div>
-      <p className="mt-1 text-[9px] leading-4 text-foreground">{touch ? st.touch : st.text}</p>
-      <div className="mt-1.5 flex gap-1">
+      <p className="mt-1 text-[9px] leading-4 text-foreground short:mt-0.5 short:text-[7px] short:leading-[11px]">{touch ? st.touch : st.text}</p>
+      <div className="mt-1.5 flex gap-1 short:mt-1">
         {TUTORIAL.map((t, i) => <span key={t.id} className={`h-1 flex-1 rounded ${i < s.tut.step ? "bg-ok" : i === s.tut.step ? "bg-gold" : "bg-moon-2"}`} />)}
       </div>
     </div>

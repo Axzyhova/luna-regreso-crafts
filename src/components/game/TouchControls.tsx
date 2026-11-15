@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useGame } from "@/game/store";
 import { touch } from "@/game/touch";
 import { sfx } from "@/game/audio";
+import { useShortScreen } from "@/hooks/use-device";
 
 /** Keep receiving moves after the finger leaves the control (ignored if the browser refuses). */
 const capture = (e: React.PointerEvent<HTMLElement>) => { try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* not capturable */ } };
@@ -32,7 +33,8 @@ export function DPad() {
     setDir({ x: d.x, y: d.y });
   };
   const end = () => { id.current = null; touch.vx = 0; touch.vy = 0; setDir({ x: 0, y: 0 }); };
-  const S = 50; // square size in px
+  const short = useShortScreen();
+  const S = short ? 40 : 50; // square size in px
   const cell = (on: boolean, glyph: string, col: number, row: number) => (
     <div className={`pointer-events-none absolute flex items-center justify-center text-[18px] ${MC_BTN} ${on ? MC_DOWN : ""}`}
       style={{ width: S, height: S, left: col * S, top: row * S }}>{glyph}</div>
@@ -74,25 +76,26 @@ function McButton({ label, sub, onPress, onRelease, size = 56, className = "" }:
 export function ActionPad() {
   const s = useGame((g) => g.snap);
   const publish = useGame((g) => g.publish);
+  const k = useShortScreen() ? 0.8 : 1; // phones held sideways: smaller buttons
   const [run, setRun] = useState(touch.run);
   const toggleRun = () => { touch.run = !touch.run; setRun(touch.run); sfx.click(); };
   return (
     <div className="flex select-none items-end gap-2">
       <div className="flex flex-col gap-2">
-        <McButton label="🏃" sub={run ? "RUN ON" : "RUN"} size={46} onPress={toggleRun} className={run ? "!border-ok !bg-ok/45" : ""} />
+        <McButton label="🏃" sub={run ? "RUN ON" : "RUN"} size={Math.round(46 * k)} onPress={toggleRun} className={run ? "!border-ok !bg-ok/45" : ""} />
         {s.buildMode ? (
           <>
-            <McButton label="⟳" sub="SWITCH" size={46} onPress={() => { touch.act.cycle(); publish(); }} />
-            <McButton label="✕" sub="EXIT" size={46} onPress={() => { touch.act.build(); publish(); }} />
+            <McButton label="⟳" sub="SWITCH" size={Math.round(46 * k)} onPress={() => { touch.act.cycle(); publish(); }} />
+            <McButton label="✕" sub="EXIT" size={Math.round(46 * k)} onPress={() => { touch.act.build(); publish(); }} />
           </>
         ) : (
-          <McButton label="🔨" sub="BUILD" size={46} onPress={() => { touch.act.build(); publish(); }} />
+          <McButton label="🔨" sub="BUILD" size={Math.round(46 * k)} onPress={() => { touch.act.build(); publish(); }} />
         )}
-        <McButton label="🧑‍🚀" sub={s.suit.worn ? "SUIT OFF" : "SUIT ON"} size={46} onPress={() => { touch.act.suit(); publish(); }} />
+        <McButton label="🧑‍🚀" sub={s.suit.worn ? "SUIT OFF" : "SUIT ON"} size={Math.round(46 * k)} onPress={() => { touch.act.suit(); publish(); }} />
       </div>
       <div className="flex flex-col items-center gap-2">
-        <McButton label="E" sub="HOLD" size={54} onPress={() => { touch.e = true; touch.act.interact(); }} onRelease={() => { touch.e = false; }} />
-        <McButton label="✋" sub={s.buildMode ? "PLACE" : "ACTION"} size={72} onPress={() => { touch.act.use(); publish(); }} />
+        <McButton label="E" sub="HOLD" size={Math.round(54 * k)} onPress={() => { touch.e = true; touch.act.interact(); }} onRelease={() => { touch.e = false; }} />
+        <McButton label="✋" sub={s.buildMode ? "PLACE" : "ACTION"} size={Math.round(72 * k)} onPress={() => { touch.useHeld = true; touch.act.use(); publish(); }} onRelease={() => { touch.useHeld = false; }} />
       </div>
     </div>
   );
@@ -128,7 +131,7 @@ export function MenuBar({ className = "" }: { className?: string }) {
     <div className={`z-[8] flex gap-1 ${className}`}>
       {items.map((it) => (
         <button key={it.label} type="button" aria-label={it.label} title={it.label} onClick={it.act}
-          className={`flex h-9 w-9 touch-manipulation items-center justify-center text-[14px] ${MC_BTN} active:bg-[#bdbdbd]/70`}>
+          className={`flex h-9 w-9 touch-manipulation items-center justify-center text-[14px] short:h-8 short:w-8 short:text-[12px] ${MC_BTN} active:bg-[#bdbdbd]/70`}>
           {it.icon}
         </button>
       ))}

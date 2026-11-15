@@ -45,7 +45,7 @@ export function Intro() {
         <PixelButton onClick={() => go("modo")}>Accept</PixelButton>
         <PixelButton tone="ghost" onClick={() => go("rechazo")}>Decline</PixelButton>
       </div>
-      <button className="text-[8px] text-muted-foreground underline" onClick={() => go("fuentes")}>Sources & credits</button>
+      <div className="flex items-center gap-4"><button className="tr-btn px-3 py-2 text-[8px]" onClick={() => { sfx.click(); go("archivo"); }}>📚 NASA ARCHIVE</button><button className="text-[8px] text-muted-foreground underline" onClick={() => go("fuentes")}>Sources & credits</button></div>
     </div>
   );
 }

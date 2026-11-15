@@ -1,5 +1,5 @@
 import cfg from "@/data/efectos.json";
-import { addLog, isDay, hurt, type Sim } from "./sim";
+import { addLog, isDay, hurt, drinkWater, type Sim } from "./sim";
 import { inLight, type World } from "./aliens";
 
 export type EffectId = keyof typeof cfg.efectos;
@@ -7,7 +7,8 @@ export const EFECTOS = cfg.efectos as Record<EffectId, { nombre: string; icono: 
 export const UMBRALES = cfg.umbrales;
 export const EQUIPO_MAX = cfg.equipo_max;
 export const GEAR = ["traje_termico", "capa_reflectante", "escudo_radiacion"];
-export const CONSUMIBLES = ["botiquin", "estimulante"];
+/** Items you use up from the inventory or the hotbar. Water is drunk from the suit's drink bag. */
+export const CONSUMIBLES = ["botiquin", "estimulante", "agua"];
 
 const dist = (ax: number, ay: number, bx: number, by: number) => Math.hypot(ax - bx, ay - by);
 const has = (s: Sim, item: string) => s.equip.includes(item);
@@ -80,12 +81,16 @@ export function toggleEquip(s: Sim, item: string): string {
   return "Equipped";
 }
 
-/** Use a consumable from the inventory. */
-export function consumeItem(s: Sim, item: string): boolean {
+/** Use a consumable. Returns whether it worked and a short message for the player. */
+export function useConsumable(s: Sim, item: string): { ok: boolean; msg: string } {
   const inv = s.inv as unknown as Record<string, number>;
-  if (!CONSUMIBLES.includes(item) || (inv[item] ?? 0) < 1) return false;
-  inv[item]! -= 1;
-  if (item === "botiquin") { s.health = Math.min(100, s.health + 40); addLog(s, "You used a medkit: +40 health."); }
-  if (item === "estimulante") { s.fatigue = 0; addLog(s, "You used a stimulant: fatigue is gone."); }
-  return true;
+  if (!CONSUMIBLES.includes(item)) return { ok: false, msg: "You can't use that" };
+  if (item === "agua") return drinkWater(s);
+  if ((inv[item] ?? 0) < 1) return { ok: false, msg: "You have none" };
+  if (item === "botiquin") {
+    if (s.health >= 100) return { ok: false, msg: "Your health is already full" };
+    inv[item]! -= 1; s.health = Math.min(100, s.health + 40); addLog(s, "You used a medkit: +40 health."); return { ok: true, msg: "Health +40" };
+  }
+  inv[item]! -= 1; s.fatigue = 0; addLog(s, "You used a stimulant: fatigue is gone."); return { ok: true, msg: "Fatigue gone" };
 }
+export const consumeItem = (s: Sim, item: string): boolean => useConsumable(s, item).ok;

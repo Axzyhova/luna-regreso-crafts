@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { createSim, LH2_CAP, LOX_CAP, type Sim, type Mode, type Difficulty } from "./sim";
 
-export type Screen = "intro" | "rechazo" | "modo" | "cinematica" | "juego" | "fuentes" | "final";
-export type Overlay = null | "inv" | "base" | "log" | "pausa" | "cohete" | "cubesat" | "misiones" | "estacion" | "mapa";
+export type Screen = "intro" | "rechazo" | "modo" | "cinematica" | "juego" | "fuentes" | "final" | "archivo";
+export type Overlay = null | "inv" | "base" | "log" | "pausa" | "cohete" | "cubesat" | "misiones" | "estacion" | "mapa" | "cofre" | "archivo";
 
 /** Mutable simulation owned by the Phaser scene; UI reads `snap`, a copy published ~8x/s. */
 export let sim: Sim = createSim("realista", "normal");

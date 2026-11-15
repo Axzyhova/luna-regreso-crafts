@@ -68,7 +68,7 @@ export const SLOT_LABEL: Record<string, string> = { traje_termico: "SUIT", capa_
 function DollSprite({ equip, scale }: { equip: string[]; scale: number }) {
   const g = dollPixels(equip);
   return (
-    <svg width={16 * scale} height={24 * scale} viewBox="0 0 16 24" shapeRendering="crispEdges" aria-label={`Astronaut wearing ${equip.length ? equip.map((e) => ITEMS[e]?.nombre).join(", ") : "the basic suit"}`}>
+    <svg width={16 * scale} height={24 * scale} viewBox="0 0 16 24" shapeRendering="crispEdges" className="short:h-[84px] short:w-14" aria-label={`Astronaut wearing ${equip.length ? equip.map((e) => ITEMS[e]?.nombre).join(", ") : "the basic suit"}`}>
       {g.flatMap((row, y) => row.map((c, x) => (c === null ? null : <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill={hex(c)} />)))}
     </svg>
   );
@@ -95,10 +95,10 @@ export function CharacterDoll({ dragging = false, flash }: { dragging?: boolean;
   const hot = over || dragging;
   return (
     <div className="flex flex-col items-center gap-2">
-      <div data-doll
+      <div data-doll data-drop="doll"
         onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
         onDrop={(e) => { e.preventDefault(); setOver(false); const k = e.dataTransfer.getData("text/item"); if (k) drop(k); }}
-        className={`tr-slot relative flex items-end justify-center !rounded-[10px] px-5 pb-2 pt-4 ${hot ? "tr-hud-ok scale-[1.02]" : ""}`}>
+        className={`tr-slot relative flex items-end justify-center !rounded-[10px] px-5 pb-2 pt-4 short:px-2 short:pb-1 short:pt-2 ${hot ? "tr-hud-ok scale-[1.02]" : ""}`}>
         <div className="pointer-events-none absolute inset-x-4 bottom-1.5 h-2 rounded-[50%] bg-black/45" />
         {/* low-gravity idle float; re-keyed on every equip change so the new gear "pops" on */}
         <div className="relative animate-[doll-bob_2.4s_ease-in-out_infinite]">
@@ -114,16 +114,16 @@ export function CharacterDoll({ dragging = false, flash }: { dragging?: boolean;
               onDragStart={(e) => e.dataTransfer.setData("text/unequip", k)}
               onClick={() => on && takeOff(k)}
               title={on ? `${ITEMS[k]?.nombre}: tap or drag back to the grid to take it off` : `${SLOT_LABEL[k]} slot: drag ${ITEMS[k]?.nombre} onto the astronaut`}
-              className={`tr-slot flex h-12 w-12 flex-col items-center justify-center ${on ? "tr-slot-active" : "opacity-60"}`}>
+              className={`tr-slot flex h-12 w-12 flex-col items-center justify-center short:h-9 short:w-9 ${on ? "tr-slot-active" : "opacity-60"}`}>
               {on ? <PixelIcon item={k} size={22} /> : <span className="text-[10px] text-white/40">+</span>}
               <span className="tr-text mt-0.5 text-[5px]">{SLOT_LABEL[k]}</span>
             </button>
           );
         })}
       </div>
-      <div className="min-h-4 text-center text-[6px] leading-3">
+      <div className="min-h-4 text-center text-[6px] leading-3 short:min-h-0">
         {msg ? <span key={msg} className={`tr-in inline-block ${msg === "Equipped" ? "text-ok" : "text-gold"}`}>{msg}</span>
-          : <span className="text-white/60">Gear {s.equip.length}/{EQUIPO_MAX} · drag gear onto the astronaut</span>}
+          : <span className="text-white/60 short:hidden">Gear {s.equip.length}/{EQUIPO_MAX} · drag gear onto the astronaut</span>}
       </div>
     </div>
   );

@@ -5,8 +5,8 @@ import { recipeBlock, craft, addLog, TIPOS, STACK, SLOTS, type Receta } from "@/
 import { ITEMS } from "@/game/items";
 import { sfx } from "@/game/audio";
 import { PixelIcon } from "./PixelIcon";
+import { INV_ORDER } from "@/game/itemGuide";
 
-const INV_ORDER = ["hielo", "agua", "regolito", "chatarra", "metal", "kits", "baterias", "paneles", "taladro", "taller", "horno", "torres_luz", "pala_mejorada", "aislamiento", "planta_electrolisis", "criotanque", "pieza_motor", "traje_termico", "capa_reflectante", "escudo_radiacion", "botiquin", "estimulante"];
 const TITLE = { taller: "WORKSHOP", horno: "FURNACE" } as const;
 const NOTE = {
   taller: "Build tools, modules and gear here.",

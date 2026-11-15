@@ -14,7 +14,7 @@ function MiniBar({ label, v, max, color }: { label: string; v: number; max: numb
   return (
     <div className="flex items-center gap-1 text-[6px]">
       <span className="w-6 text-right text-white/80">{label}</span>
-      <div className="tr-bar !h-1.5 w-14"><div style={{ width: `${pct}%`, background: color }} /></div>
+      <div className="tr-bar !h-1 w-12"><div style={{ width: `${pct}%`, background: color }} /></div>
     </div>
   );
 }
@@ -30,9 +30,8 @@ export function MobileGame() {
       <ClientOnly fallback={null}><GameCanvas /></ClientOnly>
 
       {/* top-left: astronaut (vitals + gear), navigation chip below */}
-      <div className="pointer-events-none absolute left-[max(env(safe-area-inset-left),8px)] top-2 flex flex-col items-start gap-1.5">
-        <div className="tr-hud flex flex-col gap-1 px-1.5 pb-1 pt-0.5">
-          <span className="tr-label !text-[5px]">👨‍🚀 ASTRONAUT</span>
+      <div className="pointer-events-none absolute left-[max(env(safe-area-inset-left),8px)] top-1.5 flex flex-col items-start gap-1">
+        <div className="tr-hud flex flex-col gap-0.5 px-1.5 pb-1 pt-0.5">
           <Vitals />
           <GearRow />
         </div>
@@ -46,17 +45,15 @@ export function MobileGame() {
       </div>
 
       {/* top-right: clock, base power + rocket fuel, warnings panel below */}
-      <div className="pointer-events-none absolute right-[max(env(safe-area-inset-right),8px)] top-2 flex flex-col items-end gap-1.5">
+      <div className="pointer-events-none absolute right-[max(env(safe-area-inset-right),8px)] top-1.5 flex flex-col items-end gap-1">
         <DayClock />
-        <div className="tr-hud flex flex-col items-end gap-1 px-1.5 pb-1 pt-0.5">
-          <span className="tr-label !text-[5px]">🏠 BASE</span>
-          <span className={`tr-text text-[6px] ${net >= 0 ? "!text-ok" : "!text-destructive"}`}>⚡ +{s.energyIn.toFixed(0)}/-{s.energyOut.toFixed(0)}</span>
+        <div className="tr-hud flex flex-col items-end gap-0.5 px-1.5 py-1" aria-label="Base power and rocket fuel">
+          <span className={`tr-text text-[6px] ${net >= 0 ? "!text-ok" : "!text-destructive"}`}>⚡ {net >= 0 ? "+" : ""}{net.toFixed(0)}/s</span>
           <MiniBar label="BAT" v={s.battery} max={batteryCap(s)} color="var(--color-gold)" />
-          <span className="tr-label mt-0.5 !text-[5px]">🚀 ROCKET</span>
           <MiniBar label="LH2" v={s.lh2} max={LH2_CAP} color="var(--color-suit-light)" />
           <MiniBar label="LOX" v={s.lox} max={LOX_CAP} color="var(--color-suit)" />
         </div>
-        <AlertsPanel className="!w-36" />
+        <AlertsPanel className="!w-28" />
       </div>
 
       <Countdown />
@@ -70,7 +67,7 @@ export function MobileGame() {
         <div className="flex items-center gap-1">
           <Hotbar />
           <button type="button" aria-label="Inventory" onClick={() => { sfx.click(); setOverlay("inv"); }}
-            className={`pointer-events-auto flex h-11 w-11 touch-manipulation items-center justify-center text-[16px] ${MC_BTN}`}>⋯</button>
+            className={`pointer-events-auto flex h-11 w-11 touch-manipulation items-center justify-center text-[16px] short:h-9 short:w-9 ${MC_BTN}`}>⋯</button>
         </div>
       </div>
 

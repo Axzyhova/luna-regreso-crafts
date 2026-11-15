@@ -69,6 +69,14 @@
    "produce_hielo": 0.04,
    "en_crater": true
   },
+  "cofre": {
+   "nombre": "Storage chest",
+   "energia": 0,
+   "desgaste": 0,
+   "w": 16,
+   "h": 12,
+   "item": "cofre"
+  },
   "torre_luz": {
    "nombre": "Light tower",
    "energia": -1,
@@ -132,6 +140,12 @@
    "x": 66,
    "y": 172,
    "durabilidad": 60
+  },
+  {
+   "tipo": "cofre",
+   "x": 70,
+   "y": 204,
+   "durabilidad": 100
   }
  ]
 }

@@ -9,6 +9,8 @@ export const touch = {
   e: false,
   /** Sprint toggle (the RUN button). Keyboard players hold Shift instead. */
   run: false,
+  /** ACTION button held down: keep using the tool (mining repeats at the tool's pace). */
+  useHeld: false,
   act: {
     use: () => {},
     interact: () => {},

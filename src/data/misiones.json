@@ -1,17 +1,23 @@
 {
  "personajes": {
-  "ARIA": "Onboard AI of the Selene-7",
-  "CONTROL": "Mission Control, on Earth",
-  "TÚ": "Commander of the Selene-7"
+  "ARIA": "Onboard AI of the Selene-7 lander",
+  "CONTROL": "Mission Control in Houston (Flight Director Priya Raman)",
+  "WEBER": "Jonas Weber (ESA), pilot, in lunar orbit",
+  "TANAKA": "Dr. Aiko Tanaka (JAXA), geologist, in lunar orbit",
+  "TÚ": "Commander Alex Rivera (NASA)"
  },
  "intro": [
   {
    "quien": "ARIA",
-   "texto": "Commander… can you hear me? This is ARIA. The impact broke the antenna and emptied the tanks."
+   "texto": "Commander Rivera… can you hear me? This is ARIA, the onboard AI of Selene-7. The emergency landing broke the antenna and emptied the tanks."
   },
   {
    "quien": "ARIA",
    "texto": "We're at the Moon's south pole. Earth's last transmission came in before the crash: since then, silence."
+  },
+  {
+   "quien": "ARIA",
+   "texto": "Weber and Tanaka are safe in lunar orbit aboard the mothership, but without our antenna we can't reach them, or Mission Control in Houston."
   },
   {
    "quien": "ARIA",
@@ -34,7 +40,8 @@
      "quien": "ARIA",
      "texto": "Leak contained. The habitat is holding… for now. We need water: there's ice in the shadowed crater."
     }
-   ]
+   ],
+   "inspirado": "apollo13"
   },
   {
    "id": "M2",
@@ -47,7 +54,8 @@
      "quien": "ARIA",
      "texto": "Excellent. Take it to the habitat (E) to melt it. With electricity we'll split it into hydrogen and oxygen: our fuel."
     }
-   ]
+   ],
+   "inspirado": "lcross"
   },
   {
    "id": "M3",
@@ -64,7 +72,8 @@
      "quien": "ARIA",
      "texto": "The rocket is badly damaged. Start with the Structure and the Power."
     }
-   ]
+   ],
+   "inspirado": "moxie"
   },
   {
    "id": "M4",
@@ -81,7 +90,8 @@
      "quien": "ARIA",
      "texto": "Idea: a CubeSat in orbit can relay our signal to Earth. Design it from the rocket."
     }
-   ]
+   ],
+   "inspirado": "skylab"
   },
   {
    "id": "M5",
@@ -92,13 +102,18 @@
    "fin": [
     {
      "quien": "CONTROL",
-     "texto": "…Selene-7, this is Mission Control. Commander? We thought we'd lost you!"
+     "texto": "…Selene-7, this is Mission Control. Flight Director Raman here. Commander Rivera? We thought we'd lost you!"
+    },
+    {
+     "quien": "WEBER",
+     "texto": "Alex, it's Jonas. Aiko and I have been circling above you, counting the minutes. Stay alive down there."
     },
     {
      "quien": "CONTROL",
      "texto": "We're sending you the return windows. Fill the tanks, repair the ship and don't miss your date."
     }
-   ]
+   ],
+   "inspirado": "apollo8"
   },
   {
    "id": "M6",
@@ -111,7 +126,8 @@
      "quien": "ARIA",
      "texto": "All set. When the window opens, start the countdown from the rocket."
     }
-   ]
+   ],
+   "inspirado": "challenger"
   },
   {
    "id": "M7",
@@ -122,9 +138,10 @@
    "fin": [
     {
      "quien": "CONTROL",
-     "texto": "Liftoff confirmed, Selene-7. Welcome home, commander."
+     "texto": "Liftoff confirmed, Selene-7. Welcome home, Commander Rivera."
     }
-   ]
+   ],
+   "inspirado": "apollo11"
   }
  ],
  "secundarias": [
@@ -136,7 +153,8 @@
    "recompensa": {
     "traje_termico": 1
    },
-   "fin": "ARIA: There was a thermal suit in the cargo. Equip it from the inventory."
+   "fin": "ARIA: There was a thermal suit in the cargo. Equip it from the inventory.",
+   "inspirado": "apollo17"
   },
   {
    "id": "S2",
@@ -146,7 +164,8 @@
    "recompensa": {
     "botiquin": 2
    },
-   "fin": "ARIA: Well done. Regolith and the habitat walls stop the particles."
+   "fin": "ARIA: Well done. Regolith and the habitat walls stop the particles.",
+   "inspirado": "skylab"
   },
   {
    "id": "S3",
@@ -166,7 +185,8 @@
    "recompensa": {
     "kits": 3
    },
-   "fin": "ARIA: Maintenance up to date. That's how you survive up here."
+   "fin": "ARIA: Maintenance up to date. That's how you survive up here.",
+   "inspirado": "hubble"
   },
   {
    "id": "S5",
@@ -187,7 +207,8 @@
    "recompensa": {
     "pieza_motor": 1
    },
-   "fin": "ARIA: Ideal mix. I found a spare engine part in storage."
+   "fin": "ARIA: Ideal mix. I found a spare engine part in storage.",
+   "inspirado": "mco"
   },
   {
    "id": "S7",
@@ -197,7 +218,8 @@
    "recompensa": {
     "titanio": 1
    },
-   "fin": "ARIA: Scorch Fields reached. The titanium ore there is what we need for the bridge."
+   "fin": "ARIA: Scorch Fields reached. The titanium ore there is what we need for the bridge.",
+   "inspirado": "skylab"
   },
   {
    "id": "S8",

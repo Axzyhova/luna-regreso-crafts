@@ -1,5 +1,6 @@
 import type Phaser from "phaser";
 import { PAL } from "./palette";
+import { ITEMS } from "./items";
 
 /**
  * High-definition pixel art: every texture is drawn at HD× the world resolution and
@@ -35,6 +36,7 @@ export function makeSprites(scene: Phaser.Scene) {
   // Astronaut (10x12 world px): idle, 8-frame walk and 8-frame run, all from one parametric drawing.
   makeAstronaut(scene);
   makeStructures(scene);
+  makeItemTextures(scene);
 
   // Astronaut without the space suit (same size): head and hair visible, blue undersuit.
   tex(scene, "astro_plain", 10, 12, (g, r) => {
@@ -206,6 +208,14 @@ export function makeSprites(scene: Phaser.Scene) {
     g.fillStyle(OUT).fillTriangle(7, 25, 13, 25, 10, 28); g.fillStyle(0x9a9aa3).fillTriangle(8, 25, 12, 25, 10, 27);
     block(r, 1, 20, 18, 3, 0x6b6b75, 0x9a9aa3, 0x45454f);
   });
+  tex(scene, "m_cofre", 16, 12, (_g, r) => {
+    block(r, 1, 9, 30, 14, 0x6b6b75, 0x9a9aa3, 0x45454f);            // body
+    block(r, 1, 2, 30, 8, 0x9a9aa3, 0xc9c9cf, 0x6b6b75);             // lid
+    r(7, 3, 3, 20, 0x45454f); r(22, 3, 3, 20, 0x45454f);              // straps
+    r(7, 3, 1, 20, 0x6b6b75); r(22, 3, 1, 20, 0x6b6b75);
+    for (const x of [3, 28]) { r(x, 4, 1, 1, 0xe6e6ec); r(x, 20, 1, 1, 0x2a2a36); } // rivets
+    block(r, 13, 8, 6, 7, T.gold, 0xfff3a6, 0xb08a10); r(15, 10, 2, 3, 0x2a2a36); // latch
+  });
   tex(scene, "m_torre_luz", 6, 16, (g, r) => {
     block(r, 1, 1, 10, 7, T.gold, 0xfff3a6, 0xb08a10); r(3, 3, 6, 2, 0xffffff);
     r(5, 8, 2, 22, OUT); r(5, 8, 1, 22, 0xc9c9cf);
@@ -327,6 +337,24 @@ function makeStructures(scene: Phaser.Scene) {
   }
   tex(scene, "shadow", 32, 8, (g) => { g.fillStyle(0x000000, 0.32).fillEllipse(32, 8, 64, 16); g.fillStyle(0x000000, 0.18).fillEllipse(32, 8, 44, 10); });
   tex(scene, "dust", 4, 3, (g) => { g.fillStyle(0x9a9aa3, 0.85).fillEllipse(4, 3, 8, 5); g.fillStyle(0xc9c9cf, 0.7).fillEllipse(3, 2, 4, 2); });
+}
+
+/**
+ * One small texture per inventory item ("item_<key>"), for stacks thrown on the ground.
+ * Each 8×8 icon pixel is one world pixel, with a dark outline so it reads on any floor.
+ */
+export function makeItemTextures(scene: Phaser.Scene) {
+  for (const [key, it] of Object.entries(ITEMS)) {
+    const opaque = (x: number, y: number) => it.colors[it.icon[y]?.[x] ?? "."] !== undefined;
+    tex(scene, `item_${key}`, 10, 10, (_g, r) => {
+      const px = (x: number, y: number, c: number) => r(2 + x * HD, 2 + y * HD, HD, HD, c);
+      for (let y = -1; y <= 8; y++) for (let x = -1; x <= 8; x++) {
+        if (opaque(x, y)) continue;
+        if (opaque(x - 1, y) || opaque(x + 1, y) || opaque(x, y - 1) || opaque(x, y + 1)) r(2 + x * HD, 2 + y * HD, HD, HD, OUT);
+      }
+      for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if (opaque(x, y)) px(x, y, it.colors[it.icon[y]![x]!]!);
+    });
+  }
 }
 
 /** Flat [x0,y0,x1,y1,...] → points, optionally grown by `grow` px from the centroid (for outlines). */

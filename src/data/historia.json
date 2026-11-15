@@ -1,0 +1,156 @@
+{
+ "nota": "Educational content. The expeditions are REAL NASA history (facts checked against NASA's own mission pages and accident reports). The Selene-7 mission and its crew are FICTION, made up for this game. 'tipo': exito = success, fallo = failure, mixto = a failure that was overcome.",
+ "mision": {
+  "nombre": "SELENE-7",
+  "resumen": "Selene-7 is a near-future scouting mission to the Moon's south pole, where water ice hides in permanently shadowed craters. Its goal: prove that a crew can make water, oxygen and rocket fuel from the Moon itself. Three astronauts launch; one descends to the surface.",
+  "tripulacion": [
+   { "id": "rivera", "nombre": "Cmdr. Alex Rivera", "rol": "Commander and lander pilot (you)", "agencia": "NASA", "nota": "Grew up under the dark desert skies and trained for ten years for this landing." },
+   { "id": "weber", "nombre": "Jonas Weber", "rol": "Pilot of the mothership, waiting in lunar orbit", "agencia": "ESA", "nota": "The voice you hope to hear again once the relay works." },
+   { "id": "tanaka", "nombre": "Dr. Aiko Tanaka", "rol": "Mission specialist and geologist, in lunar orbit", "agencia": "JAXA", "nota": "Chose the south pole because she wanted to study its ice." },
+   { "id": "raman", "nombre": "Priya Raman", "rol": "Flight Director, Mission Control in Houston", "agencia": "NASA", "nota": "Leads the team on Earth and has not given up on you." },
+   { "id": "aria", "nombre": "ARIA", "rol": "Onboard AI of the Selene-7 lander", "agencia": "fiction", "nota": "Monitors the ship and talks you through every repair." }
+  ]
+ },
+ "expediciones": [
+  {
+   "id": "friendship7", "nombre": "Mercury-Atlas 6 · Friendship 7", "fecha": "February 20, 1962", "tipo": "exito",
+   "tripulacion": ["John H. Glenn Jr."], "agencia": "NASA",
+   "resumen": "John Glenn became the first American to orbit the Earth, circling it three times in about five hours inside a tiny one-person capsule.",
+   "leccion": "Early spaceflight was built from small, careful steps: first orbit once, then everything else.",
+   "juego": "Your first mission is also small steps: move, gather, seal a leak, then make fuel.",
+   "dato": "John Glenn orbited the Earth three times in 1962."
+  },
+  {
+   "id": "gemini8", "nombre": "Gemini 8", "fecha": "March 16, 1966", "tipo": "mixto",
+   "tripulacion": ["Neil A. Armstrong", "David R. Scott"], "agencia": "NASA",
+   "resumen": "Armstrong and Scott made the first docking of two spacecraft in orbit. Then a stuck thruster sent them into a fast spin. Armstrong stopped it using the re-entry thrusters, and the crew came home safely with the mission cut short.",
+   "leccion": "Train emergencies until they are routine: a calm procedure beats panic.",
+   "juego": "Leaks and failures in the game are solved the same way: stop, follow the steps, repair.",
+   "dato": "Armstrong stopped a dangerous spin on Gemini 8."
+  },
+  {
+   "id": "apollo1", "nombre": "Apollo 1", "fecha": "January 27, 1967", "tipo": "fallo",
+   "tripulacion": ["Virgil I. “Gus” Grissom", "Edward H. White II", "Roger B. Chaffee"], "agencia": "NASA",
+   "resumen": "During a launch rehearsal on the ground, a fire started in the cabin, which was filled with pure oxygen. The crew could not open the hatch in time, and all three astronauts died.",
+   "leccion": "Pure oxygen makes fires burn fast. NASA redesigned the hatch to open outward, used flame-resistant materials and filled the cabin with an oxygen–nitrogen mix on the launch pad.",
+   "juego": "Oxygen is life and a hazard. It is why your base keeps its air under control.",
+   "dato": "After Apollo 1, spacecraft hatches open outward."
+  },
+  {
+   "id": "apollo8", "nombre": "Apollo 8", "fecha": "December 21–27, 1968", "tipo": "exito",
+   "tripulacion": ["Frank Borman", "James A. Lovell Jr.", "William A. Anders"], "agencia": "NASA",
+   "resumen": "The first people to leave Earth orbit and circle the Moon, ten times. Anders took the famous “Earthrise” photograph, and the crew read from the Book of Genesis in a Christmas Eve broadcast watched around the world.",
+   "leccion": "Seeing the Earth from the Moon changed how people saw their planet: small, fragile and shared.",
+   "juego": "Earth hanging in the sky is what you are trying to reach, and the CubeSat relay is how you call it.",
+   "dato": "Apollo 8 took the “Earthrise” photo in 1968."
+  },
+  {
+   "id": "apollo11", "nombre": "Apollo 11", "fecha": "July 16–24, 1969", "tipo": "exito",
+   "tripulacion": ["Neil A. Armstrong", "Edwin E. “Buzz” Aldrin Jr.", "Michael Collins"], "agencia": "NASA",
+   "resumen": "Armstrong and Aldrin landed the lunar module Eagle in the Sea of Tranquility on July 20, 1969, and walked on the Moon for about two and a half hours. Collins orbited alone in the command module Columbia. Armstrong flew the final descent by hand to avoid a field of boulders.",
+   "leccion": "A mission is thousands of people. Collins kept the ride home ready the whole time.",
+   "juego": "Your return needs the same: a ship in perfect condition, enough fuel and a precise launch window.",
+   "dato": "Apollo 11 landed on the Moon on July 20, 1969."
+  },
+  {
+   "id": "apollo13", "nombre": "Apollo 13", "fecha": "April 11–17, 1970", "tipo": "mixto",
+   "tripulacion": ["James A. Lovell Jr.", "John L. “Jack” Swigert Jr.", "Fred W. Haise Jr."], "agencia": "NASA",
+   "resumen": "On the way to the Moon an oxygen tank exploded, cutting power and water. The crew used the lunar module Aquarius as a lifeboat, and engineers on the ground found a way to fit the command module's square carbon-dioxide filters into the lunar module's round sockets using tape, plastic bags and cardboard. All three astronauts returned safely on April 17.",
+   "leccion": "Improvise with what you have and trust the team on the ground. NASA called it a “successful failure”.",
+   "juego": "Your whole game is Apollo 13: a damaged ship, limited resources and clever repairs.",
+   "dato": "Apollo 13's crew made a CO2 filter from tape and bags."
+  },
+  {
+   "id": "apollo17", "nombre": "Apollo 17", "fecha": "December 7–19, 1972", "tipo": "exito",
+   "tripulacion": ["Eugene A. Cernan", "Harrison H. “Jack” Schmitt", "Ronald E. Evans"], "agencia": "NASA",
+   "resumen": "The last mission in which people have walked on the Moon. Schmitt, a geologist, and Cernan spent about three days on the surface and brought back around 110 kg of rock and soil.",
+   "leccion": "Samples tell stories: studying Moon rocks helped scientists understand how the Moon was formed.",
+   "juego": "Every rock you gather is a resource and a clue: regolith holds oxygen and metals.",
+   "dato": "Apollo 17 brought back about 110 kg of Moon rock."
+  },
+  {
+   "id": "skylab", "nombre": "Skylab", "fecha": "Launched May 14, 1973", "tipo": "mixto",
+   "tripulacion": ["Charles “Pete” Conrad Jr.", "Joseph P. Kerwin", "Paul J. Weitz"], "agencia": "NASA",
+   "resumen": "America's first space station was damaged during launch: a shield tore away and took one solar wing with it, and the station began to overheat. The first crew arrived, set up a parasol-style sun shield and freed the jammed solar wing on spacewalks.",
+   "leccion": "Space is repaired by people: a strong design plus astronauts who know how to fix things.",
+   "juego": "Your solar panels and the Reflective cape fight the same enemies: heat and lack of power.",
+   "dato": "Skylab's crew rescued a damaged station with a sunshade."
+  },
+  {
+   "id": "challenger", "nombre": "Space Shuttle Challenger · STS-51-L", "fecha": "January 28, 1986", "tipo": "fallo",
+   "tripulacion": ["Francis R. “Dick” Scobee", "Michael J. Smith", "Judith A. Resnik", "Ronald E. McNair", "Ellison S. Onizuka", "Gregory B. Jarvis", "S. Christa McAuliffe"], "agencia": "NASA",
+   "resumen": "Challenger broke apart 73 seconds after liftoff and all seven crew members were lost, including teacher Christa McAuliffe. A rubber O-ring seal in a solid rocket booster, stiffened by the freezing morning, let hot gas escape.",
+   "leccion": "Listen to the engineers' warnings: when the safety data says no, the answer is no, however much pressure there is to launch.",
+   "juego": "The cold is a real enemy here, and you only launch when every system of the rocket is green.",
+   "dato": "Challenger's O-rings failed in the cold in 1986."
+  },
+  {
+   "id": "hubble", "nombre": "Hubble Space Telescope", "fecha": "Launched April 24, 1990 · repaired December 1993", "tipo": "mixto",
+   "tripulacion": ["Launch (STS-31): Loren J. Shriver, Charles F. Bolden Jr., Steven A. Hawley, Bruce McCandless II, Kathryn D. Sullivan"], "agencia": "NASA",
+   "resumen": "Hubble's first images were blurry: its main mirror had been ground to the wrong shape, off by about one-fiftieth of the width of a human hair. In December 1993 astronauts on Space Shuttle Endeavour installed corrective optics, and Hubble went on to change astronomy.",
+   "leccion": "Test the whole system on the ground and design things that can be repaired.",
+   "juego": "Repair kits are never wasted: maintenance keeps every machine in the base alive.",
+   "dato": "Hubble's blurry mirror was fixed in orbit in 1993."
+  },
+  {
+   "id": "columbia", "nombre": "Space Shuttle Columbia · STS-107", "fecha": "January 16 – February 1, 2003", "tipo": "fallo",
+   "tripulacion": ["Rick D. Husband", "William C. McCool", "Michael P. Anderson", "Kalpana Chawla", "David M. Brown", "Laurel B. Clark", "Ilan Ramon"], "agencia": "NASA",
+   "resumen": "During launch a piece of foam insulation hit Columbia's left wing and damaged its heat protection. On February 1, while returning to Earth, hot gases entered the wing and the shuttle broke apart over Texas, killing all seven astronauts.",
+   "leccion": "Small damage matters: inspect everything and take “minor” problems seriously.",
+   "juego": "Thermal protection is one of the six rocket systems you must bring to green before launch.",
+   "dato": "Columbia was lost in 2003 because of wing damage."
+  },
+  {
+   "id": "mco", "nombre": "Mars Climate Orbiter", "fecha": "Launched December 11, 1998 · lost September 23, 1999", "tipo": "fallo",
+   "tripulacion": ["No crew: robotic spacecraft"], "agencia": "NASA",
+   "resumen": "The spacecraft passed much closer to Mars than planned and was lost. Software on the ground reported thruster data in pound-force seconds, while the navigation team expected newton-seconds.",
+   "leccion": "Units matter: always say what unit a number is in, and check that everyone uses the same one.",
+   "juego": "Your fuel mix is a ratio by mass, about 6 kg of oxygen for every 1 kg of hydrogen. Mixing up units would ruin your launch.",
+   "dato": "A units mix-up (pounds vs newtons) lost Mars Climate Orbiter."
+  },
+  {
+   "id": "lcross", "nombre": "LCROSS and LRO", "fecha": "Launched June 18, 2009 · impact October 9, 2009", "tipo": "exito",
+   "tripulacion": ["No crew: robotic spacecraft"], "agencia": "NASA",
+   "resumen": "LCROSS sent a spent rocket stage crashing into Cabeus, a permanently shadowed crater near the Moon's south pole, and flew through the cloud of debris. Its instruments detected water ice.",
+   "leccion": "Water on the Moon means drinking water, oxygen and rocket fuel without carrying them all from Earth.",
+   "juego": "This is your whole plan: ice from the shadowed crater becomes water, oxygen and fuel.",
+   "dato": "LCROSS found water ice near the Moon's south pole."
+  },
+  {
+   "id": "moxie", "nombre": "Perseverance and MOXIE (Mars)", "fecha": "Landed February 18, 2021", "tipo": "exito",
+   "tripulacion": ["No crew: robotic rover"], "agencia": "NASA",
+   "resumen": "The Perseverance rover landed in Jezero crater carrying MOXIE, an experiment that made oxygen from the carbon dioxide in Mars's air, a first on another world. The small helicopter Ingenuity made the first powered flight on another planet.",
+   "leccion": "In-situ resource utilization: live off the land instead of carrying everything from Earth.",
+   "juego": "Your electrolysis plant and your regolith furnace are in-situ resource machines too.",
+   "dato": "MOXIE made oxygen on Mars in 2021."
+  },
+  {
+   "id": "artemis1", "nombre": "Artemis I", "fecha": "November 16 – December 11, 2022", "tipo": "exito",
+   "tripulacion": ["No crew: test flight of the Orion capsule"], "agencia": "NASA",
+   "resumen": "NASA's first Artemis mission sent the Orion capsule on a test flight around the Moon with no one aboard, and brought it back safely. The Artemis programme aims to return astronauts to the Moon, including to the south pole region.",
+   "leccion": "Test it empty before you fly people.",
+   "juego": "Selene-7 imagines the next step after Artemis: a crew working at the south pole.",
+   "dato": "Artemis I flew Orion around the Moon in 2022."
+  },
+  {
+   "id": "iss", "nombre": "International Space Station", "fecha": "First module November 20, 1998 · crewed since November 2, 2000", "tipo": "exito",
+   "tripulacion": ["International crews from NASA, Roscosmos, ESA, JAXA and CSA"], "agencia": "NASA and partners",
+   "resumen": "A laboratory orbiting the Earth, built by five space agencies and lived in without interruption for decades. Its life-support system recycles most of the water the crew uses, including water from the air and from urine.",
+   "leccion": "Recycling is survival: in space every kilogram of water or air is precious.",
+   "juego": "That is why you store water in a tank, melt ice carefully and drink only what you need.",
+   "dato": "The ISS recycles most of the water its crew uses."
+  }
+ ],
+ "datos": [
+  "Some craters at the Moon's south pole never see sunlight. Parts of them are colder than −230 °C.",
+  "Electrolysis splits water into hydrogen and oxygen. By mass it is 1 part hydrogen to 8 parts oxygen.",
+  "Engines that burn liquid hydrogen with liquid oxygen, like the Space Shuttle's main engines, work best at about 6 parts oxygen to 1 part hydrogen by mass.",
+  "A day on the Moon lasts about 29.5 Earth days: roughly two weeks of sunlight, then two weeks of night. In the game time is compressed.",
+  "The Moon has no air, so there is no sound and fire cannot burn like on Earth. Suits carry their own oxygen.",
+  "Moon dust (regolith) is sharp and sticks to everything. Apollo astronauts found it wore down their suits and tools.",
+  "Spacesuits like the Shuttle-era one include an in-suit drink bag with about one litre of water, so astronauts can drink during a spacewalk.",
+  "Astronauts on the ISS exercise about two hours a day to keep their bones and muscles strong.",
+  "Solar storms are a big risk beyond Earth's magnetic field. One occurred in August 1972, between Apollo 16 and Apollo 17, when no one was on the Moon.",
+  "Without an atmosphere, surfaces in sunlight can pass 100 °C while shadows fall below −150 °C."
+ ]
+}
