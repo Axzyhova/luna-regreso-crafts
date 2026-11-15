@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { loadZoom, view } from "@/game/view";
+import { startMusic, stopMusic } from "@/game/music";
 
 /**
  * Internal pixel resolution that matches the container's shape, so a vertical phone
@@ -45,6 +46,16 @@ export function GameCanvas() {
       ro.observe(el);
     })();
     return () => { dead = true; ro?.disconnect(); game?.destroy(true); };
+  }, []);
+  // Tablets/phones: a long press (holding a move button) opens the browser's menu and cancels the touch,
+  // so the astronaut stops. While the game is mounted, the long-press menu is blocked everywhere.
+  // Calm 8-bit ambient music while playing (the game is entered with a tap/click, so audio is allowed).
+  useEffect(() => { startMusic(); return () => stopMusic(); }, []);
+  useEffect(() => {
+    const block = (e: Event) => e.preventDefault();
+    window.addEventListener("contextmenu", block);
+    document.body.classList.add("no-callout");
+    return () => { window.removeEventListener("contextmenu", block); document.body.classList.remove("no-callout"); };
   }, []);
   return <div ref={ref} className="pixelated absolute inset-0 touch-none" />;
 }

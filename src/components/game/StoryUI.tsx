@@ -8,7 +8,7 @@ import { expedicion } from "@/game/history";
 import { ITEMS } from "@/game/items";
 import { PixelIcon } from "./PixelIcon";
 import { missionHelp, navigation } from "@/game/nav";
-import { TUTORIAL, tutorialStep } from "@/game/tutorial";
+import { TUTORIAL, tutorialStep, stepTutorial } from "@/game/tutorial";
 import { useTouchDevice } from "@/hooks/use-device";
 
 /** Unwrap an angle so a needle turning from 350° to 10° rotates 20° forward instead of spinning back 340°. */
@@ -232,6 +232,7 @@ export function TutorialCard({ className = "" }: { className?: string }) {
         <button type="button" onClick={() => { sim.tut.skipped = true; sfx.click(); publish(); }} className="shrink-0 rounded bg-secondary px-2 py-1 text-[8px] short:px-1.5 short:py-0.5 short:text-[6px]">Skip</button>
       </div>
       <p className="mt-1 text-[9px] leading-4 text-foreground short:mt-0.5 short:text-[7px] short:leading-[11px]">{touch ? st.touch : st.text}</p>
+      {st.ack && <button type="button" onClick={() => { sim.tut.acks ??= []; sim.tut.acks.push(st.id); stepTutorial(sim); sfx.ok(); publish(); }} className="tr-btn tr-btn-primary mt-1.5 px-3 py-1 text-[9px] short:mt-1 short:px-2 short:py-0.5 short:text-[7px]">GOT IT ✓</button>}
       <div className="mt-1.5 flex gap-1 short:mt-1">
         {TUTORIAL.map((t, i) => <span key={t.id} className={`h-1 flex-1 rounded ${i < s.tut.step ? "bg-ok" : i === s.tut.step ? "bg-gold" : "bg-moon-2"}`} />)}
       </div>

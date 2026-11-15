@@ -302,3 +302,7 @@
   :not(.hud-zoom *).text-\[10px\] { font-size: 13px; }
   :not(.hud-zoom *).text-\[11px\] { font-size: 14px; }
 }
+
+/* No long-press callout / text magnifier on touch controls (it interrupted held move buttons on tablets). */
+.no-callout, .no-callout * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+.no-callout input, .no-callout textarea { -webkit-user-select: text; user-select: text; }

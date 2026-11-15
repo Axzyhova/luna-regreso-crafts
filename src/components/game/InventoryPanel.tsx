@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { itemSources } from "@/game/sources";
+import { CRAFT_CATS, categoryOf, sortRecipes, recipeStars, starText } from "@/game/craftCats";
 import recetas from "@/data/recetas.json";
 import { useGame, sim } from "@/game/store";
 import { SLOTS, STACK, WATER_TANK_KG, usedSlots, recipeBlock, craft, dropItem, pourWater, healInHabitat } from "@/game/sim";
@@ -35,6 +36,9 @@ export function Inventory() {
   const [sel, setSel] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [where, setWhere] = useState<string | null>(null);
+  const [cat, setCat] = useState<string>("all");
+  const sorted = sortRecipes(recetas);
+  const shown = cat === "all" ? sorted : sorted.filter((r) => categoryOf(r) === cat);
   const inv = s.inv as unknown as Record<string, number>;
   const cells = Array.from({ length: SLOTS }, (_, i) => inventoryStacks(inv)[i] ?? null);
   const say = (m: string) => { setNote(m); setTimeout(() => setNote((c) => (c === m ? null : c)), 2600); };
@@ -149,16 +153,21 @@ export function Inventory() {
         </div>
       ) : (
         <div className="space-y-1.5">
-          <div className="text-[7px] text-suit-light">Tip: tap an ingredient name to see where to find it.</div>
+          <div className="flex flex-wrap gap-1">
+            {[{ id: "all", nombre: "All", icon: "📋" }, ...CRAFT_CATS].map((c) => (
+              <button key={c.id} type="button" onClick={() => { sfx.click(); setCat(c.id); }} className={`tr-btn px-1.5 py-0.5 text-[7px] ${cat === c.id ? "!border-gold !bg-gold/30" : ""}`}>{c.icon} {c.nombre}</button>
+            ))}
+          </div>
+          <div className="text-[7px] text-suit-light">Easiest first · ★ = how hard the materials are to get · tap an ingredient name to see where to find it.</div>
           <div className="text-[7px] text-white/60">Near: {s.near.taller ? <span className="text-ok">Workshop</span> : "—"} {s.near.horno ? <span className="text-ok">· Furnace</span> : ""}</div>
-          {recetas.map((r) => {
+          {shown.map((r) => {
             const block = recipeBlock(s, r);
             return (
               <div key={r.id} className={`flex items-center justify-between gap-2 border-b border-white/10 pb-1.5 text-[8px] short:text-[7px] ${block ? "opacity-60 grayscale" : ""}`}>
                 <div className="flex items-center gap-2">
                   <PixelIcon item={Object.keys(r.resultado)[0]!} size={20} className="short:h-4 short:w-4" />
                   <div>
-                    <div>{r.nombre} <span className="text-[6px] text-suit-light">[{r.lugar === "mano" ? "BY HAND" : r.lugar.toUpperCase()}]</span></div>
+                    <div>{r.nombre} <span className="text-[6px] text-suit-light">[{r.lugar === "mano" ? "BY HAND" : r.lugar === "taller" ? "WORKSHOP" : "FURNACE"}]</span> <span className="text-[7px] text-gold" title="Difficulty">{starText(recipeStars(r))}</span></div>
                     <div className="mt-0.5 flex flex-wrap gap-x-2">
                       {Object.entries(r.ingredientes).map(([k, v]) => (
                         <button type="button" key={k} onClick={() => { sfx.click(); setWhere(where === `${r.id}:${k}` ? null : `${r.id}:${k}`); }} title="Where to get it" className={`underline decoration-dotted ${(inv[k] ?? 0) >= (v ?? 0) ? "text-white/60" : "text-destructive"}`}>{v} {ITEMS[k]?.nombre ?? k} ({Math.floor(inv[k] ?? 0)})</button>

@@ -7,10 +7,15 @@ import { stepAliens, spawnAlien, baseProtected, stealFromBase, ABANDON_S, type W
 const world = (over: Partial<World> = {}): World => ({ player: { x: 600, y: 330 }, inHabitat: false, hab: { x: 110, y: 170 }, rocket: { x: 540, y: 150 }, w: 640, h: 360, rnd: () => 0.5, ...over });
 
 describe("tutorial", () => {
-  it("walks through move → scrap → inventory → craft sealant → seal → ice → water", () => {
+  it("walks through goal → move → suit → scrap → inventory → craft → seal → map → missions → base → build → ice → water → thermal suit", () => {
     const s = createSim("realista", "normal");
+    expect(tutorialStep(s)?.id).toBe("goal");
+    expect(tutorialStep(s)?.ack).toBe(true); // info step: GOT IT button
+    s.tut.acks.push("goal"); stepTutorial(s);
     expect(tutorialStep(s)?.id).toBe("move");
     s.tut.moved = 50; stepTutorial(s);
+    expect(tutorialStep(s)?.id).toBe("suit");
+    s.tut.acks.push("suit"); stepTutorial(s);
     expect(tutorialStep(s)?.id).toBe("scrap");
     s.inv.chatarra = 4; stepTutorial(s);
     s.tut.invOpened = true; stepTutorial(s);
@@ -18,7 +23,13 @@ describe("tutorial", () => {
     expect(craft(s, recetas.find((r) => r.id === "kit")!)).toBe(true);
     stepTutorial(s);
     expect(tutorialStep(s)?.id).toBe("seal");
-    s.actFlags.leakFixed = true; s.stats.hielo = 2; s.inv.agua = 10; stepTutorial(s);
+    s.actFlags.leakFixed = true; stepTutorial(s);
+    expect(tutorialStep(s)?.id).toBe("map");
+    s.tut.seen.push("mapa", "misiones", "base"); stepTutorial(s);
+    expect(tutorialStep(s)?.id).toBe("build");
+    s.tut.built = true; s.stats.hielo = 2; s.inv.agua = 10; stepTutorial(s);
+    expect(tutorialStep(s)?.id).toBe("thermal");
+    s.tut.acks.push("thermal"); stepTutorial(s);
     expect(s.tut.step).toBe(TUTORIAL.length);
     expect(tutorialStep(s)).toBeNull();
   });

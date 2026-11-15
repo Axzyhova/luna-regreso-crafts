@@ -24,7 +24,7 @@ export const useGame = create<State>((set, get) => ({
   overlay: null,
   snap: structuredClone(sim),
   go: (screen) => set({ screen }),
-  setOverlay: (overlay) => { if (overlay === "inv") sim.tut.invOpened = true; set({ overlay }); },
+  setOverlay: (overlay) => { if (overlay === "inv") sim.tut.invOpened = true; if (overlay) { sim.tut.seen ??= []; if (!sim.tut.seen.includes(overlay)) sim.tut.seen.push(overlay); } set({ overlay }); },
   newGame: (m, d) => { sim = createSim(m, d); get().publish(); },
   loadGame: () => {
     try {
