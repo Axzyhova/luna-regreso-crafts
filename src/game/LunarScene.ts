@@ -22,6 +22,7 @@ import { twinkle, bobOffset, beamStrips, ringPhase, edgeMarker } from "./pickups
 import { canMine } from "./tools";
 import { view } from "./view";
 import { TerrainFx } from "./terrainFx";
+import { setMusicMood } from "./music";
 import { Phase3Fx } from "./fx3";
 import { loadFx } from "./view";
 import { createFxTextures, NightLighting, paintRichTerrain, sunShadow, updateSilhouetteShadow } from "./visualFx";
@@ -870,6 +871,7 @@ export class LunarScene extends Phaser.Scene {
     this.pixelfx.update(this, dt);
     this.terrainFx.update(this.cameras.main);
     this.stepPhasedNodes();
+    setMusicMood(isDay(sim) ? "day" : "night");
     this.fx3.update(dt, sim, this.player, this.wantsRun && !this.winded, this.nodes, this.androidSprites.values());
     if (this.vignetteFx) {
       const danger = sim.suitO2 < 20 || sim.effects.length > 0;
