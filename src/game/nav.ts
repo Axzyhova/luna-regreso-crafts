@@ -1,5 +1,6 @@
 import type { Sim } from "./sim";
 import { effectMods } from "./effects";
+import { HAB, ROCKET, SHADOW } from "./world";
 
 /** World px per in-game meter (the astronaut is ~4 px tall). */
 export const PX_PER_M = 4;
@@ -49,13 +50,13 @@ export function navigation(s: Sim) {
 }
 
 const MISSION_HELP: string[] = [
-  "Walk to the pulsing leak near Base (110, 170) & hold E (needs 1 Sealant kit).",
-  "Head SE to Shadowed Crater (330, 270) & press SPACE on Ice.",
+  `Walk to the pulsing leak near Base (${HAB.x}, ${HAB.y}) & hold E (needs 1 Sealant kit).`,
+  `Head SE to Shadowed Crater (${SHADOW.x}, ${SHADOW.y}) & press SPACE on Ice.`,
   "Melt Ice at Habitat (E) → Water, then keep Electrolysis & Cryotank ON.",
-  "Go to Rocket (540, 150) & press E to repair Structure & Power to 70%.",
-  "At Rocket (540, 150), open CubeSat Designer and launch the relay.",
+  `Go to Rocket (${ROCKET.x}, ${ROCKET.y}) & press E to repair Structure & Power to 70%.`,
+  `At Rocket (${ROCKET.x}, ${ROCKET.y}), open CubeSat Designer and launch the relay.`,
   "Repair all rocket subsystems to 90% and fill LH2/LOX tanks.",
-  "At Rocket (540, 150), start the launch countdown inside a return window!",
+  `At Rocket (${ROCKET.x}, ${ROCKET.y}), start the launch countdown inside a return window!`,
 ];
 
 export function missionHelp(s: Sim): string {

@@ -79,7 +79,7 @@ describe("Lunar survival & exploration expansions", () => {
   it("dedicated resource lands, far bosses and field guide work together", () => {
     const s = createSim("realista", "normal");
     expect(SUBZONAS.length).toBeGreaterThanOrEqual(9);
-    const sz = checkSubzoneVisit(s, 920, 160);
+    const sz = checkSubzoneVisit(s, 644, 112);
     expect(sz?.id).toBe("tierra_chatarra");
     expect(s.subzonesVisited).toContain("tierra_chatarra");
 

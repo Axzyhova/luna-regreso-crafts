@@ -18,6 +18,7 @@ const BADGE: Record<string, { text: string; cls: string }> = {
   failure: { text: "FAILED", cls: "bg-[#b02a2a]" },
   partial: { text: "PARTIAL", cls: "bg-[#c48a14]" },
   planned: { text: "PLANNED", cls: "bg-[#3a5ab8]" },
+  cancelled: { text: "CANCELLED", cls: "bg-[#6b6b75]" },
 };
 const HINT: Record<string, string> = { M1: "mission 1", M2: "mission 2", M3: "mission 3", M4: "mission 4", M5: "mission 5", M6: "mission 6", M7: "the final mission" };
 
@@ -34,7 +35,7 @@ function LunarMissions({ unlockAll }: { unlockAll: boolean }) {
           const b = BADGE[e.resultado] ?? BADGE["planned"]!;
           if (!open) return (
             <div key={e.id} className="rounded-[8px] border-2 border-dashed border-white/20 bg-black/25 p-2 text-white/50">
-              🔒 ??? · {e.anio}<div className="mt-1 text-[7px]">Unlocks with {HINT[e.desbloqueo] ?? (e.desbloqueo === "zona_fire" ? "visiting the Scorch Fields" : "progress")}.</div>
+              🔒 ??? · {e.anio}<div className="mt-1 text-[7px]">Unlocks with {HINT[e.desbloqueo] ?? (e.desbloqueo === "zona_fire" ? "visiting the Scorch Fields" : e.desbloqueo.startsWith("poi_") ? "finding a historic site on the map" : "progress")}.</div>
             </div>
           );
           return (

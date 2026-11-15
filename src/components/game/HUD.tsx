@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { RobertPanel, RobertIntro } from "./RobertPanel";
+import { RoverPanel } from "./RoverPanel";
 import modos from "@/data/modos.json";
 import recetas from "@/data/recetas.json";
 import { useGame, sim, saveGame } from "@/game/store";
@@ -85,17 +87,17 @@ export function BaseRocketPanel() {
 export function HUD() {
   return (
     <>
-      <div className="pointer-events-none absolute left-2 top-2 flex flex-col items-start gap-1.5">
+      <div className="hud-zoom origin-top-left pointer-events-none absolute left-2 top-2 flex flex-col items-start gap-1.5">
         <AstronautPanel />
         <NavCard />
       </div>
-      <HUDTop className="absolute left-1/2 top-2 -translate-x-1/2" />
-      <div className="pointer-events-none absolute right-2 top-2 flex flex-col items-end gap-1.5">
+      <HUDTop className="hud-zoom origin-top absolute left-1/2 top-2 -translate-x-1/2" />
+      <div className="hud-zoom origin-top-right pointer-events-none absolute right-2 top-2 flex flex-col items-end gap-1.5">
         <BaseRocketPanel />
         <AlertsPanel />
       </div>
       <Countdown />
-      <HUDBottom className="absolute inset-x-0 bottom-0" />
+      <HUDBottom className="hud-zoom origin-bottom absolute inset-x-0 bottom-0" />
     </>
   );
 }
@@ -154,8 +156,9 @@ export function HUDBottom({ className = "", touch = false }: { className?: strin
           <Hotbar />
           {!touch && <button type="button" onClick={() => { sfx.click(); useGame.getState().setOverlay("mapa"); }} className="tr-btn pointer-events-auto ml-1 h-10 px-2 text-[10px]" title="Map (M)">🗺 MAP</button>}
           {!touch && <button type="button" onClick={() => { sfx.click(); useGame.getState().setOverlay("guia"); }} className="tr-btn pointer-events-auto h-10 px-2 text-[10px]" title="Field Guide (G)">📖 GUIDE</button>}
+          {!touch && <button type="button" onClick={() => { sfx.click(); useGame.getState().setOverlay("robert"); }} className="tr-btn pointer-events-auto h-10 px-2 text-[10px]" title="Ask Mini Robert (H)">🤖 HELP</button>}
         </div>
-        {!touch && <div className="text-[6px] text-muted-foreground">WASD move · SHIFT run · SPACE pick up/hit · E interact (hold to seal/repair) · TAB inventory · X drop · C build · B base · L log · M map · G guide · J missions · K archive · V suit · ESC pause · 1-5 or click: pick item</div>}
+        {!touch && <div className="mx-auto max-w-[78vw] px-2 text-center text-[6px] text-muted-foreground">WASD move · SHIFT run · SPACE pick up/hit · E interact (hold to seal/repair) · TAB inventory · X drop · C build · B base · L log · M map · G guide · J missions · K archive · V suit · H help (Mini Robert) · ESC pause · 1-5 or click: pick item</div>}
       </div>
   );
 }
@@ -187,6 +190,7 @@ function Base() {
         <div className="text-[7px] leading-4 text-white/70">
           ☀ <span className="text-ok">{solarCount} solar panel{solarCount === 1 ? "" : "s"}</span> make +{solarIn.toFixed(0)}/s{day ? "" : " (night: 0)"} · ⚙ machines use −{s.energyOut.toFixed(0)}/s. Add panels to run more machines; add batteries to last the night.
         </div>
+        <div className="text-[8px]">Solar panels: {s.eds ? <span className="text-ok">EDS Dust Shield installed (no dust loss)</span> : <span className={s.dust > 0.3 ? "text-alert" : ""}>dust {Math.round(s.dust * 100)}% → −{Math.round(s.dust * 50)}% power (press E next to a panel to clean, or craft the EDS)</span>}</div>
         <div className="text-[8px]">Batteries {s.battery.toFixed(0)}/{batteryCap(s)} · They last tonight: <span className={nightSec < NIGHT_LEN ? "text-alert" : "text-ok"}>{fmtTime(nightSec)}</span> <span className="text-muted-foreground">(night lasts {NIGHT_LEN / 60} min)</span></div>
         <div className="text-[7px] text-muted-foreground">Habitat O2 {s.habitatO2.toFixed(0)}% · Water tank {s.inv.agua.toFixed(0)}/{WATER_TANK_KG} kg · H2 gas {s.h2gas.toFixed(2)} kg · O2 gas {s.o2gas.toFixed(2)} kg</div>
       </div>
@@ -277,6 +281,7 @@ function Rocket() {
       <div className="mt-3 flex flex-wrap gap-3">
         <PixelButton disabled={blockers.length > 0 || s.countdown !== null} onClick={() => { if (startLaunch(sim)) { sfx.alert(); publish(); useGame.getState().setOverlay(null); } }}>{s.countdown !== null ? "Countdown…" : `Launch (T-${countdownLength(s)} s)`}</PixelButton>
         <PixelButton tone="ghost" onClick={() => useGame.getState().setOverlay("cubesat")}>{s.relay ? "View CubeSat relay" : "Design CubeSat relay"}</PixelButton>
+        {s.navcore && <PixelButton tone="alert" disabled={blockers.length > 0 || s.countdown !== null} onClick={() => { if (startLaunch(sim, "mars")) { sfx.alert(); publish(); useGame.getState().setOverlay(null); } }}>🔴 Launch to Mars (Jezero)</PixelButton>}
       </div>
       {blockers.length > 0 && (
         <ul className="mt-2 space-y-1 text-[7px] text-alert">
@@ -337,6 +342,7 @@ function Pause() {
         <PixelButton onClick={() => setOverlay(null)}>Continue</PixelButton>
         <PixelButton tone="ghost" onClick={() => setOverlay("archivo")}>📚 Archive</PixelButton>
         <PixelButton tone="ghost" onClick={() => setOverlay("guia")}>📖 Field Guide</PixelButton>
+        <PixelButton tone="ghost" onClick={() => setOverlay("robert")}>🤖 Ask Mini Robert</PixelButton>
         <PixelButton tone="ghost" onClick={() => { saveGame(); sfx.ok(); }}>Save</PixelButton>
         <PixelButton tone="alert" onClick={() => { saveGame(); setOverlay(null); go("intro"); }}>Quit to title</PixelButton>
       </div>
@@ -348,7 +354,7 @@ export function Overlays() {
   const overlay = useGame((g) => g.overlay);
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      const map: Record<string, "inv" | "base" | "log" | "pausa" | "misiones" | "mapa" | "archivo" | "guia"> = { Tab: "inv", b: "base", B: "base", l: "log", L: "log", j: "misiones", J: "misiones", m: "mapa", M: "mapa", k: "archivo", K: "archivo", g: "guia", G: "guia", Escape: "pausa" };
+      const map: Record<string, "inv" | "base" | "log" | "pausa" | "misiones" | "mapa" | "archivo" | "guia" | "robert"> = { Tab: "inv", b: "base", B: "base", l: "log", L: "log", j: "misiones", J: "misiones", m: "mapa", M: "mapa", k: "archivo", K: "archivo", g: "guia", G: "guia", h: "robert", H: "robert", Escape: "pausa" };
       const o = map[e.key];
       if (!o) return;
       if (e.key === "Escape" && sim.buildMode && !useGame.getState().overlay) { e.preventDefault(); sim.buildMode = null; useGame.getState().publish(); return; }
@@ -363,6 +369,6 @@ export function Overlays() {
   const panel =
     overlay === "inv" ? <Inventory /> : overlay === "base" ? <Base /> : overlay === "log" ? <Log /> : overlay === "pausa" ? <Pause /> :
     overlay === "cohete" ? <Rocket /> : overlay === "cubesat" ? <CubeSatDesigner /> : overlay === "misiones" ? <QuestLog /> :
-    overlay === "estacion" ? <StationPanel /> : overlay === "mapa" ? <MapPanel /> : overlay === "cofre" ? <ChestPanel /> : overlay === "archivo" ? <ArchivePanel /> : overlay === "guia" ? <FieldGuidePanel /> : overlay === "cueva" ? <CavePanel /> : null;
-  return <>{panel}<NoticeToast /><DeathScreen /></>;
+    overlay === "estacion" ? <StationPanel /> : overlay === "mapa" ? <MapPanel /> : overlay === "cofre" ? <ChestPanel /> : overlay === "archivo" ? <ArchivePanel /> : overlay === "guia" ? <FieldGuidePanel /> : overlay === "cueva" ? <CavePanel /> : overlay === "robert" ? <RobertPanel /> : overlay === "rover" ? <RoverPanel /> : null;
+  return <>{panel}<RobertIntro /><NoticeToast /><DeathScreen /></>;
 }

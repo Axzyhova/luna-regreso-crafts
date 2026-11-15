@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { PAL } from "./palette";
 import { sim, useGame, saveGame } from "./store";
-import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, dropItem, TIPOS, PLACEABLE, leakAllowed, toolInfo, meltIce, WATER_TANK_KG, nextLeakDelay, pickUpDrop, toggleSuit, WORLD, ZONAS, zoneAt, zoneBlock, reveal, BRIDGE, buildBridge, canUpgrade, upgradeCost, upgradeModule, lvl, type Zona, type LeakTarget, type Module, type ModType } from "./sim";
+import { step, isDay, CYCLE, DAY_LEN, addLog, onDeath, modeCfg, diffCfg, addItem, dropItem, TIPOS, PLACEABLE, leakAllowed, hurt, visitPoi, tendFarm, farmOf, CROPS, seedToPlant, FARM_WATER_KG, applyBridgeKit, type Leak, toolInfo, meltIce, WATER_TANK_KG, nextLeakDelay, pickUpDrop, toggleSuit, WORLD, ZONAS, zoneAt, zoneBlock, reveal, BRIDGE, buildBridge, canUpgrade, upgradeCost, upgradeModule, lvl, type Zona, type LeakTarget, type Module, type ModType } from "./sim";
 import { sfx } from "./audio";
 import { stepAliens, hitAlien, type World } from "./aliens";
 import { stepCountdown } from "./mission";
@@ -16,17 +16,23 @@ import { feetBox, footprint, groundLine, moveWithCollision, overlaps, sortDepth,
 import { FONT_KEY, registerPixelFont, toFont } from "./pixelfont";
 import { WALK_SPEED, RUN_MULT, RUN_FATIGUE_S, runState, strideFrame } from "./movement";
 import { makeSprites, HD } from "./sprites";
+import { POIS } from "./world";
 import { SUBZONAS, stepHive, hitHive, stepBosses, hitBoss, checkSubzoneVisit } from "./zones";
 import { twinkle, bobOffset, beamStrips, ringPhase, edgeMarker } from "./pickups";
 import { canMine } from "./tools";
 import { view } from "./view";
 import { createFxTextures, NightLighting, paintRichTerrain, sunShadow } from "./visualFx";
+import { HAB, ROCKET, SHADOW, RAVINE, BRIDGE_DECK } from "./world";
 
-const W = 1280, H = 720; // landing site (night aliens, events and capsules stay here)
-const WW = WORLD.w, WH = WORLD.h; // whole explorable world (2560x1440)
+const W = 896, H = 504; // landing site (night aliens, events and capsules stay here)
+const WW = WORLD.w, WH = WORLD.h; // whole explorable world (1792x1008)
 const isStation = (m: Module) => m.tipo === "taller" || m.tipo === "horno";
-const HAB = { x: 110, y: 170 } /* matches habitat in modulos.json */, ROCKET = { x: 760, y: 220 };
-const SHADOW = { x: 640, y: 520, rx: 180, ry: 90 };
+/** How far beyond an object's edge E still reaches (world px): practically touching it. */
+export const INTERACT_EDGE = 2;
+/** Half-size of the astronaut's body (world px): reach is measured from its edge, not its centre. */
+const BODY_HW = 3, BODY_HH = 5;
+type TargetKind = "leak" | "special" | "cave" | "drop" | "bridge" | "poi" | "capsule" | "rocket" | "melt" | "chest" | "station" | "repair" | "upgrade" | "clean" | "farm" | "robert" | "rover";
+interface Target { kind: TargetKind; x: number; y: number; ref?: unknown; label: string }
 type NodeType = "hielo" | "regolito" | "chatarra" | "cristal_hielo" | "titanio" | "aleacion" | "alga_lunar";
 const NODE_TEX: Record<NodeType, string> = { hielo: "ice", regolito: "reg", chatarra: "scrap", cristal_hielo: "n_cristal", titanio: "n_titanio", aleacion: "n_aleacion", alga_lunar: "n_aleacion" };
 interface RNode { type: NodeType; amount: number; spr: Phaser.GameObjects.Image; zone?: string | undefined }
@@ -42,7 +48,7 @@ const STATIC_SPRITES = [
 
 export class LunarScene extends Phaser.Scene {
   player!: Phaser.GameObjects.Image;
-  keys!: Record<"W" | "A" | "S" | "D" | "UP" | "DOWN" | "LEFT" | "RIGHT" | "E" | "SHIFT" | "SPACE" | "G", Phaser.Input.Keyboard.Key>;
+  keys!: Record<"W" | "A" | "S" | "D" | "UP" | "DOWN" | "LEFT" | "RIGHT" | "E" | "SHIFT" | "SPACE" | "X", Phaser.Input.Keyboard.Key>;
   nodes: RNode[] = [];
   leakSprites = new Map<number, Phaser.GameObjects.Image>();
   alienSprites = new Map<number, Phaser.GameObjects.Image>();
@@ -71,6 +77,8 @@ export class LunarScene extends Phaser.Scene {
   prompt!: Phaser.GameObjects.BitmapText;
   promptBg!: Phaser.GameObjects.Rectangle;
   animT = 0; dustT = 0; winded = false; wantsRun = false;
+  faceX = 1; faceY = 0;
+  robert!: Phaser.GameObjects.Image;
   touchMode = false;
   pubT = 0; saveT = 0; repairT = 0; leakT = 0; useCd = 0; facing = 1;
   constructor() { super("lunar"); }
@@ -121,6 +129,10 @@ export class LunarScene extends Phaser.Scene {
     this.preview = this.add.graphics().setDepth(35);
     this.playerShadow = this.add.image(HAB.x, HAB.y + 30 + PLAYER_FOOT_Y, "shadow").setDisplaySize(10, 4).setDepth(5.5);
     this.player = this.add.image(HAB.x, HAB.y + 30, "astro_idle0").setScale(1 / HD).setDepth(10);
+    // Mini Robert follows you everywhere; click / tap him for help.
+    this.robert = this.add.image(HAB.x - 10, HAB.y + 36, "robert").setScale(0.6 / HD).setDepth(10)
+      .setInteractive(new Phaser.Geom.Circle(14, 12, 20), Phaser.Geom.Circle.Contains);
+    this.robert.on("pointerdown", (_p: unknown, _x: number, _y: number, ev: { stopPropagation: () => void }) => { ev.stopPropagation(); this.openRobert(); });
     this.ring = this.add.graphics().setDepth(30);
     this.beam = this.add.graphics().setDepth(22);
     this.zone = this.add.graphics().setDepth(24);
@@ -136,12 +148,12 @@ export class LunarScene extends Phaser.Scene {
     this.prompt = this.add.bitmapText(0, 0, FONT_KEY, "").setScale(1 / HD).setTint(PAL.gold).setDepth(40).setVisible(false);
 
     this.cameras.main.setBounds(0, 0, WW, WH).startFollow(this.player, true, 0.15, 0.15).setRoundPixels(true).setZoom(HD * view.zoom);
-    this.keys = this.input.keyboard!.addKeys("W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SHIFT,SPACE,ONE,TWO,THREE,FOUR,FIVE,C,Q,G") as LunarScene["keys"];
+    this.keys = this.input.keyboard!.addKeys("W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SHIFT,SPACE,ONE,TWO,THREE,FOUR,FIVE,C,Q,X") as LunarScene["keys"];
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
       const w = p.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
       if (sim.buildMode) { this.place(p.wasTouch ? { x: w.x, y: w.y } : undefined); return; }
       const clickedCave = sim.caves.find((c) => Phaser.Math.Distance.Between(c.x, c.y, w.x, w.y) < 16);
-      if (clickedCave && Phaser.Math.Distance.Between(clickedCave.x, clickedCave.y, this.player.x, this.player.y) < 38) {
+      if (clickedCave && this.pickTarget()?.ref === clickedCave) { // only when you are touching the cave
         sim.activeCaveId = clickedCave.id; sfx.click(); useGame.getState().publish(); useGame.getState().setOverlay("cueva"); return;
       }
       this.useTool();
@@ -152,15 +164,16 @@ export class LunarScene extends Phaser.Scene {
     this.input.keyboard!.on("keydown-SPACE", () => (sim.buildMode ? this.place() : this.useTool()));
     this.input.keyboard!.on("keydown-E", () => this.interact());
     this.input.keyboard!.on("keydown-V", () => this.suitToggle());
-    this.input.keyboard!.on("keydown-G", (e: KeyboardEvent) => this.dropHeld(e.shiftKey)); // G: drop 1 · Shift+G: drop the stack
+    this.input.keyboard!.on("keydown-X", (e: KeyboardEvent) => this.dropHeld(e.shiftKey)); // X: drop 1 · Shift+X: drop the stack
     const t = (f: () => void) => () => { this.touchMode = true; f(); };
-    touch.act = { use: t(() => (sim.buildMode ? this.place() : this.useTool())), interact: t(() => this.interact()), build: t(() => this.toggleBuild()), cycle: t(() => this.cycleBuild()), suit: t(() => this.suitToggle()) };
-    this.events.once("shutdown", () => { touch.act = { use: () => {}, interact: () => {}, build: () => {}, cycle: () => {}, suit: () => {} }; });
+    touch.act = { use: t(() => (sim.buildMode ? this.place() : this.useTool())), interact: t(() => this.interact()), build: t(() => this.toggleBuild()), cycle: t(() => this.cycleBuild()), suit: t(() => this.suitToggle()), drop: t(() => this.dropHeld(false)) };
+    this.events.once("shutdown", () => { touch.act = { use: () => {}, interact: () => {}, build: () => {}, cycle: () => {}, suit: () => {}, drop: () => {} }; });
     (["ONE", "TWO", "THREE", "FOUR", "FIVE"] as const).forEach((n, i) => this.input.keyboard!.on(`keydown-${n}`, () => { sim.hotbar = i + 1; sfx.click(); }));
     for (const l of sim.leaks) this.addLeakSprite(l.id, l.x, l.y);
     initCapsules(sim, { w: W, h: H, hab: HAB, rnd: () => Math.random() });
     if (!sim.caves.length) spawnCave(sim, 235, 195);
     this.drawBridge();
+    for (const p of POIS) this.add.image(p.x, p.y, `poi_${p.id}`).setDepth(p.y).setScale(1 / HD);
     if (!sim.log.length) addLog(sim, "Emergency landing at the lunar south pole. No fuel.");
     this.leakT = 90;
   }
@@ -221,8 +234,8 @@ export class LunarScene extends Phaser.Scene {
       this.add.bitmapText(x + 10, y + 8, FONT_KEY, toFont(z.nombre)).setScale(1.5).setTint(z.id === "ice" ? 0xcfe9ff : z.id === "fire" ? 0xffd0a0 : 0xd8b0ff).setDepth(3);
     }
     // Ravine around the Hive (the bridge crosses it at BRIDGE).
-    g.fillStyle(0x07070c).fillRect(640, 356, 640, 8).fillRect(636, 360, 8, 360);
-    g.fillStyle(0x2a2a36).fillRect(640, 355, 640, 1).fillRect(635, 360, 1, 360);
+    for (const r of RAVINE) g.fillStyle(0x07070c).fillRect(r.x, r.y, r.w, r.h);
+    g.fillStyle(0x2a2a36).fillRect(RAVINE[0].x, RAVINE[0].y - 1, RAVINE[0].w, 1).fillRect(RAVINE[1].x - 1, RAVINE[1].y, 1, RAVINE[1].h);
     this.add.image(BRIDGE.x + 16, BRIDGE.y - 12, "gate").setDepth(5).setScale(1 / HD);
   }
 
@@ -242,7 +255,7 @@ export class LunarScene extends Phaser.Scene {
   }
 
   nearestNode() {
-    let best: RNode | null = null, bd = 14;
+    let best: RNode | null = null, bd = 10; // short reach: stand next to the node
     for (const n of this.nodes) { const d = Phaser.Math.Distance.Between(n.spr.x, n.spr.y, this.player.x, this.player.y); if (d < bd) { bd = d; best = n; } }
     return best;
   }
@@ -391,7 +404,22 @@ export class LunarScene extends Phaser.Scene {
     return best;
   }
 
+  cropGfx = new Map<number, Phaser.GameObjects.Graphics>();
   syncModules(a: number) {
+    for (const fx of sim.machineFx.splice(0)) this.floatText(fx.x, fx.y, fx.text, PAL.ok);
+    for (const m of sim.modules) if (m.tipo === "hidroponia") {
+      let g = this.cropGfx.get(m.uid);
+      if (!g) { g = this.add.graphics().setDepth(sortDepth(groundLine(m.y, TIPOS[m.tipo].h), H) + 0.01); this.cropGfx.set(m.uid, g); }
+      const f = farmOf(sim, m.uid); g.clear();
+      if (CROPS[f.crop]) {
+        const h = 1 + Math.round(f.growth * 4), ripe = f.growth >= 1;
+        const col = f.crop === "trigo" ? (ripe ? 0xf2d24f : 0x9ccf5a) : f.crop === "papa" ? (ripe ? 0x6fbf4a : 0x4fc26a) : ripe ? PAL.gold : PAL.ok;
+        g.fillStyle(col); for (const dx of [-5, -2, 1, 4]) g.fillRect(m.x + dx, m.y - h, 2, h);
+        if (f.crop === "papa" && ripe) { g.fillStyle(0xc08a4a); for (const dx of [-4, 2]) g.fillRect(m.x + dx, m.y + 1, 2, 1); }
+        if (f.water > 0) { g.fillStyle(0x4fc3ff, 0.8).fillRect(m.x - 7, m.y + 2, Math.max(1, Math.round(14 * f.water)), 1); } // water level bar
+        else if (!ripe && Math.sin(this.time.now / 200) > 0) { g.fillStyle(0x4fc3ff).fillRect(m.x - 1, m.y - h - 5, 2, 3); } // blinking drop: needs water
+      }
+    }
     const alive = new Set(sim.modules.map((m) => m.uid));
     for (const [uid, sp] of this.modSprites) if (!alive.has(uid)) { sp.img.destroy(); sp.shadow.destroy(); sp.warn.destroy(); sp.up.destroy(); sp.glow?.destroy(); this.modSprites.delete(uid); }
     for (const m of sim.modules) {
@@ -406,6 +434,12 @@ export class LunarScene extends Phaser.Scene {
         sp = { img, shadow, warn, up, glow }; this.modSprites.set(m.uid, sp);
       }
       const on = m.activo && m.durabilidad > 0;
+      if (m.tipo === "rover" && m.rx !== undefined) { // the rover drives around the map
+        const rx = m.rx, ry = m.ry!;
+        if (Math.abs(sp.img.x - rx) > 0.05) sp.img.setFlipX(rx < sp.img.x);
+        sp.img.setPosition(rx, ry).setDepth(sortDepth(groundLine(ry, TIPOS.rover.h), H)); sp.shadow.setPosition(rx, groundLine(ry, TIPOS.rover.h));
+        sp.warn.setPosition(rx - 1, ry - TIPOS.rover.h / 2 - 8); sp.up.setPosition(rx + TIPOS.rover.w / 2 - 3, sp.up.y);
+      }
       sp.img.setAlpha(on ? 1 : 0.45);
       // ⬆ appears over modules you can afford to upgrade.
       sp.up.setVisible(canUpgrade(sim, m)).setY(m.y - TIPOS[m.tipo].h / 2 - 10 + Math.sin(this.time.now / 250) * 1.5);
@@ -490,51 +524,83 @@ export class LunarScene extends Phaser.Scene {
     n.amount -= got; sfx.pick();
     this.floatText(n.spr.x, n.spr.y - 4, `+${got}`, got > 1 ? PAL.gold : PAL.white);
     this.tweens.add({ targets: n.spr, y: n.spr.y - 2, yoyo: true, duration: 60 });
+    if (n.amount <= 0 && this.inShadowAt(n.spr.x, n.spr.y) && !sim.scanner && Math.random() < 0.3) { hurt(sim, 12, "was caught in a regolith collapse"); this.cameras.main.shake(200, 0.012); toast(sim, "⚠ The crater wall collapsed! The VIPER scanner would have warned you.", 4); }
     if (n.amount <= 0) { n.spr.destroy(); this.nodes = this.nodes.filter((x) => x !== n); this.time.delayedCall(n.type === "chatarra" ? 25000 : 40000, () => this.spawnNode(n.type, n.zone)); }
   }
 
+  /**
+   * The single thing E acts on: the closest object whose edge is within INTERACT_EDGE px of the
+   * astronaut, preferring what it faces. One target = one prompt, no overlapping signs.
+   */
+  pickTarget(): Target | null {
+    const px = this.player.x, py = this.player.y;
+    let best: Target | null = null, bs = Infinity;
+    // half: a radius, or [half-width, half-height] for boxes. Gap = box-to-body distance, so you must touch it.
+    const consider = (tg: Target, half: number | [number, number]) => {
+      const [hw, hh] = typeof half === "number" ? [half, half] : half;
+      const dx = tg.x - px, dy = tg.y - py, d = Math.hypot(dx, dy);
+      const edge = Math.hypot(Math.max(0, Math.abs(dx) - hw - BODY_HW), Math.max(0, Math.abs(dy) - hh - BODY_HH));
+      if (edge > INTERACT_EDGE) return;
+      const facing = d > 1 ? (dx * this.faceX + dy * this.faceY) / d : 1;
+      const score = edge + (facing < -0.25 ? 6 : 0) - facing;
+      if (score < bs) { bs = score; best = tg; }
+    };
+    for (const l of sim.leaks) consider({ kind: "leak", x: l.x, y: l.y, ref: l, label: sim.inv.kits > 0 ? `HOLD E: SEAL LEAK (1 KIT · ${sim.inv.kits} LEFT)` : "NEED 1 SEALANT KIT (CRAFT IN TAB: 2 SCRAP + 1 METAL)" }, 4);
+    if (sim.specialCase) consider({ kind: "special", x: sim.specialCase.x, y: sim.specialCase.y, label: `E: RESOLVE ${sim.specialCase.title.toUpperCase()}` }, 6);
+    for (const c of sim.caves) consider({ kind: "cave", x: c.x, y: c.y, ref: c, label: "E: ENTER METEOR CAVE" }, [7, 5]);
+    for (const d of sim.drops) consider({ kind: "drop", x: d.x, y: d.y, ref: d, label: d.kind === "thrown" ? "E: PICK UP " + this.dropText(d) : "E: PICK UP YOUR LOST ITEMS" }, 5);
+    if (!sim.bridge) consider({ kind: "bridge", x: BRIDGE.x, y: BRIDGE.y, label: sim.inv.puente_kit > 0 ? "E: USE BRIDGE KIT" : "NEEDS A BRIDGE KIT (WORKSHOP: 4 METAL + 4 REGOLITH)" }, 8);
+    for (const p of POIS) if (!sim.pois.includes(p.id)) consider({ kind: "poi", x: p.x, y: p.y, ref: p, label: `E: EXAMINE ${p.nombre.toUpperCase()}` }, 7);
+    for (const c of sim.capsules) consider({ kind: "capsule", x: c.x, y: c.y, ref: c, label: "E: OPEN SUPPLY CAPSULE" }, 5);
+    consider({ kind: "rocket", x: ROCKET.x, y: ROCKET.y + 2, label: "E: CHECK ROCKET" }, [10, 20]); // body + landing feet
+    for (const m of sim.modules) {
+      const half: [number, number] = [TIPOS[m.tipo].w / 2, TIPOS[m.tipo].h / 2];
+      const name = TIPOS[m.tipo].nombre.toUpperCase();
+      if (m.tipo === "habitat") { if (sim.inv.hielo > 0) consider({ kind: "melt", x: m.x, y: m.y, ref: m, label: sim.inv.agua >= WATER_TANK_KG ? "WATER TANK FULL" : "E: MELT ICE INTO WATER" }, half); continue; }
+      if (m.tipo === "hidroponia" && m.activo && m.durabilidad > 0) { const f = farmOf(sim, m.uid); const c = CROPS[f.crop]; const seed = seedToPlant(sim, sim.hotbarItems[sim.hotbar - 1]);
+        consider({ kind: "farm", x: m.x, y: m.y, ref: m, label: !c ? (seed ? `E: PLANT ${CROPS[seed]!.nombre.toUpperCase()}` : "NEED SEEDS (CAPSULES / CHEST) OR LUNAR ALGAE") : f.growth >= 1 ? `E: HARVEST ${c.nombre.toUpperCase()}` : f.water < 0.5 ? `E: WATER CROP (${FARM_WATER_KG} KG FROM TANK)` : `GROWING ${Math.round(f.growth * 100)}% · WATER ${Math.round(f.water * 100)}%` }, half); continue; }
+      if (m.tipo === "rover" && m.durabilidad >= 60) { consider({ kind: "rover", x: m.rx ?? m.x, y: m.ry ?? m.y, ref: m, label: `E: ROVER — MINING ${(ITEMS[m.mat ?? "regolito"]?.nombre ?? "").toUpperCase()} (CHANGE)` }, half); continue; }
+      if (m.tipo === "cofre") consider({ kind: "chest", x: m.x, y: m.y, ref: m, label: "E: OPEN STORAGE CHEST" }, half);
+      else if (isStation(m) && m.durabilidad > 0) consider({ kind: "station", x: m.x, y: m.y, ref: m, label: m.tipo === "taller" ? "E: OPEN WORKSHOP" : "E: OPEN FURNACE" }, half);
+      else if (m.durabilidad < 60) consider({ kind: "repair", x: m.x, y: m.y, ref: m, label: `HOLD E: REPAIR ${name} (1 KIT)` }, half);
+      else if (canUpgrade(sim, m)) consider({ kind: "upgrade", x: m.x, y: m.y, ref: m, label: `E: UPGRADE ${name} → LV${lvl(m) + 1}` }, half);
+      else if (m.tipo === "panel" && !sim.eds && sim.dust > 0.15) consider({ kind: "clean", x: m.x, y: m.y, ref: m, label: `E: CLEAN DUST OFF PANELS (−${Math.round(sim.dust * 50)}% POWER)` }, half);
+    }
+    // Mini Robert always rolls next to you, so he only answers E when nothing else is in reach.
+    if (!best && this.robert && Phaser.Math.Distance.Between(this.robert.x, this.robert.y, px, py) < 14) best = { kind: "robert", x: this.robert.x, y: this.robert.y, label: "E: ASK MINI ROBERT FOR HELP" };
+    return best;
+  }
+
+  /** Open Mini Robert's help menu (E next to him, or click / tap him). */
+  openRobert() { if (useGame.getState().overlay || sim.dead || !sim.robertMet) return; sfx.click(); useGame.getState().setOverlay("robert"); }
+
   interact() {
     if (useGame.getState().overlay || sim.dead) return;
-    if (this.nearestLeak()) return; // hold handled in update
-    if (sim.specialCase && Phaser.Math.Distance.Between(sim.specialCase.x, sim.specialCase.y, this.player.x, this.player.y) < 28) {
-      const title = sim.specialCase.title;
-      if (resolveSpecialCase(sim)) { sfx.ok(); toast(sim, `⭐ Resolved: ${title}`, 4); }
-      return;
-    }
-    const nearCave = sim.caves.find((c) => Phaser.Math.Distance.Between(c.x, c.y, this.player.x, this.player.y) < 24);
-    if (nearCave) {
-      sim.activeCaveId = nearCave.id; sfx.click(); useGame.getState().publish(); useGame.getState().setOverlay("cueva"); return;
-    }
-    if (!sim.bridge && Phaser.Math.Distance.Between(BRIDGE.x, BRIDGE.y, this.player.x, this.player.y) < 30) {
-      if (buildBridge(sim)) { sfx.ok(); toast(sim, "🌉 Bridge built! The Alien Hive is open.", 4); this.drawBridge(); } else { sfx.bad(); toast(sim, "Bridge needs 10 Metal, 6 Regolith and 2 Titanium.", 4); }
-      return;
-    }
-    const upg = this.nearModule((m) => !isStation(m) && canUpgrade(sim, m), 20);
-    if (upg && !(upg.tipo === "habitat" && sim.inv.hielo > 0)) { upgradeModule(sim, upg); sfx.ok(); toast(sim, `⬆ ${TIPOS[upg.tipo].nombre} → level ${lvl(upg)}`, 3); return; }
-    const bag = this.nearestDrop();
-    if (bag) { const ok = pickUpDrop(sim, bag.id); if (ok) sfx.ok(); else sfx.bad(); toast(sim, ok ? (bag.kind === "thrown" ? "🎒 Picked up" : "🎒 You picked up your lost items") : "Inventory full: some items are still on the ground", 3); useGame.getState().publish(); return; }
-    const cap = nearestCapsule(sim, this.player.x, this.player.y);
-    if (cap) {
-      const found = openCapsule(sim, cap.id, () => Math.random());
-      toast(sim, `📦 ${found.map((f) => `+${f.n} ${ITEMS[f.item]?.nombre ?? f.item}`).join(" · ") || "Inventory full"}`);
-      sfx.ok();
-      return;
-    }
-    if (this.nearHab() && sim.inv.hielo > 0) {
-      const w = meltIce(sim); // water goes to the habitat tank, which has a cap
-      if (w > 0) { addLog(sim, `You melted ice: +${w} kg into the habitat water tank (${Math.round(sim.inv.agua)}/${WATER_TANK_KG} kg).`); sfx.ok(); toast(sim, `💧 +${w} kg water (tank ${Math.round(sim.inv.agua)}/${WATER_TANK_KG})`, 3); }
-      else { toast(sim, "💧 Water tank full: drink, make medkits, run electrolysis, or pour some out (TAB)", 5); sfx.bad(); }
-    } else if (Phaser.Math.Distance.Between(ROCKET.x, ROCKET.y, this.player.x, this.player.y) < 36) {
-      useGame.getState().setOverlay("cohete");
-    } else if (this.nearModule((m) => m.tipo === "cofre", 24)) {
-      const chest = this.nearModule((m) => m.tipo === "cofre", 24)!;
-      sim.chestUid = chest.uid; sfx.click(); useGame.getState().publish(); useGame.getState().setOverlay("cofre");
-    } else {
-      // Crafting stations open their own interface (unless they need a repair: hold E for that).
-      const chest = this.nearModule((m) => m.tipo === "cofre", 20);
-      if (chest) { sim.chestUid = chest.uid; sfx.click(); useGame.getState().publish(); useGame.getState().setOverlay("cofre"); return; }
-      const st = this.nearModule((m) => isStation(m) && m.durabilidad > 0, 26);
-      if (st) { sim.station = st.tipo as "taller" | "horno"; sim.stationUid = st.uid; sfx.click(); useGame.getState().publish(); useGame.getState().setOverlay("estacion"); }
+    const tg = this.pickTarget();
+    if (!tg) return;
+    const G = useGame.getState();
+    switch (tg.kind) {
+      case "leak": case "repair": return; // held: handled in update
+      case "special": { const title = sim.specialCase!.title; if (resolveSpecialCase(sim)) { sfx.ok(); toast(sim, `⭐ Resolved: ${title}`, 4); } return; }
+      case "cave": sim.activeCaveId = (tg.ref as { id: number }).id; sfx.click(); G.publish(); G.setOverlay("cueva"); return;
+      case "drop": { const bag = tg.ref as (typeof sim.drops)[number]; const ok = pickUpDrop(sim, bag.id); if (ok) sfx.ok(); else sfx.bad(); toast(sim, ok ? (bag.kind === "thrown" ? "🎒 Picked up" : "🎒 You picked up your lost items") : "Inventory full: some items are still on the ground", 3); G.publish(); return; }
+      case "bridge": if (applyBridgeKit(sim)) { sfx.ok(); toast(sim, "🌉 Bridge built! The Alien Hive is open.", 4); this.drawBridge(); } else { sfx.bad(); toast(sim, "Craft a Bridge Kit at the Workshop (4 Metal + 4 Regolith).", 4); } return;
+      case "poi": if (visitPoi(sim, tg.ref as (typeof POIS)[number])) sfx.ok(); G.publish(); return;
+      case "capsule": { const found = openCapsule(sim, (tg.ref as { id: number }).id, () => Math.random()); toast(sim, `📦 ${found.map((f) => `+${f.n} ${ITEMS[f.item]?.nombre ?? f.item}`).join(" · ") || "Inventory full"}`); sfx.ok(); return; }
+      case "rocket": G.setOverlay("cohete"); return;
+      case "melt": {
+        const w = meltIce(sim);
+        if (w > 0) { addLog(sim, `You melted ice: +${w} kg into the habitat water tank (${Math.round(sim.inv.agua)}/${WATER_TANK_KG} kg).`); sfx.ok(); toast(sim, `💧 +${w} kg water (tank ${Math.round(sim.inv.agua)}/${WATER_TANK_KG})`, 3); }
+        else { toast(sim, "💧 Water tank full: drink, make medkits, run electrolysis, or pour some out (TAB)", 5); sfx.bad(); }
+        return;
+      }
+      case "chest": sim.chestUid = (tg.ref as Module).uid; sfx.click(); G.publish(); G.setOverlay("cofre"); return;
+      case "station": { const st = tg.ref as Module; sim.station = st.tipo as "taller" | "horno"; sim.stationUid = st.uid; sfx.click(); G.publish(); G.setOverlay("estacion"); return; }
+      case "upgrade": { const m = tg.ref as Module; upgradeModule(sim, m); sfx.ok(); toast(sim, `⬆ ${TIPOS[m.tipo].nombre} → level ${lvl(m)}`, 3); return; }
+      case "robert": this.openRobert(); return;
+      case "rover": sim.roverUid = (tg.ref as Module).uid; sfx.click(); G.publish(); G.setOverlay("rover"); return;
+      case "farm": { const msg = tendFarm(sim, tg.ref as Module, sim.hotbarItems[sim.hotbar - 1]); sfx[/^(🌱 Planted|💧 Watered|✂)/u.test(msg) ? "ok" : "click"](); toast(sim, msg, 3); G.publish(); return; }
+      case "clean": sim.dust = 0; sfx.ok(); toast(sim, "🧹 Panels cleaned: full solar power again. An EDS Dust Shield would do this for you.", 4); return;
     }
   }
 
@@ -544,7 +610,16 @@ export class LunarScene extends Phaser.Scene {
     if (Math.abs(this.cameras.main.zoom - wantZoom) > 0.001) this.cameras.main.setZoom(wantZoom);
     const overlay = useGame.getState().overlay;
     if (sim.respawned) { sim.respawned = false; this.player.setPosition(HAB.x, HAB.y + 30); }
-    if (overlay || sim.dead) return;
+    if (overlay || sim.dead || !sim.robertMet) return;
+    {
+      // Mini Robert trails behind you (opposite your facing), with a little hover bob.
+      const rb = this.robert, p = this.player;
+      const tx = p.x - this.faceX * 10 - (this.faceY ? 6 : 0), ty = p.y - this.faceY * 9 + 5;
+      const d = Phaser.Math.Distance.Between(rb.x, rb.y, tx, ty);
+      if (d > 160) rb.setPosition(tx, ty); // after respawn / teleport
+      else if (d > 1.5) { const k = Math.min(1, dt * (d > 30 ? 6 : 3.5)); rb.x += (tx - rb.x) * k; rb.y += (ty - rb.y) * k; if (Math.abs(tx - rb.x) > 0.5) rb.setFlipX(tx < rb.x); }
+      rb.setDepth(rb.y + 6 > p.y ? p.depth + 0.01 : p.depth - 0.01).setY(rb.y + Math.sin(this.time.now / 260) * 0.04);
+    }
     const k = this.keys;
     let vx = 0, vy = 0;
     if (k.A.isDown || k.LEFT.isDown) vx -= 1; if (k.D.isDown || k.RIGHT.isDown) vx += 1;
@@ -566,8 +641,10 @@ export class LunarScene extends Phaser.Scene {
     this.animatePlayer(dt, this.player.x !== ox || this.player.y !== oy, rs.running);
     sim.tut.moved += Math.hypot(this.player.x - ox, this.player.y - oy);
     if (vx) { this.facing = Math.sign(vx); this.player.setFlipX(vx < 0); }
-    if (vx || vy) this.aimRad = Math.atan2(vy, vx);
-    else if (!this.touchMode) {
+    if (vx || vy) {
+      const l = Math.hypot(vx, vy); this.faceX = vx / l; this.faceY = vy / l;
+      this.aimRad = Math.atan2(vy, vx);
+    } else if (!this.touchMode) {
       const wp = this.input.activePointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
       if (Math.hypot(wp.x - this.player.x, wp.y - this.player.y) > 4) this.aimRad = Math.atan2(wp.y - this.player.y, wp.x - this.player.x);
     }
@@ -609,9 +686,10 @@ export class LunarScene extends Phaser.Scene {
     sim.near.habitat = this.nearHab();
     sim.near.taller = !!this.nearModule((m) => m.tipo === "taller" && m.durabilidad > 0, 26);
     sim.near.horno = !!this.nearModule((m) => m.tipo === "horno" && m.durabilidad > 0, 26);
-    const leak = this.nearestLeak();
+    const target = this.pickTarget();
+    const leak = target?.kind === "leak" ? (target.ref as Leak) : undefined;
     // Working stations are repaired from their own panel; everything else (and broken stations) with hold-E.
-    const broken = leak ? undefined : this.nearModule((m) => m.durabilidad < 100 && !(isStation(m) && m.durabilidad > 0));
+    const broken = target?.kind === "repair" ? (target.ref as Module) : undefined;
     if (broken && (k.E.isDown || touch.e) && broken.durabilidad < 60) {
       if (sim.inv.kits < 1) this.say("NO KITS: CRAFT ONE (INVENTORY)");
       else {
@@ -635,24 +713,11 @@ export class LunarScene extends Phaser.Scene {
     } else if (leak) leak.progress = Math.max(0, leak.progress - dt * 0.5);
     for (const l of sim.leaks) { const s = this.leakSprites.get(l.id); if (s) s.setScale((0.8 + l.size * 0.25) / HD).setAlpha(Math.sin(this.time.now / 120) > 0 ? 1 : 0.4); }
 
-    // prompts
+    // prompts: one sign for the one target in reach; otherwise mining or status hints
     const n = this.nearestNode();
-    if (leak) this.say(sim.inv.kits > 0 ? `HOLD E: SEAL LEAK (1 KIT · ${sim.inv.kits} LEFT)` : "NEED 1 SEALANT KIT (CRAFT IN TAB: 2 SCRAP + 1 METAL)");
-    else if (sim.specialCase && Phaser.Math.Distance.Between(sim.specialCase.x, sim.specialCase.y, this.player.x, this.player.y) < 28) this.say(`E: RESOLVE ${sim.specialCase.title.toUpperCase()}`);
-    else if (sim.caves.some((c) => Phaser.Math.Distance.Between(c.x, c.y, this.player.x, this.player.y) < 24)) this.say("E or CLICK: ENTER METEOR CAVE");
-    else if (this.nearestDrop()) this.say(this.nearestDrop()!.kind === "thrown" ? "E: PICK UP " + this.dropText(this.nearestDrop()!) : "E: PICK UP YOUR LOST ITEMS");
-    else if (!sim.bridge && Phaser.Math.Distance.Between(BRIDGE.x, BRIDGE.y, this.player.x, this.player.y) < 30) this.say("E: BUILD BRIDGE (10 METAL, 6 REGOLITH, 2 TITANIUM)");
-    else if (this.upgradeHint()) this.say(this.upgradeHint()!);
-    else if (nearestCapsule(sim, this.player.x, this.player.y)) this.say("E: OPEN SUPPLY CAPSULE");
+    if (target) this.say(target.label);
     else if (n) this.say(canMine(sim.inv, n.type).ok ? `HOLD ACTION: MINE ${(ITEMS[n.type]?.nombre ?? n.type).toUpperCase()}` : `NEEDS A ${canMine(sim.inv, n.type).need!.toUpperCase()} (WORKSHOP)`);
-    else if (broken && broken.durabilidad < 60 && !(this.nearHab() && sim.inv.hielo > 0)) this.say(`HOLD E: REPAIR ${TIPOS[broken.tipo].nombre.toUpperCase()} (1 KIT)`);
-    else if (this.nearHab() && sim.inv.hielo > 0) this.say(sim.inv.agua >= WATER_TANK_KG ? "WATER TANK FULL" : "E: MELT ICE INTO WATER");
-    else if (this.nearModule((m) => m.tipo === "cofre", 24)) this.say("E: OPEN STORAGE CHEST");
     else if (this.nearHab()) this.say("HABITAT: REFILLING O2");
-    else if (Phaser.Math.Distance.Between(ROCKET.x, ROCKET.y, this.player.x, this.player.y) < 36) this.say("E: CHECK ROCKET");
-    else if (this.nearModule((m) => m.tipo === "cofre", 20)) this.say("E: OPEN STORAGE CHEST");
-    else if (sim.near.taller) this.say("E: OPEN WORKSHOP");
-    else if (sim.near.horno) this.say("E: OPEN FURNACE");
     else if (this.winded && this.wantsRun) this.say("TOO TIRED TO RUN");
     else { this.prompt.setVisible(false); this.promptBg.setVisible(false); }
 
@@ -834,11 +899,11 @@ export class LunarScene extends Phaser.Scene {
     this.bridgeG ??= this.add.graphics().setDepth(4);
     this.bridgeG.clear();
     if (!sim.bridge) return;
-    const x = BRIDGE.x - 12;
-    this.bridgeG.fillStyle(0x14141c).fillRect(x - 1, 346, 26, 20);
-    this.bridgeG.fillStyle(0x9a9aa3).fillRect(x, 347, 24, 18);
-    for (let i = 0; i < 6; i++) this.bridgeG.fillStyle(0x6b6b75).fillRect(x, 348 + i * 3, 24, 0.5);
-    this.bridgeG.fillStyle(0xf2d24f).fillRect(x, 347, 1, 18).fillRect(x + 23, 347, 1, 18);
+    const { x, y, w, h } = BRIDGE_DECK;
+    this.bridgeG.fillStyle(0x14141c).fillRect(x - 1, y, w + 2, h);
+    this.bridgeG.fillStyle(0x9a9aa3).fillRect(x, y + 1, w, h - 2);
+    for (let i = 0; i < 6; i++) this.bridgeG.fillStyle(0x6b6b75).fillRect(x, y + 2 + i * 3, w, 0.5);
+    this.bridgeG.fillStyle(0xf2d24f).fillRect(x, y + 1, 1, h - 2).fillRect(x + w - 1, y + 1, 1, h - 2);
   }
 
   upgradeHint(): string | null {

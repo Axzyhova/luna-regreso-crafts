@@ -208,6 +208,51 @@ export function makeSprites(scene: Phaser.Scene) {
     g.fillStyle(OUT).fillTriangle(7, 25, 13, 25, 10, 28); g.fillStyle(0x9a9aa3).fillTriangle(8, 25, 12, 25, 10, 27);
     block(r, 1, 20, 18, 3, 0x6b6b75, 0x9a9aa3, 0x45454f);
   });
+  // Auto-Miner Rover: small tracked digger with a scoop.
+  tex(scene, "m_rover", 12, 10, (g, r) => {
+    block(r, 3, 4, 16, 8, 0xc9c9cf, 0xffffff, 0x8a8a96); r(5, 6, 4, 3, 0x1d3f8a); r(13, 6, 4, 2, T.gold);
+    r(1, 13, 22, 5, OUT); r(2, 14, 20, 3, 0x45454f); for (const x of [4, 9, 14, 19]) g.fillStyle(0x9a9aa3).fillCircle(x, 15.5, 1.5);
+    r(18, 9, 5, 2, OUT); r(19, 9, 4, 1, 0x9a9aa3); g.fillStyle(OUT).fillTriangle(21, 10, 24, 10, 23, 14);
+  });
+  // Algae Bioreactor: glass tanks with glowing green algae.
+  tex(scene, "m_biorreactor", 16, 14, (g, r) => {
+    block(r, 1, 20, 30, 7, 0x6b6b75, 0x9a9aa3, 0x45454f);
+    for (const x of [3, 13, 23]) { block(r, x, 2, 7, 18, 0x2f8a45, 0x9ff0b4, 0x1d5a2c); r(x + 2, 5, 1, 10, 0xd8ffe4, 0.8); g.fillStyle(0xffffff, 0.8).fillCircle(x + 4, 8, 0.8); }
+  });
+  // Hydroponic farm: a tray with LED bar; algae drawn on top by the scene when planted.
+  tex(scene, "m_hidroponia", 16, 12, (g, r) => {
+    block(r, 1, 12, 30, 10, 0x6b6b75, 0x9a9aa3, 0x45454f);
+    r(3, 14, 26, 4, 0x2a5aa8); r(3, 14, 26, 1, 0x7fa8ff);
+    r(2, 2, 2, 10, 0x45454f); r(28, 2, 2, 10, 0x45454f); r(2, 1, 28, 2, 0xc77dff); g.fillStyle(0xffffff, 0.7).fillRect(4, 3, 24, 1);
+  });
+  // Mini Robert: round solar rover (black cells, gold rim, two wheels on top, blue eye).
+  tex(scene, "robert", 14, 12, (g, r) => {
+    for (const x of [4, 18]) { block(r, x, 0, 6, 5, 0x1b1b22, 0x6b6b75, 0x0b0b10); }
+    g.fillStyle(0x0b0b14).fillEllipse(14, 14, 28, 18);
+    g.fillStyle(0xc79a2e).fillEllipse(14, 13.5, 26, 16);
+    g.fillStyle(0x15151c).fillEllipse(14, 13.5, 22, 13);
+    for (const x of [6, 11, 16, 21]) for (const y of [9, 14]) r(x, y, 4, 4, 0x26304a);
+    r(7, 10, 1, 1, 0xe8ecff); r(17, 15, 1, 1, 0xe8ecff);
+    r(13, 12, 3, 3, 0x4fc3ff); r(13, 12, 1, 1, 0xd8f4ff);
+    r(1, 13, 2, 3, 0xf2d24f); r(25, 13, 2, 3, 0xf2d24f);
+  });
+  // Historic sites.
+  tex(scene, "poi_lcross", 14, 9, (g, r) => {
+    g.fillStyle(OUT).fillPoints(toPts([2, 12, 10, 3, 22, 5, 27, 14, 14, 17], 1), true);
+    g.fillStyle(0xb8b8c2).fillPoints(toPts([2, 12, 10, 3, 22, 5, 27, 14, 14, 17], 0), true);
+    r(9, 6, 10, 2, 0xe6e6ec); r(6, 11, 6, 2, 0x7a4416); r(16, 10, 4, 3, 0x6b6b75); r(20, 7, 2, 2, T.red);
+  });
+  tex(scene, "poi_viper", 14, 12, (g, r) => {
+    block(r, 4, 6, 20, 8, 0xe6e6ec, 0xffffff, 0x9a9aa3); r(6, 8, 6, 3, 0x1d3f8a); r(15, 8, 7, 1, T.gold);
+    r(12, 1, 2, 6, OUT); block(r, 9, 0, 8, 3, 0x3b6fd6, 0x7fa8ff, 0x1d3f8a);
+    for (const x of [6, 12, 18, 24]) { g.fillStyle(OUT).fillCircle(x, 18, 3.5); g.fillStyle(0x6b6b75).fillCircle(x, 18, 2.5); }
+  });
+  tex(scene, "poi_surveyor", 12, 14, (g, r) => {
+    g.lineStyle(1.5, OUT).lineBetween(12, 10, 3, 26).lineBetween(12, 10, 21, 26).lineBetween(12, 10, 12, 26);
+    g.lineStyle(1, 0xc9c9cf).lineBetween(12, 10, 3, 26).lineBetween(12, 10, 21, 26);
+    block(r, 7, 7, 10, 6, 0xd8d8de, 0xffffff, 0x8a8a96); r(9, 2, 6, 4, 0x1d3f8a); r(10, 3, 2, 1, 0x7fa8ff);
+    g.fillStyle(T.gold).fillCircle(12, 1.5, 1.5);
+  });
   tex(scene, "m_cofre", 14, 11, (g, r) => {
     block(r, 1, 6, 26, 15, 0x8a4a1e, 0xc0743a, 0x5a2e10);
     block(r, 1, 1, 26, 7, 0xa85a26, 0xd8884a, 0x6a3614);

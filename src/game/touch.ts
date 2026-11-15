@@ -17,13 +17,7 @@ export const touch = {
     build: () => {},
     cycle: () => {},
     suit: () => {},
+    /** Drop one of the item selected on the hotbar. */
+    drop: () => {},
   },
 };
-
-/** Clamp a joystick drag (dx, dy) to the unit circle, with a small dead zone. */
-export function stickVector(dx: number, dy: number, radius: number) {
-  const len = Math.hypot(dx, dy);
-  if (len < radius * 0.15) return { vx: 0, vy: 0 };
-  const k = Math.min(1, len / radius) / len;
-  return { vx: dx * k, vy: dy * k };
-}

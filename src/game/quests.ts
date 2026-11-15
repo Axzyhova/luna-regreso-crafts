@@ -1,6 +1,6 @@
 import data from "@/data/misiones.json";
 import archivo from "@/data/archivo.json";
-import { addLog, addItem, notify, isOn, UMBRAL_VERDE, SUBSISTEMAS, type Inv, type Sim } from "./sim";
+import { addLog, addItem, notify, isOn, UMBRAL_VERDE, SUBSISTEMAS, type Inv, type Sim, giveItem } from "./sim";
 import { aliensEnabled } from "./aliens";
 import { nextWindow } from "./mission";
 import { expedicion } from "./history";
@@ -47,6 +47,7 @@ export function archiveReady(s: Sim, cond: string) {
   if (cond === "inicio") return true;
   if (cond.startsWith("M")) return s.quest.main >= Number(cond.slice(1));
   if (cond.startsWith("zona_")) return s.visited.includes(cond.slice(5));
+  if (cond.startsWith("poi_")) return s.pois.includes(cond.slice(4));
   return false;
 }
 
@@ -78,7 +79,7 @@ export function stepQuests(s: Sim) {
   for (const q of sideAvailable(s)) {
     if (s.quest.sideDone.includes(q.id) || !COND[q.cond]?.(s)) continue;
     s.quest.sideDone.push(q.id);
-    for (const [k, n] of Object.entries(q.recompensa)) addItem(s, k as keyof Inv, n ?? 0);
+    for (const [k, n] of Object.entries(q.recompensa)) giveItem(s, k as keyof Inv, n ?? 0);
     const [quien, ...rest] = q.fin.split(": ");
     s.dialog.push({ quien: rest.length ? quien! : "ARIA", texto: rest.length ? rest.join(": ") : q.fin });
     addLog(s, `✔ Side mission: ${q.titulo}`);

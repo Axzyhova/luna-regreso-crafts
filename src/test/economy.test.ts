@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import recetas from "@/data/recetas.json";
 import modulos from "@/data/modulos.json";
-import { createSim, usedSlots, addItem, meltIce, drinkWater, pourWater, dropItem, craft, moveToChest, moveFromChest, pickUpDrop, WATER_TANK_KG, CHEST_SLOTS, SLOTS, STACK, TIPOS, type Inv } from "@/game/sim";
+import { createSim, usedSlots, addItem, meltIce, drinkWater, pourWater, dropItem, craft, moveToChest, moveFromChest, pickUpDrop, toolInfo, cleanupInventory, step, WATER_TANK_KG, CHEST_SLOTS, SLOTS, STACK, TIPOS, type Inv } from "@/game/sim";
 import { applyConsumable, CONSUMIBLES } from "@/game/effects";
-import { bestTool, canMine, mineHit, NODE_TIER } from "@/game/tools";
+import { bestTool, canMine, NODE_TIER } from "@/game/tools";
 import { footprint, overlaps } from "@/game/solids";
 
 const fresh = () => createSim("realista", "normal");
@@ -74,6 +74,29 @@ describe("throwing things away", () => {
   });
 });
 
+describe("things that used to get lost", () => {
+  it("water can stay on the hotbar so you can tap it to drink", () => {
+    const s = fresh(); s.inv.agua = 20; s.hotbarItems[3] = "agua";
+    cleanupInventory(s); expect(s.hotbarItems[3]).toBe("agua");
+    s.inv.agua = 0; cleanupInventory(s); expect(s.hotbarItems[3]).toBeNull();
+  });
+
+  it("a full inventory (and no chest) pauses the ice drill instead of throwing the ice away", () => {
+    const s = fresh();
+    s.modules = s.modules.filter((m) => m.tipo !== "cofre"); // with a chest the drill stores ice there
+    s.modules.push({ uid: 999, tipo: "taladro", x: 640, y: 520, durabilidad: 100, activo: true });
+    for (const k of Object.keys(s.inv) as (keyof Inv)[]) if (k !== "agua" && k !== "hielo") s.inv[k] = 0;
+    const filler = (Object.keys(s.inv) as (keyof Inv)[]).filter((k) => k !== "agua" && k !== "hielo" && k !== "regolito").slice(0, SLOTS); // regolith is burnt by the furnace
+    for (const k of filler) s.inv[k] = 1; // every slot taken by something else
+    expect(usedSlots(s.inv)).toBe(SLOTS);
+    for (let i = 0; i < 600; i++) step(s, 0.1, { inHabitat: true, inShadow: false });
+    expect(s.inv.hielo).toBe(0); expect(s.drillAcc).toBe(1); // waiting, nothing lost
+    s.inv[filler[0]!] = 0; // free one slot
+    step(s, 0.1, { inHabitat: true, inShadow: false });
+    expect(s.inv.hielo).toBe(1);
+  });
+});
+
 describe("storage chest", () => {
   it("you start with a chest in the base, and one can be crafted", () => {
     expect(modulos.iniciales.some((m) => m.tipo === "cofre")).toBe(true);
@@ -83,7 +106,7 @@ describe("storage chest", () => {
   });
 
   it("deposits and withdrawals conserve every item and respect the capacity", () => {
-    const s = fresh(); const uid = s.modules.find((m) => m.tipo === "cofre")!.uid; s.inv.metal = 40;
+    const s = fresh(); const uid = s.modules.find((m) => m.tipo === "cofre")!.uid; s.chests[String(uid)] = {}; s.inv.metal = 40; // start empty (no starter seeds)
     expect(moveToChest(s, uid, "metal", 25)).toBe(25); expect(s.inv.metal).toBe(15);
     expect(moveFromChest(s, uid, "metal", 10)).toBe(10); expect(s.inv.metal).toBe(25);
     s.inv.metal = STACK * (CHEST_SLOTS + 2);
@@ -93,17 +116,22 @@ describe("storage chest", () => {
 });
 
 describe("tools matter", () => {
-  it("each tool is faster than the one before and gives a chance of a bonus unit", () => {
-    const hands = bestTool({}), shovel = bestTool({ pala_mejorada: 1 }), ti = bestTool({ pala_titanio: 1, pala_mejorada: 1 });
-    expect(shovel.cooldown).toBeLessThan(hands.cooldown); expect(ti.cooldown).toBeLessThan(shovel.cooldown);
-    expect(hands.bonusChance).toBe(0); expect(shovel.bonusChance).toBeGreaterThan(0); expect(ti.bonusChance).toBeGreaterThan(shovel.bonusChance);
+  it("each tool is faster than the one before and gathers more per hit", () => {
+    const hands = bestTool({}), shovel = bestTool({ pala_mejorada: 1 }), ti = bestTool({ pala_titanio: 1, pala_mejorada: 1 }), plasma = bestTool({ pico_plasma: 1, pala_titanio: 1 });
+    expect(shovel.cooldown).toBeLessThan(hands.cooldown); expect(ti.cooldown).toBeLessThan(shovel.cooldown); expect(plasma.cooldown).toBeLessThan(ti.cooldown);
+    expect(hands.yield).toBe(1); expect(shovel.yield).toBeGreaterThan(hands.yield); expect(ti.yield).toBeGreaterThan(shovel.yield); expect(plasma.yield).toBeGreaterThan(ti.yield);
     expect(ti.key).toBe("pala_titanio"); // the best one wins when you own several
   });
 
-  it("the shovel really yields more over many hits, and bare hands never do", () => {
-    const rolls = (inv: Partial<Inv>) => { let n = 0; for (let i = 0; i < 1000; i++) n += mineHit(inv, () => (i % 100) / 100).amount; return n; };
-    const hands = rolls({}), shovel = rolls({ pala_mejorada: 1 }), ti = rolls({ pala_titanio: 1 });
-    expect(hands).toBe(1000); expect(shovel).toBeGreaterThan(1250); expect(ti).toBeGreaterThan(shovel);
+  it("the mining code and the inventory panel read the same table", () => {
+    const s = fresh();
+    expect(toolInfo(s)).toMatchObject({ name: "Bare hands", yield: 1 });
+    s.inv.pala_mejorada = 1; expect(toolInfo(s)).toMatchObject({ name: bestTool(s.inv).name, yield: bestTool(s.inv).yield, cd: bestTool(s.inv).cooldown });
+  });
+
+  it("the Plasma cutter (rare cave loot) opens every resource by itself", () => {
+    expect(canMine({ pico_plasma: 1 }, "titanio").ok).toBe(true);
+    expect(canMine({ pico_plasma: 1 }, "aleacion").ok).toBe(true);
   });
 
   it("each tier opens the next resource", () => {
@@ -129,7 +157,7 @@ describe("tools matter", () => {
 
 describe("every recipe can actually be made", () => {
   it("each result is reachable from raw resources (nothing needs its own output, nothing is orphaned)", () => {
-    const raw = new Set(["hielo", "agua", "regolito", "chatarra", "titanio", "cristal_hielo", "aleacion", "metal", "kits", "alga_lunar"]);
+    const raw = new Set(["hielo", "agua", "regolito", "chatarra", "titanio", "cristal_hielo", "aleacion", "metal", "kits", "alga_lunar", "papa", "trigo"]); // crops come from the farm
     const have = new Set(raw);
     for (let pass = 0; pass < 30; pass++) for (const r of recetas) if (Object.keys(r.ingredientes).every((k) => have.has(k))) for (const k of Object.keys(r.resultado)) have.add(k);
     const stuck = recetas.filter((r) => !Object.keys(r.resultado).every((k) => have.has(k))).map((r) => r.id);

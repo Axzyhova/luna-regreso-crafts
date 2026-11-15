@@ -1,0 +1,9 @@
+{
+  "name": "colony-sim",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/sim.test.mjs",
+    "start": "node serve.mjs"
+  }
+}

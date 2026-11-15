@@ -1,0 +1,986 @@
+{
+ "intro": [
+  {
+   "title": "Hi! I'm Mini Robert",
+   "text": "Your navigation assistant. I'm a little solar rover and I roll right behind you, everywhere on the Moon.",
+   "art": "robert"
+  },
+  {
+   "title": "Your mission",
+   "text": "You crashed at the lunar south pole. To get home you must:",
+   "steps": [
+    "⛏ GATHER ice, regolith and scrap",
+    "🫧 SURVIVE: oxygen, cold, water and food",
+    "🔧 REPAIR the rocket and make fuel",
+    "🚀 LAUNCH home inside a return window"
+   ]
+  },
+  {
+   "title": "Ask me anything",
+   "text": "Press E next to me, or click / tap me. I carry the whole guide: controls, items, map, enemies, events, menus — and I always know what you should do next."
+  },
+  {
+   "title": "Your first step",
+   "text": "Follow the yellow TUTORIAL box at the top and the MISSION bar at the bottom. If you get lost, come talk to me. Let's go, Commander!"
+  }
+ ],
+ "areas": [
+  {
+   "id": "goal",
+   "icon": "🎯",
+   "title": "The goal",
+   "sub": "What this game is and how you win",
+   "subs": [
+    {
+     "title": "The story",
+     "points": [
+      {
+       "t": "What happened",
+       "d": "Your ship, the Selene-7, crashed at the Moon's south pole. The antenna broke and the fuel tanks emptied."
+      },
+      {
+       "t": "Who helps you",
+       "d": "ARIA is the ship's AI (story messages). I, Mini Robert, am your guide. Mission Control on Earth talks to you once you rebuild a relay."
+      }
+     ]
+    },
+    {
+     "title": "How you win",
+     "points": [
+      {
+       "t": "1 · Gather",
+       "d": "Collect ice, regolith, scrap and metal with ACTION (SPACE)."
+      },
+      {
+       "t": "2 · Survive",
+       "d": "Keep oxygen, health, water, energy and sanity up. Go back to the habitat to refill O2 and rest."
+      },
+      {
+       "t": "3 · Build & repair",
+       "d": "Craft modules and tools, then repair the rocket's 6 subsystems."
+      },
+      {
+       "t": "4 · Make fuel",
+       "d": "Ice → water → electrolysis → hydrogen + oxygen → liquefier → LH2 and LOX in the rocket tanks."
+      },
+      {
+       "t": "5 · Launch",
+       "d": "Launch inside a return window with enough fuel. That's the ending!"
+      }
+     ]
+    },
+    {
+     "title": "Main missions (in order)",
+     "points": [
+      {
+       "t": "M1 Wake up",
+       "d": "Seal a leak: hold E with 1 Sealant kit (2 Scrap + 1 Metal)."
+      },
+      {
+       "t": "M2 Water from the abyss",
+       "d": "Collect 6 ice in the dark Shadowed Crater."
+      },
+      {
+       "t": "M3 Homemade fuel",
+       "d": "Produce 3 kg of liquid hydrogen (LH2)."
+      },
+      {
+       "t": "M4 The essentials",
+       "d": "Repair the rocket's Structure and Power to 70%."
+      },
+      {
+       "t": "M5 The last contact",
+       "d": "Design and launch the CubeSat relay."
+      },
+      {
+       "t": "M6 The window",
+       "d": "All subsystems at 90% and the tanks filled for the next window."
+      },
+      {
+       "t": "M7 Back home",
+       "d": "Launch inside a return window."
+      }
+     ]
+    },
+    {
+     "title": "Modes & difficulty",
+     "points": [
+      {
+       "t": "Realistic",
+       "d": "No aliens. Only real lunar hazards (cold, heat, radiation, meteorites)."
+      },
+      {
+       "t": "Fantasy",
+       "d": "Moderate aliens at night."
+      },
+      {
+       "t": "Horror",
+       "d": "Aggressive aliens, darker nights, fewer resources."
+      },
+      {
+       "t": "Easy / Normal / Hard",
+       "d": "Easy: less O2 and wear, fewer hazards, cold hurts much slower, extra kits. Hard: everything faster and harsher."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "controls",
+   "icon": "🎮",
+   "title": "Controls",
+   "sub": "Keyboard, mouse and touch",
+   "subs": [
+    {
+     "title": "Keyboard (PC)",
+     "points": [
+      {
+       "t": "WASD / arrows",
+       "d": "Move. SHIFT runs (costs energy)."
+      },
+      {
+       "t": "SPACE",
+       "d": "Gather / hit with the item in your hand. In build mode: place."
+      },
+      {
+       "t": "E",
+       "d": "Interact with the closest thing (doors, chests, stations, me). HOLD E to seal leaks and repair."
+      },
+      {
+       "t": "TAB",
+       "d": "Inventory and crafting."
+      },
+      {
+       "t": "C · Q",
+       "d": "C opens/closes build mode, Q switches the module to place."
+      },
+      {
+       "t": "V · X",
+       "d": "V puts the space suit on/off. X drops 1 item (SHIFT+X the whole stack)."
+      },
+      {
+       "t": "M · G · J · K · L · B · H",
+       "d": "Map · Field guide · Missions · NASA archive · Log · Base panel · H opens me (Mini Robert)."
+      },
+      {
+       "t": "1–5 · ESC",
+       "d": "Pick a hotbar slot · Pause."
+      }
+     ]
+    },
+    {
+     "title": "Mouse",
+     "points": [
+      {
+       "t": "Click the hotbar",
+       "d": "Selects the item in your hand."
+      },
+      {
+       "t": "Click the map",
+       "d": "In build mode, places the module where you click."
+      },
+      {
+       "t": "Click me",
+       "d": "Opens this help menu."
+      }
+     ]
+    },
+    {
+     "title": "Touch (phone / tablet)",
+     "points": [
+      {
+       "t": "D-pad (bottom left)",
+       "d": "Move. Tap RUN to toggle running."
+      },
+      {
+       "t": "✋ ACTION",
+       "d": "Gather / hit. In build mode it places in front of you."
+      },
+      {
+       "t": "E HOLD",
+       "d": "Interact; keep it pressed to seal or repair."
+      },
+      {
+       "t": "🔨 BUILD",
+       "d": "Only appears when you carry something you can place."
+      },
+      {
+       "t": "SUIT · DROP",
+       "d": "Put the suit on/off · drop the item in your hand."
+      },
+      {
+       "t": "⋯ next to the hotbar",
+       "d": "Opens the inventory."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "hud",
+   "icon": "🔘",
+   "title": "Buttons & screen",
+   "sub": "What every bar and box means",
+   "subs": [
+    {
+     "title": "Vitals (top left)",
+     "points": [
+      {
+       "t": "🫧 Oxygen",
+       "d": "Suit O2. Refills next to the habitat. At 0 you suffocate."
+      },
+      {
+       "t": "♥ Health",
+       "d": "At 0 you die and respawn at the base (your items stay in a bag where you fell)."
+      },
+      {
+       "t": "⚡ Energy",
+       "d": "Drops while you work and run. Rest inside the habitat."
+      },
+      {
+       "t": "💧 Hydration",
+       "d": "Drink inside the habitat with the suit OFF (uses tank water)."
+      },
+      {
+       "t": "🧠 Sanity",
+       "d": "Drops in the dark, alone and in danger. Light, food and rest bring it back."
+      },
+      {
+       "t": "🧑‍🚀 Suit",
+       "d": "Suit integrity. Repair it at the Workshop with a Sealant kit."
+      },
+      {
+       "t": "Temperature gauge",
+       "d": "Blue = cold, orange = hot. Stay too long in a color and you lose health."
+      }
+     ]
+    },
+    {
+     "title": "Navigation card",
+     "points": [
+      {
+       "t": "GPS",
+       "d": "Distance and direction to your next goal (leak, crater, capsule…). Follow the arrow."
+      }
+     ]
+    },
+    {
+     "title": "Top right",
+     "points": [
+      {
+       "t": "Clock",
+       "d": "Day number and time. Night is colder and darker."
+      },
+      {
+       "t": "Power",
+       "d": "BAT = battery, LH2 / LOX = rocket fuel tanks, +x/s = energy coming in."
+      }
+     ]
+    },
+    {
+     "title": "Bottom",
+     "points": [
+      {
+       "t": "Mission bar",
+       "d": "Your current main mission. Tap it to see all missions."
+      },
+      {
+       "t": "Hotbar",
+       "d": "Slots 1–5: the item in your hand decides what you gather and how fast."
+      }
+     ]
+    },
+    {
+     "title": "Top menu buttons",
+     "points": [
+      {
+       "t": "🗺 Map",
+       "d": "World map with fog; zones you visited are revealed."
+      },
+      {
+       "t": "📜 Log · 🏠 Base",
+       "d": "Event history · status of every module."
+      },
+      {
+       "t": "🚀 Rocket · 📚 Archive",
+       "d": "Rocket checklist · real NASA mission history you unlock."
+      },
+      {
+       "t": "⛶ · ⏸",
+       "d": "Fullscreen · Pause."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "menus",
+   "icon": "📋",
+   "title": "Menus",
+   "sub": "Inventory, stations, chest, map…",
+   "subs": [
+    {
+     "title": "Inventory (TAB / ⋯)",
+     "points": [
+      {
+       "t": "Slots",
+       "d": "Limited pockets. Water does not use slots: it lives in the habitat tank."
+      },
+      {
+       "t": "Crafting tab",
+       "d": "Hand recipes. Bigger recipes need the Workshop or Furnace."
+      },
+      {
+       "t": "Equip",
+       "d": "Drag or click suits, capes and gear onto your character."
+      }
+     ]
+    },
+    {
+     "title": "Workshop & Furnace (E)",
+     "points": [
+      {
+       "t": "Workshop",
+       "d": "Tools, modules, gear, Bridge Kit, rover, farm. Also repairs the suit."
+      },
+      {
+       "t": "Furnace",
+       "d": "Bakes regolith into insulation and hot meals. With power it also makes O2 and metal on its own."
+      },
+      {
+       "t": "Colors",
+       "d": "✓ = ready to craft. Grey = locked. Red outline = missing materials."
+      },
+      {
+       "t": "Where to find it",
+       "d": "Tap any ingredient to see where it comes from: zone, caves, capsules, farm or recipe."
+      }
+     ]
+    },
+    {
+     "title": "Chest (E)",
+     "points": [
+      {
+       "t": "Storage",
+       "d": "20 slots. Machines (rover, drill, bioreactor) drop their output here."
+      }
+     ]
+    },
+    {
+     "title": "Rocket & CubeSat",
+     "points": [
+      {
+       "t": "Rocket (E at the rocket)",
+       "d": "Repair subsystems, load fuel, check return windows, launch."
+      },
+      {
+       "t": "CubeSat designer",
+       "d": "Pick parts within mass and size limits to rebuild contact with Earth."
+      }
+     ]
+    },
+    {
+     "title": "Map, guide, archive",
+     "points": [
+      {
+       "t": "Map",
+       "d": "Zones, your position, historic sites."
+      },
+      {
+       "t": "Field guide",
+       "d": "Everything you have discovered."
+      },
+      {
+       "t": "NASA archive",
+       "d": "Real missions and astronauts, unlocked as you play."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "items",
+   "icon": "🎒",
+   "title": "Items",
+   "sub": "Resources, tools, gear, food, modules",
+   "subs": [
+    {
+     "title": "Resources",
+     "points": [
+      {
+       "t": "Ice",
+       "d": "In the dark Shadowed Crater. Melt it at the habitat (E) into water."
+      },
+      {
+       "t": "Regolith",
+       "d": "Lunar soil, everywhere. Insulation, bridge, furnace O2."
+      },
+      {
+       "t": "Scrap · Metal",
+       "d": "Wreckage around the base and capsules. Kits, tools, modules."
+      },
+      {
+       "t": "Frost crystals · Titanium · Alien alloy",
+       "d": "Rare: Frozen Basin, Scorch Fields and Alien Hive."
+      },
+      {
+       "t": "Lunar algae",
+       "d": "Glowing moss in the crater and rift. Food, and plants for the hydroponic farm."
+      }
+     ]
+    },
+    {
+     "title": "Tools",
+     "points": [
+      {
+       "t": "Shovels & picks",
+       "d": "Better tools gather more per swing. Some nodes need a specific tool."
+      },
+      {
+       "t": "Baton",
+       "d": "Hit aliens and androids."
+      }
+     ]
+    },
+    {
+     "title": "Gear",
+     "points": [
+      {
+       "t": "Space suit",
+       "d": "Mandatory outside: without it the vacuum kills you in seconds."
+      },
+      {
+       "t": "Thermal suit",
+       "d": "Holds ~10 °C. Needed in the Frozen Basin."
+      },
+      {
+       "t": "Reflective cape",
+       "d": "Caps heat at ~30 °C. Needed in the Scorch Fields."
+      },
+      {
+       "t": "Regolith shield · Armor · Gravity boots",
+       "d": "Radiation, damage and movement protection."
+      }
+     ]
+    },
+    {
+     "title": "Food & medicine",
+     "points": [
+      {
+       "t": "Space ration · Hot meal",
+       "d": "Restore health, sanity and water; hot meals also clear Cold."
+      },
+      {
+       "t": "Medkit · Stimulant",
+       "d": "Heal / remove fatigue and panic."
+      },
+      {
+       "t": "Farm food",
+       "d": "Baked potato, Bread and Space cookies: grow crops and cook them at the Furnace."
+      }
+     ]
+    },
+    {
+     "title": "Modules (BUILD)",
+     "points": [
+      {
+       "t": "Solar panel · Battery",
+       "d": "Power by day, storage for the night."
+      },
+      {
+       "t": "Electrolysis · Liquefier",
+       "d": "Water → H2 + O2 → liquid fuel."
+      },
+      {
+       "t": "Ice drill",
+       "d": "Inside the crater, drills ice into the chest."
+      },
+      {
+       "t": "Light tower",
+       "d": "Light keeps fear and aliens away."
+      },
+      {
+       "t": "Rover · Bioreactor · Hydroponic farm",
+       "d": "Automations: see Base & automation."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "map",
+   "icon": "🗺",
+   "title": "Map & zones",
+   "sub": "Where to go and what you need",
+   "subs": [
+    {
+     "title": "Landing Site (start)",
+     "points": [
+      {
+       "t": "Scrapyard Flats",
+       "d": "Scrap and metal."
+      },
+      {
+       "t": "Shadowed Crater",
+       "d": "Ice and algae. Very cold, and the walls can collapse if you over-dig."
+      },
+      {
+       "t": "Regolith Ridge",
+       "d": "Lots of regolith."
+      }
+     ]
+    },
+    {
+     "title": "Locked zones",
+     "points": [
+      {
+       "t": "Frozen Basin",
+       "d": "Needs the Thermal suit. Crystal Cavern and Deep Glacial Rift (boss)."
+      },
+      {
+       "t": "Scorch Fields",
+       "d": "Needs the Reflective cape. Titanium Quarry and Far Scorch Caldera (boss)."
+      },
+      {
+       "t": "Alien Hive",
+       "d": "Needs a Bridge Kit over the ravine. Alloy Spires and Matriarch Lair (boss)."
+      }
+     ]
+    },
+    {
+     "title": "Places to explore",
+     "points": [
+      {
+       "t": "Supply capsules",
+       "d": "Random loot. Open with E."
+      },
+      {
+       "t": "Historic sites",
+       "d": "LCROSS, VIPER and Surveyor/Apollo 12: supplies and real history."
+      },
+      {
+       "t": "Meteor caves",
+       "d": "Appear after showers: a mini-adventure with loot."
+      },
+      {
+       "t": "Fog",
+       "d": "The map reveals itself as you walk."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "enemies",
+   "icon": "👾",
+   "title": "Enemies",
+   "sub": "Aliens, androids and bosses",
+   "subs": [
+    {
+     "title": "Aliens (Fantasy & Horror only)",
+     "points": [
+      {
+       "t": "When",
+       "d": "They come out at night. Realistic mode has none."
+      },
+      {
+       "t": "Abductor",
+       "d": "Grabs you and drags you away."
+      },
+      {
+       "t": "Tracker",
+       "d": "Follows you fast."
+      },
+      {
+       "t": "Saboteur",
+       "d": "Damages modules and makes leaks."
+      },
+      {
+       "t": "Mothership",
+       "d": "The big one: steals from the base."
+      },
+      {
+       "t": "How to survive",
+       "d": "Stay in the light (habitat, light towers) and hit them with ACTION / a baton."
+      }
+     ]
+    },
+    {
+     "title": "Rogue androids",
+     "points": [
+      {
+       "t": "Android drop",
+       "d": "An event that drops hostile androids. Hit them; they drop parts."
+      }
+     ]
+    },
+    {
+     "title": "Bosses",
+     "points": [
+      {
+       "t": "Cryo Warden",
+       "d": "Deep Glacial Rift."
+      },
+      {
+       "t": "Scorch Colossus",
+       "d": "Far Scorch Caldera."
+      },
+      {
+       "t": "Hive Matriarch",
+       "d": "Matriarch Lair in the Alien Hive. Defeat them for rare loot."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "events",
+   "icon": "⚡",
+   "title": "Events",
+   "sub": "Temporary dangers and situations",
+   "subs": [
+    {
+     "title": "Space weather",
+     "points": [
+      {
+       "t": "☢ Solar flare",
+       "d": "Radiation outside. Go inside the habitat or wear the Regolith shield until it ends."
+      },
+      {
+       "t": "☄ Micrometeorite shower",
+       "d": "Rocks fall and damage modules. Take cover; caves may appear afterwards."
+      },
+      {
+       "t": "🌑 Earth eclipse",
+       "d": "No sun: solar panels stop and it gets very cold."
+      },
+      {
+       "t": "🔥 Heat peak",
+       "d": "Extreme heat in the sun. Shade, habitat or Reflective cape."
+      },
+      {
+       "t": "🤖 Android drop",
+       "d": "Hostile androids land near you."
+      }
+     ]
+    },
+    {
+     "title": "Base problems",
+     "points": [
+      {
+       "t": "Leaks",
+       "d": "Flashing orange spray on a module. HOLD E with a Sealant kit. Up to 2 maintenances a day."
+      },
+      {
+       "t": "Worn modules",
+       "d": "A ! appears below 25%. HOLD E with a kit to repair."
+      },
+      {
+       "t": "🔌 / 💤 icons",
+       "d": "🔌 no power, 💤 idle (missing water, regolith or a chest)."
+      },
+      {
+       "t": "Low battery at night",
+       "d": "Heavy machines pause on their own so life support keeps running."
+      },
+      {
+       "t": "Special cases",
+       "d": "Story emergencies with a star: press E on them to resolve."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "effects",
+   "icon": "🩺",
+   "title": "Effects on you",
+   "sub": "Side effects and how to fix them",
+   "subs": [
+    {
+     "title": "Temperature",
+     "points": [
+      {
+       "t": "🥶 Cold",
+       "d": "Slower and loses health after a few seconds. Fix: habitat, Thermal suit, hot meal."
+      },
+      {
+       "t": "🥵 Heat",
+       "d": "Loses health in the sun at peaks. Fix: shade, habitat, Reflective cape."
+      }
+     ]
+    },
+    {
+     "title": "Body",
+     "points": [
+      {
+       "t": "☢ Radiation",
+       "d": "Only during flares. Fix: habitat or Regolith shield."
+      },
+      {
+       "t": "😴 Fatigue",
+       "d": "From working and running. Fix: rest in the habitat or a Stimulant."
+      },
+      {
+       "t": "💫 Low-G vertigo",
+       "d": "Fix: habitat or food."
+      },
+      {
+       "t": "💧 Thirst · 🫧 O2",
+       "d": "Drink inside with the suit off · refill O2 next to the habitat."
+      }
+     ]
+    },
+    {
+     "title": "Mind",
+     "points": [
+      {
+       "t": "😨 Fear",
+       "d": "In the dark near danger. Fix: light."
+      },
+      {
+       "t": "🌘 Isolation",
+       "d": "Fix: lit towers, rest or food."
+      },
+      {
+       "t": "😱 Panic",
+       "d": "Fix: habitat, Stimulant or food."
+      }
+     ]
+    },
+    {
+     "title": "Death",
+     "points": [
+      {
+       "t": "Respawn",
+       "d": "You wake up at the base. Your lost items wait in a bag where you fell: press E on it."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "base",
+   "icon": "⚙",
+   "title": "Base & automation",
+   "sub": "Power, machines and production",
+   "subs": [
+    {
+     "title": "Power",
+     "points": [
+      {
+       "t": "Day / night",
+       "d": "Panels only work in the sun; batteries carry you through the night."
+      },
+      {
+       "t": "Dust",
+       "d": "Lunar dust lowers panel power. Clean them with E or build the EDS Dust Shield."
+      },
+      {
+       "t": "Smart power",
+       "d": "Below 30% battery at night, electrolysis, liquefier, furnace and drill pause."
+      }
+     ]
+    },
+    {
+     "title": "Fuel chain",
+     "points": [
+      {
+       "t": "1 Ice → water",
+       "d": "Melt at the habitat (E)."
+      },
+      {
+       "t": "2 Electrolysis",
+       "d": "Water → H2 + O2 gas (needs power)."
+      },
+      {
+       "t": "3 Liquefier",
+       "d": "Gas → LH2 + LOX in the rocket tanks. Best mix 6:1 (LOX:LH2)."
+      }
+     ]
+    },
+    {
+     "title": "Automations",
+     "points": [
+      {
+       "t": "Auto-Miner Rover",
+       "d": "Press E on it to choose a material. It drives to where that material is, mines 3, drives back and drops them in the chest. Own power, day and night."
+      },
+      {
+       "t": "Ice drill",
+       "d": "Inside the crater: ice into the chest (or your pockets)."
+      },
+      {
+       "t": "Algae Bioreactor",
+       "d": "Uses water: habitat O2 and a ration every 2 min."
+      },
+      {
+       "t": "Hydroponic farm",
+       "d": "Plant seeds or algae (E), WATER them (E, 2 kg from the tank), wait, then HARVEST (E). Dry crops stop growing."
+      }
+     ]
+    },
+    {
+     "title": "Maintenance & upgrades",
+     "points": [
+      {
+       "t": "Repair",
+       "d": "HOLD E with a Sealant kit on a damaged module."
+      },
+      {
+       "t": "Upgrade ^",
+       "d": "A green ^ means you can afford a level-up: press E."
+      }
+     ]
+    },
+    {
+     "title": "Farming & cooking",
+     "points": [
+      {
+       "t": "Seeds",
+       "d": "Potato and Wheat seeds come in supply capsules and the base chest. Harvest gives 1 seed back."
+      },
+      {
+       "t": "Plant",
+       "d": "Hold the seed in your hand (or any seed) and press E on a Hydroponic farm."
+      },
+      {
+       "t": "Water",
+       "d": "A blinking blue drop means thirsty: press E to water (2 kg). One watering lasts ~1 minute."
+      },
+      {
+       "t": "Harvest",
+       "d": "When the plants turn gold, press E to cut them."
+      },
+      {
+       "t": "Cook at the Furnace",
+       "d": "2 Potatoes = Baked potato · 3 Wheat = Bread · 2 Wheat + 1 Algae = Space cookies."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "rocket",
+   "icon": "🚀",
+   "title": "Rocket & escape",
+   "sub": "Getting home",
+   "subs": [
+    {
+     "title": "Subsystems",
+     "points": [
+      {
+       "t": "6 parts",
+       "d": "Propulsion, power, thermal, communications, attitude control, structure. Repair each with materials."
+      },
+      {
+       "t": "CubeSat relay",
+       "d": "Without it communications cap below 100%."
+      }
+     ]
+    },
+    {
+     "title": "Fuel & windows",
+     "points": [
+      {
+       "t": "Tanks",
+       "d": "Fill LH2 and LOX; LH2 slowly boils off, so don't wait too long."
+      },
+      {
+       "t": "Return windows",
+       "d": "Only certain days line up for a return. The rocket panel shows the next one."
+      },
+      {
+       "t": "Launch",
+       "d": "Everything ready + inside a window = go home!"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "extras",
+   "icon": "🧩",
+   "title": "Mini-games & extras",
+   "sub": "Caves, designer, achievements",
+   "subs": [
+    {
+     "title": "Mini-games",
+     "points": [
+      {
+       "t": "Meteor caves",
+       "d": "Short exploration with choices and loot."
+      },
+      {
+       "t": "CubeSat designer",
+       "d": "Fit the right parts inside the limits."
+      },
+      {
+       "t": "Fuel mix",
+       "d": "Hit the perfect 6:1 ratio for a side mission."
+      }
+     ]
+    },
+    {
+     "title": "Progress",
+     "points": [
+      {
+       "t": "Side missions",
+       "d": "Capsules, flares, towers, aliens, crystals… extra rewards."
+      },
+      {
+       "t": "Achievements",
+       "d": "Pop up as you play."
+      },
+      {
+       "t": "NASA archive",
+       "d": "Real history unlocked by your actions."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tips",
+   "icon": "💡",
+   "title": "Tips",
+   "sub": "Quick advice from Robert",
+   "subs": [
+    {
+     "title": "First day",
+     "points": [
+      {
+       "t": "Kits first",
+       "d": "Always carry 1–2 Sealant kits for leaks."
+      },
+      {
+       "t": "Water early",
+       "d": "Bring ice home before night: water = drinking, O2 and fuel."
+      },
+      {
+       "t": "Thermal suit",
+       "d": "Craft it early if you go out at night or to the crater."
+      }
+     ]
+    },
+    {
+     "title": "Always",
+     "points": [
+      {
+       "t": "Watch O2",
+       "d": "Turn back at half oxygen: the way home counts too."
+      },
+      {
+       "t": "Use the chest",
+       "d": "Full pockets stop you gathering. Store extras."
+      },
+      {
+       "t": "Lights",
+       "d": "Light towers around the base protect you at night."
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

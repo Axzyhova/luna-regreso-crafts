@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useGame } from "@/game/store";
 import { touch } from "@/game/touch";
+import { PLACEABLE } from "@/game/sim";
 import { sfx } from "@/game/audio";
 import { useShortScreen } from "@/hooks/use-device";
 
@@ -78,6 +79,8 @@ export function ActionPad() {
   const publish = useGame((g) => g.publish);
   const k = useShortScreen() ? 0.8 : 1; // phones held sideways: smaller buttons
   const [run, setRun] = useState(touch.run);
+  // BUILD only shows up when you carry something you can place (modules, farm, chest…).
+  const canBuild = Object.keys(PLACEABLE).some((k) => ((s.inv as unknown as Record<string, number>)[k] ?? 0) >= 1);
   const toggleRun = () => { touch.run = !touch.run; setRun(touch.run); sfx.click(); };
   return (
     <div className="flex select-none items-end gap-2">
@@ -88,10 +91,11 @@ export function ActionPad() {
             <McButton label="⟳" sub="SWITCH" size={Math.round(46 * k)} onPress={() => { touch.act.cycle(); publish(); }} />
             <McButton label="✕" sub="EXIT" size={Math.round(46 * k)} onPress={() => { touch.act.build(); publish(); }} />
           </>
-        ) : (
+        ) : canBuild && (
           <McButton label="🔨" sub="BUILD" size={Math.round(46 * k)} onPress={() => { touch.act.build(); publish(); }} />
         )}
         <McButton label="🧑‍🚀" sub={s.suit.worn ? "SUIT OFF" : "SUIT ON"} size={Math.round(46 * k)} onPress={() => { touch.act.suit(); publish(); }} />
+        <McButton label="⤓" sub="DROP" size={Math.round(46 * k)} onPress={() => { touch.act.drop(); publish(); }} />
       </div>
       <div className="flex flex-col items-center gap-2">
         <McButton label="E" sub="HOLD" size={Math.round(54 * k)} onPress={() => { touch.e = true; touch.act.interact(); }} onRelease={() => { touch.e = false; }} />

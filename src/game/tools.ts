@@ -1,22 +1,28 @@
 /**
- * Gathering tools. Each tier of tool opens the next tier of resource (the survival-crafting ladder):
+ * Gathering tools: the single table every other part of the game reads (mining, the inventory panel, the guide).
+ * Each tier of tool opens the next tier of resource (the survival-crafting ladder):
  *
- *   hands            → ice, regolith, scrap
+ *   hands            → ice, regolith, scrap, lunar algae
  *   Better shovel    → + Frost crystals, Titanium ore            (cheap: 3 Metal)
  *   Titanium shovel  → + Alien alloy                             (needs Titanium from the Scorch Fields)
+ *   Plasma cutter    → everything, fastest                        (rare: meteor cave chests)
  *
- * and every tool is also faster and has a chance of an extra unit per hit, so owning one is always felt.
+ * and every tool gathers more per hit and swings faster, so owning one is always felt.
  * The module "Ice drill" is NOT a hand tool: it has to be placed in the crater.
  */
 import type { Inv } from "./sim";
 
-export interface ToolStats { key: string | null; name: string; tier: number; cooldown: number; bonusChance: number; blurb: string }
+export interface ToolStats { key: string | null; name: string; tier: number; yield: number; cooldown: number; blurb: string }
 
-export const HANDS: ToolStats = { key: null, name: "Bare hands", tier: 0, cooldown: 0.5, bonusChance: 0, blurb: "1 unit per hit" };
+const blurb = (y: number, cd: number) => `${y} unit${y === 1 ? "" : "s"} per hit${cd < 0.5 ? ` · ${(0.5 / cd).toFixed(1)}× faster` : ""}`;
+const tool = (key: string | null, name: string, tier: number, y: number, cooldown: number): ToolStats => ({ key, name, tier, yield: y, cooldown, blurb: blurb(y, cooldown) });
+
+export const HANDS = tool(null, "Bare hands", 0, 1, 0.5);
 /** Best tool first. */
 export const TOOLS: ToolStats[] = [
-  { key: "pala_titanio", name: "Titanium shovel", tier: 2, cooldown: 0.2, bonusChance: 0.6, blurb: "2.5× faster · 60% chance of +1 unit" },
-  { key: "pala_mejorada", name: "Better shovel", tier: 1, cooldown: 0.33, bonusChance: 0.3, blurb: "1.5× faster · 30% chance of +1 unit" },
+  tool("pico_plasma", "Plasma cutter", 2, 4, 0.18),
+  tool("pala_titanio", "Titanium shovel", 2, 3, 0.22),
+  tool("pala_mejorada", "Better shovel", 1, 2, 0.32),
 ];
 
 /** What you currently gather with: the best tool in your inventory. */
@@ -26,7 +32,7 @@ export function bestTool(inv: Partial<Inv>): ToolStats {
 }
 
 /** Tool tier each kind of resource node needs. */
-export const NODE_TIER: Record<string, number> = { hielo: 0, regolito: 0, chatarra: 0, cristal_hielo: 1, titanio: 1, aleacion: 2 };
+export const NODE_TIER: Record<string, number> = { hielo: 0, regolito: 0, chatarra: 0, alga_lunar: 0, cristal_hielo: 1, titanio: 1, aleacion: 2 };
 
 export function tierName(tier: number) {
   return tier >= 2 ? "Titanium shovel" : tier === 1 ? "Better shovel" : "bare hands";
@@ -36,11 +42,4 @@ export function tierName(tier: number) {
 export function canMine(inv: Partial<Inv>, node: string): { ok: boolean; need?: string } {
   const need = NODE_TIER[node] ?? 0;
   return bestTool(inv).tier >= need ? { ok: true } : { ok: false, need: tierName(need) };
-}
-
-/** Result of one hit: how many units you get and the cooldown until the next hit (before fatigue). */
-export function mineHit(inv: Partial<Inv>, rnd: () => number): { amount: number; cooldown: number; bonus: boolean; tool: ToolStats } {
-  const tool = bestTool(inv);
-  const bonus = rnd() < tool.bonusChance;
-  return { amount: 1 + (bonus ? 1 : 0), cooldown: tool.cooldown, bonus, tool };
 }

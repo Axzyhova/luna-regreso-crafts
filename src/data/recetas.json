@@ -76,7 +76,8 @@
   "resultado": {
    "traje_espacial": 1
   },
-  "disponible": true
+  "disponible": true,
+  "ref": "NASA Ref: the xEMU / Artemis suits are mini spacecraft with their own O2, power and cooling."
  },
  {
   "id": "pala_mejorada",
@@ -153,7 +154,8 @@
   "resultado": {
    "aislamiento": 1
   },
-  "disponible": true
+  "disponible": true,
+  "ref": "NASA Ref: sintered regolith is studied at KSC Swamp Works as a building material."
  },
  {
   "id": "planta_electrolisis",
@@ -166,7 +168,8 @@
   "resultado": {
    "planta_electrolisis": 1
   },
-  "disponible": true
+  "disponible": true,
+  "ref": "NASA Ref: water electrolysis is how the ISS Oxygen Generation System makes breathing O2."
  },
  {
   "id": "criotanque",
@@ -179,7 +182,8 @@
   "resultado": {
    "criotanque": 1
   },
-  "disponible": true
+  "disponible": true,
+  "ref": "NASA Ref: SLS stores liquid hydrogen at −253 °C and liquid oxygen at −183 °C in insulated tanks."
  },
  {
   "id": "pieza_motor",
@@ -205,7 +209,8 @@
   "resultado": {
    "traje_termico": 1
   },
-  "disponible": true
+  "disponible": true,
+  "ref": "NASA Ref: spacesuits use multi-layer insulation and electric heaters; Apollo suits had liquid-cooling garments."
  },
  {
   "id": "capa_reflectante",
@@ -218,7 +223,8 @@
   "resultado": {
    "capa_reflectante": 1
   },
-  "disponible": true
+  "disponible": true,
+  "ref": "NASA Ref: multi-layer insulation (MLI) blankets reflect sunlight on almost every NASA spacecraft."
  },
  {
   "id": "escudo_radiacion",
@@ -231,7 +237,8 @@
   "resultado": {
    "escudo_radiacion": 1
   },
-  "disponible": true
+  "disponible": true,
+  "ref": "NASA Ref: studies show a few metres of regolith shield a lunar habitat from solar particle events."
  },
  {
   "id": "pala_titanio",
@@ -310,5 +317,133 @@
    "estimulante": 1
   },
   "disponible": true
+ },
+ {
+  "id": "puente_kit",
+  "nombre": "Bridge Kit",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 4,
+   "regolito": 4
+  },
+  "resultado": {
+   "puente_kit": 1
+  },
+  "disponible": true,
+  "ref": "NASA Ref: truss structures like the ISS backbone are built from standard pieces assembled on site."
+ },
+ {
+  "id": "rover",
+  "nombre": "Auto-Miner Rover (module)",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 6,
+   "baterias": 2,
+   "chatarra": 2
+  },
+  "resultado": {
+   "rover": 1
+  },
+  "disponible": true,
+  "ref": "NASA Ref: KSC's RASSOR robot was designed to dig regolith autonomously for ISRU plants."
+ },
+ {
+  "id": "eds",
+  "nombre": "EDS Dust Shield (install)",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 4,
+   "chatarra": 3
+  },
+  "resultado": {
+   "eds": 1
+  },
+  "disponible": true,
+  "ref": "NASA Ref: KSC's Electrodynamic Dust Shield (flown on Blue Ghost, 2025) lifts electrostatic lunar dust off surfaces; Apollo 17 crews found that dust clings to everything."
+ },
+ {
+  "id": "biorreactor",
+  "nombre": "Algae Bioreactor (module)",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 4,
+   "aislamiento": 2,
+   "alga_lunar": 3
+  },
+  "resultado": {
+   "biorreactor": 1
+  },
+  "disponible": true,
+  "ref": "NASA Ref: bioregenerative life support (BLSS) — plants and algae recycling air and food — is studied for the ISS (Veggie) and NASA's closed-loop programs."
+ },
+ {
+  "id": "hidroponia",
+  "nombre": "Hydroponic farm (module)",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 3,
+   "regolito": 2,
+   "alga_lunar": 1
+  },
+  "resultado": {
+   "hidroponia": 1
+  },
+  "disponible": true,
+  "ref": "NASA Ref: the ISS Veggie and Advanced Plant Habitat grow crops without soil, using water, nutrients and LED light."
+ },
+ {
+  "id": "navcore",
+  "nombre": "Interplanetary Nav-Core",
+  "lugar": "taller",
+  "ingredientes": {
+   "metal": 6,
+   "titanio": 2,
+   "pieza_motor": 1
+  },
+  "resultado": {
+   "navcore": 1
+  },
+  "disponible": true,
+  "ref": "NASA Ref: NASA's Moon to Mars plan uses the Moon to test the systems that will later take crews to Mars."
+ },
+ {
+  "id": "papa_horneada",
+  "nombre": "Baked potato",
+  "lugar": "horno",
+  "ingredientes": {
+   "papa": 2
+  },
+  "resultado": {
+   "papa_horneada": 1
+  },
+  "disponible": true,
+  "ref": "NASA Ref: potatoes were the first crop grown in space (Columbia, 1995) and are a candidate crop for lunar and Mars bases."
+ },
+ {
+  "id": "pan",
+  "nombre": "Bread",
+  "lugar": "horno",
+  "ingredientes": {
+   "trigo": 3
+  },
+  "resultado": {
+   "pan": 1
+  },
+  "disponible": true,
+  "ref": "NASA Ref: dwarf wheat (Apogee) was bred with NASA support for growing in space habitats."
+ },
+ {
+  "id": "galleta",
+  "nombre": "Space cookies",
+  "lugar": "horno",
+  "ingredientes": {
+   "trigo": 2,
+   "alga_lunar": 1
+  },
+  "resultado": {
+   "galleta": 2
+  },
+  "disponible": true,
+  "ref": "NASA Ref: in 2019 the first cookies were baked in space, on the ISS, in a special zero-g oven."
  }
 ]

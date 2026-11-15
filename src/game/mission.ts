@@ -121,8 +121,8 @@ export function launchBlockers(s: Sim): string[] {
 export function launch(s: Sim) {
   if (launchBlockers(s).length) return false;
   const w = currentWindow(s)!;
-  s.result = { ok: true, dia: s.day, ventana: w.id, lh2Sobra: s.lh2 - w.lh2_kg, loxSobra: s.lox - w.lox_kg };
-  addLog(s, `Day ${s.day}: liftoff in window ${w.id}!`);
+  s.result = { ok: true, dia: s.day, ventana: w.id, lh2Sobra: s.lh2 - w.lh2_kg, loxSobra: s.lox - w.lox_kg, destino: s.destino };
+  addLog(s, s.destino === "mars" ? `Day ${s.day}: liftoff for Mars — next stop, Jezero Crater!` : `Day ${s.day}: liftoff in window ${w.id}!`);
   unlock(s, "Back home");
   return true;
 }
@@ -131,8 +131,10 @@ export function launch(s: Sim) {
 // Cuenta regresiva (en modos con aliens aparece la Nodriza)
 // ---------------------------------------------------------------------------
 export const countdownLength = (s: Sim) => aliensCfg.cuenta_regresiva_s[s.mode];
-export function startLaunch(s: Sim) {
+export function startLaunch(s: Sim, destino: "earth" | "mars" = "earth") {
   if (s.countdown !== null || launchBlockers(s).length) return false;
+  if (destino === "mars" && !s.navcore) return false;
+  s.destino = destino;
   s.countdown = countdownLength(s);
   addLog(s, `Countdown started: ${s.countdown} s. Keep the rocket safe.`);
   return true;

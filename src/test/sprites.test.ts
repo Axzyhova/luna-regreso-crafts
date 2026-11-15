@@ -7,7 +7,7 @@ describe("HD sprites", () => {
     const made: Record<string, [number, number]> = {};
     const g: Record<string, unknown> = {};
     const chain = () => g;
-    for (const k of ["fillStyle", "fillRect", "fillCircle", "fillEllipse", "fillTriangle", "fillPoints", "lineStyle", "strokePoints", "strokeRect", "strokeCircle"]) g[k] = chain;
+    for (const k of ["fillStyle", "fillRect", "fillCircle", "fillEllipse", "fillTriangle", "fillPoints", "lineStyle", "strokePoints", "strokeRect", "strokeCircle", "lineBetween"]) g[k] = chain;
     g["generateTexture"] = (key: string, w: number, h: number) => { made[key] = [w, h]; return g; };
     g["destroy"] = () => {};
     const scene = { add: { graphics: () => g } } as unknown as Phaser.Scene;

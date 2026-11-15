@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import modos from "@/data/modos.json";
 import fuentes from "@/data/fuentes.json";
-import { useGame } from "@/game/store";
+import { useGame, hasSave } from "@/game/store";
 import type { Mode, Difficulty } from "@/game/sim";
 import { sfx } from "@/game/audio";
 import { GAME_TITLE } from "@/game/title";
@@ -36,15 +36,20 @@ function Stars() {
 
 export function Intro() {
   const go = useGame((s) => s.go);
+  const loadGame = useGame((s) => s.loadGame);
+  const [saved] = useState(hasSave);
+  const [loadFailed, setLoadFailed] = useState(false);
   return (
     <div className="relative flex h-full flex-col items-center justify-center-safe gap-8 overflow-y-auto p-6 text-center short:gap-4 short:p-3">
       <Stars />
       <h1 className="max-w-3xl text-xl leading-relaxed text-suit-light drop-shadow-[4px_4px_0_var(--color-suit)] sm:text-4xl sm:leading-snug short:text-2xl short:leading-snug">{GAME_TITLE}</h1>
       <p className="max-w-xl text-[11px] leading-6 text-foreground short:text-[9px] short:leading-5">Welcome to the experience… are you ready to live a story in space?</p>
       <div className="flex gap-4">
-        <PixelButton onClick={() => go("modo")}>Accept</PixelButton>
+        {saved && <PixelButton onClick={() => { if (loadGame()) go("juego"); else setLoadFailed(true); }}>Continue</PixelButton>}
+        <PixelButton tone={saved ? "ghost" : "primary"} onClick={() => go("modo")}>{saved ? "New game" : "Accept"}</PixelButton>
         <PixelButton tone="ghost" onClick={() => go("rechazo")}>Decline</PixelButton>
       </div>
+      {loadFailed && <p className="text-[9px] text-alert">The saved game could not be loaded. Start a new game.</p>}
       <div className="flex items-center gap-4"><button className="tr-btn px-3 py-2 text-[8px]" onClick={() => { sfx.click(); go("archivo"); }}>📚 NASA ARCHIVE</button><button className="text-[8px] text-muted-foreground underline" onClick={() => go("fuentes")}>Sources & credits</button></div>
     </div>
   );
@@ -166,10 +171,16 @@ export function Final() {
   return (
     <div className="relative flex h-full flex-col items-center justify-center-safe gap-6 overflow-y-auto p-6 text-center short:gap-3 short:p-3">
       <Stars />
-      <h2 className="text-2xl text-ok drop-shadow-[3px_3px_0_var(--color-moon-0)] short:text-lg">BACK HOME!</h2>
+      <h2 className="text-2xl text-ok drop-shadow-[3px_3px_0_var(--color-moon-0)] short:text-lg">{r?.destino === "mars" ? "NEXT STOP: MARS!" : "BACK HOME!"}</h2>
       {r && (
         <div className="max-w-xl space-y-2 text-[9px] leading-5">
-          {MISIONES.final.map((l) => <p key={l} className="text-suit-light">{l}</p>)}
+          {r.destino === "mars" ? (
+            <>
+              <p className="text-suit-light">With fuel made entirely on the Moon and the Interplanetary Nav-Core installed, the Selene-7 leaves for Mars.</p>
+              <p className="text-suit-light">Destination: Jezero Crater, an ancient lake bed where NASA's Perseverance rover landed in February 2021 and MOXIE made oxygen from Martian air.</p>
+              <p className="text-suit-light">That's NASA's Moon to Mars idea: learn to live off the land on the Moon, then go further.</p>
+            </>
+          ) : MISIONES.final.map((l) => <p key={l} className="text-suit-light">{l}</p>)}
           <p className="pt-2">You launched on day {r.dia} in window {r.ventana}.</p>
           <p>Side missions: {s.quest.sideDone.length}/{sideAvailable(s).length} · Capsules opened: {s.stats.capsulas} · Repairs: {s.stats.reparaciones}</p>
           <p>Fuel left over: LH2 {r.lh2Sobra.toFixed(1)} kg · LOX {r.loxSobra.toFixed(1)} kg</p>

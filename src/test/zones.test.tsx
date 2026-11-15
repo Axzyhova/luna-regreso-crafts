@@ -22,14 +22,14 @@ describe("zones and access", () => {
     expect(zoneBlock(s, Z("fire"))).toBeNull();
     expect(zoneBlock(s, Z("ice"))).toMatch(/Thermal suit/);
   });
-  it("the Hive opens once the bridge is built with the right materials", () => {
+  it("the Hive opens once a Bridge Kit is used at the ravine", () => {
     const s = createSim("realista", "normal");
-    expect(zoneBlock(s, Z("hive"))).toMatch(/bridge/);
+    expect(zoneBlock(s, Z("hive"))).toMatch(/Bridge Kit/);
     expect(buildBridge(s)).toBe(false);
-    Object.assign(s.inv, { metal: 10, regolito: 6, titanio: 2 });
+    s.inv.puente_kit = 1;
     expect(buildBridge(s)).toBe(true);
     expect(zoneBlock(s, Z("hive"))).toBeNull();
-    expect(s.inv.titanio).toBe(0);
+    expect(s.inv.puente_kit).toBe(0);
   });
   it("zone temperature makes the Frozen Basin freezing, and the thermal suit keeps you warm", () => {
     const s = createSim("realista", "normal");

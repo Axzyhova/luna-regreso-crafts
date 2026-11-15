@@ -1,5 +1,5 @@
 import cfg from "@/data/loot.json";
-import { addLog, addItem, type Inv, type Sim } from "./sim";
+import { addLog, addItem, type Inv, type Sim, giveItem } from "./sim";
 import { ITEMS } from "./items";
 
 export const RADIO_CAPSULA = cfg.radio_apertura;
@@ -42,7 +42,7 @@ export function openCapsule(s: Sim, id: number, rnd: () => number) {
   const found: { item: string; n: number }[] = [];
   for (let i = 0; i < cfg.tirada_por_capsula; i++) {
     const r = rollLoot(rnd);
-    if (addItem(s, r.item as keyof Inv, r.n)) found.push(r);
+    giveItem(s, r.item as keyof Inv, r.n); found.push(r); // what doesn't fit stays next to the capsule
   }
   s.stats.capsulas++;
   addLog(s, `Capsule opened: ${found.map((f) => `${f.n} ${ITEMS[f.item]?.nombre ?? f.item}`).join(", ") || "inventory full"}.`);

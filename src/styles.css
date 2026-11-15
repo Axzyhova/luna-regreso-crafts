@@ -277,3 +277,28 @@
   .tr-panel, .tr-in { animation: none; }
   .tr-slot, .tr-btn, .tr-hud, .tr-bar > div { transition: none; }
 }
+
+/* Readable HUD and menus on tablets and PCs.
+   - The in-game HUD corners (class hud-zoom) scale as a whole from their own corner, so panels keep their layout.
+   - Menus/overlays get larger pixel-font sizes (not inside the HUD, which is already zoomed).
+   Unlayered on purpose so it wins over Tailwind utilities; phones and short landscape keep their sizes. */
+@media (min-width: 768px) and (min-height: 600px) {
+  .hud-zoom { scale: 1.25; }
+  :not(.hud-zoom *).text-\[5px\] { font-size: 7px; }
+  :not(.hud-zoom *).text-\[6px\] { font-size: 8px; }
+  :not(.hud-zoom *).text-\[7px\] { font-size: 9px; }
+  :not(.hud-zoom *).text-\[8px\] { font-size: 10px; }
+  :not(.hud-zoom *).text-\[9px\] { font-size: 11px; }
+  :not(.hud-zoom *).text-\[10px\] { font-size: 12px; }
+  :not(.hud-zoom *).text-\[11px\] { font-size: 13px; }
+}
+@media (min-width: 1200px) and (min-height: 700px) {
+  .hud-zoom { scale: 1.45; }
+  :not(.hud-zoom *).text-\[5px\] { font-size: 8px; }
+  :not(.hud-zoom *).text-\[6px\] { font-size: 9px; }
+  :not(.hud-zoom *).text-\[7px\] { font-size: 10px; }
+  :not(.hud-zoom *).text-\[8px\] { font-size: 11px; }
+  :not(.hud-zoom *).text-\[9px\] { font-size: 12px; }
+  :not(.hud-zoom *).text-\[10px\] { font-size: 13px; }
+  :not(.hud-zoom *).text-\[11px\] { font-size: 14px; }
+}

@@ -1,28 +1,231 @@
 {
  "nota": "World regions. Coordinates in world px (the world is 2560x1440).",
- "mundo": { "w": 2560, "h": 1440 },
+ "mundo": {
+  "w": 1792,
+  "h": 1008
+ },
  "celda_niebla": 64,
  "radio_vision": 110,
  "zonas": [
-  { "id": "base", "nombre": "Landing Site", "rect": [0, 0, 1280, 720], "color": "#45454f", "suelo": "#45454f" },
-  { "id": "ice", "nombre": "Frozen Basin", "rect": [0, 720, 1280, 720], "color": "#26456e", "suelo": "#32557e", "temp": -45,
-    "req": { "equip": "traje_termico" }, "bloqueo": "Too cold: craft Thermal suit at Workshop (2 Insulation + 1 Metal) and equip it.", "recurso": "cristal_hielo" },
-  { "id": "fire", "nombre": "Scorch Fields", "rect": [1280, 0, 1280, 720], "color": "#6e3418", "suelo": "#7a3e20", "temp": 75,
-    "req": { "equip": "capa_reflectante" }, "bloqueo": "Too hot: craft Reflective cape at Workshop (2 Metal + 2 Scrap) and equip it.", "recurso": "titanio" },
-  { "id": "hive", "nombre": "Alien Hive", "rect": [1280, 720, 1280, 720], "color": "#3c1a4e", "suelo": "#3a2448",
-    "req": { "puente": true }, "bloqueo": "A ravine blocks the way: build the bridge at the marked spot (10 Metal, 6 Regolith, 2 Titanium).", "recurso": "aleacion" }
+  {
+   "id": "base",
+   "nombre": "Landing Site",
+   "rect": [
+    0,
+    0,
+    896,
+    504
+   ],
+   "color": "#45454f",
+   "suelo": "#45454f"
+  },
+  {
+   "id": "ice",
+   "nombre": "Frozen Basin",
+   "rect": [
+    0,
+    504,
+    896,
+    504
+   ],
+   "color": "#26456e",
+   "suelo": "#32557e",
+   "temp": -45,
+   "req": {
+    "equip": "traje_termico"
+   },
+   "bloqueo": "Too cold: craft Thermal suit at Workshop (2 Insulation + 1 Metal) and equip it.",
+   "recurso": "cristal_hielo"
+  },
+  {
+   "id": "fire",
+   "nombre": "Scorch Fields",
+   "rect": [
+    896,
+    0,
+    896,
+    504
+   ],
+   "color": "#6e3418",
+   "suelo": "#7a3e20",
+   "temp": 75,
+   "req": {
+    "equip": "capa_reflectante"
+   },
+   "bloqueo": "Too hot: craft Reflective cape at Workshop (2 Metal + 2 Scrap) and equip it.",
+   "recurso": "titanio"
+  },
+  {
+   "id": "hive",
+   "nombre": "Alien Hive",
+   "rect": [
+    896,
+    504,
+    896,
+    504
+   ],
+   "color": "#3c1a4e",
+   "suelo": "#3a2448",
+   "req": {
+    "puente": true
+   },
+   "bloqueo": "A ravine blocks the way: craft a Bridge Kit at the Workshop (4 Metal + 4 Regolith) and use it at the marked spot.",
+   "recurso": "aleacion"
+  }
  ],
- "puente": { "x": 1920, "y": 712, "costo": { "metal": 10, "regolito": 6, "titanio": 2 } },
- "colmena": { "max": 8, "velocidad": 22, "vision": 140, "dano_s": 7, "vida": 3 },
+ "puente": {
+  "x": 1344,
+  "y": 498,
+  "costo": {
+   "puente_kit": 1
+  }
+ },
+ "colmena": {
+  "max": 8,
+  "velocidad": 22,
+  "vision": 140,
+  "dano_s": 7,
+  "vida": 3
+ },
  "subzonas": [
-  { "id": "tierra_chatarra", "zona": "base", "nombre": "Scrapyard Flats", "tipo": "recurso", "x": 920, "y": 160, "radio": 95, "recursos": ["chatarra", "metal"], "enemigos": 0, "desc": "Dedicated Scrap Land: dense rocket debris field rich in Scrap." },
-  { "id": "crater_hielo", "zona": "base", "nombre": "Shadowed Crater", "tipo": "recurso", "x": 640, "y": 520, "radio": 130, "recursos": ["hielo", "alga_lunar"], "enemigos": 0, "desc": "Dedicated Ice & Algae Land: permanently shadowed basin with water ice and lunar algae." },
-  { "id": "cresta_regolito", "zona": "base", "nombre": "Regolith Ridge", "tipo": "recurso", "x": 190, "y": 130, "radio": 90, "recursos": ["regolito"], "enemigos": 0, "desc": "Dedicated Regolith Land: mineral-rich lunar dust ridge." },
-  { "id": "tierra_cristales", "zona": "ice", "nombre": "Crystal Cavern", "tipo": "recurso", "x": 480, "y": 990, "radio": 105, "recursos": ["cristal_hielo", "hielo"], "enemigos": 1, "desc": "Dedicated Frost Crystal Land: high concentration of Frost crystals." },
-  { "id": "fosa_glacial", "zona": "ice", "nombre": "Deep Glacial Rift", "tipo": "jefe", "x": 220, "y": 1270, "radio": 110, "recursos": ["cristal_hielo", "hielo", "alga_lunar"], "jefe": "espectro_crio", "enemigos": 1, "desc": "Far Ice Boss Zone: abundant crystals and algae, guarded by the Cryo Warden." },
-  { "id": "tierra_titanio", "zona": "fire", "nombre": "Titanium Quarry", "tipo": "recurso", "x": 1820, "y": 350, "radio": 105, "recursos": ["titanio", "regolito"], "enemigos": 1, "desc": "Dedicated Titanium Land: rich veins of Titanium ore." },
-  { "id": "caldera_ardiente", "zona": "fire", "nombre": "Far Scorch Caldera", "tipo": "jefe", "x": 2330, "y": 180, "radio": 110, "recursos": ["titanio", "pieza_motor", "chatarra"], "jefe": "coloso_termico", "enemigos": 1, "desc": "Far Scorch Boss Zone: rich Titanium & engine parts, guarded by the Scorch Colossus." },
-  { "id": "tierra_aleacion", "zona": "hive", "nombre": "Alloy Spires", "tipo": "recurso", "x": 1830, "y": 1020, "radio": 105, "recursos": ["aleacion"], "enemigos": 2, "desc": "Dedicated Alien Alloy Land: crystalline spires yielding Alien alloy." },
-  { "id": "nido_matriarca", "zona": "hive", "nombre": "Hive Matriarch Lair", "tipo": "jefe", "x": 2310, "y": 1260, "radio": 110, "recursos": ["aleacion", "racion", "pieza_motor"], "jefe": "matriarca_colmena", "enemigos": 1, "desc": "Far Hive Boss Zone: massive alloy cache guarded by the Hive Matriarch." }
+  {
+   "id": "tierra_chatarra",
+   "zona": "base",
+   "nombre": "Scrapyard Flats",
+   "tipo": "recurso",
+   "x": 644,
+   "y": 112,
+   "radio": 66,
+   "recursos": [
+    "chatarra",
+    "metal"
+   ],
+   "enemigos": 0,
+   "desc": "Dedicated Scrap Land: dense rocket debris field rich in Scrap."
+  },
+  {
+   "id": "crater_hielo",
+   "zona": "base",
+   "nombre": "Shadowed Crater",
+   "tipo": "recurso",
+   "x": 448,
+   "y": 364,
+   "radio": 91,
+   "recursos": [
+    "hielo",
+    "alga_lunar"
+   ],
+   "enemigos": 0,
+   "desc": "Dedicated Ice & Algae Land: permanently shadowed basin with water ice and lunar algae."
+  },
+  {
+   "id": "cresta_regolito",
+   "zona": "base",
+   "nombre": "Regolith Ridge",
+   "tipo": "recurso",
+   "x": 262,
+   "y": 70,
+   "radio": 63,
+   "recursos": [
+    "regolito"
+   ],
+   "enemigos": 0,
+   "desc": "Dedicated Regolith Land: mineral-rich lunar dust ridge."
+  },
+  {
+   "id": "tierra_cristales",
+   "zona": "ice",
+   "nombre": "Crystal Cavern",
+   "tipo": "recurso",
+   "x": 336,
+   "y": 693,
+   "radio": 74,
+   "recursos": [
+    "cristal_hielo",
+    "hielo"
+   ],
+   "enemigos": 1,
+   "desc": "Dedicated Frost Crystal Land: high concentration of Frost crystals."
+  },
+  {
+   "id": "fosa_glacial",
+   "zona": "ice",
+   "nombre": "Deep Glacial Rift",
+   "tipo": "jefe",
+   "x": 154,
+   "y": 889,
+   "radio": 77,
+   "recursos": [
+    "cristal_hielo",
+    "hielo",
+    "alga_lunar"
+   ],
+   "jefe": "espectro_crio",
+   "enemigos": 1,
+   "desc": "Far Ice Boss Zone: abundant crystals and algae, guarded by the Cryo Warden."
+  },
+  {
+   "id": "tierra_titanio",
+   "zona": "fire",
+   "nombre": "Titanium Quarry",
+   "tipo": "recurso",
+   "x": 1274,
+   "y": 245,
+   "radio": 74,
+   "recursos": [
+    "titanio",
+    "regolito"
+   ],
+   "enemigos": 1,
+   "desc": "Dedicated Titanium Land: rich veins of Titanium ore."
+  },
+  {
+   "id": "caldera_ardiente",
+   "zona": "fire",
+   "nombre": "Far Scorch Caldera",
+   "tipo": "jefe",
+   "x": 1631,
+   "y": 126,
+   "radio": 77,
+   "recursos": [
+    "titanio",
+    "pieza_motor",
+    "chatarra"
+   ],
+   "jefe": "coloso_termico",
+   "enemigos": 1,
+   "desc": "Far Scorch Boss Zone: rich Titanium & engine parts, guarded by the Scorch Colossus."
+  },
+  {
+   "id": "tierra_aleacion",
+   "zona": "hive",
+   "nombre": "Alloy Spires",
+   "tipo": "recurso",
+   "x": 1281,
+   "y": 714,
+   "radio": 74,
+   "recursos": [
+    "aleacion"
+   ],
+   "enemigos": 2,
+   "desc": "Dedicated Alien Alloy Land: crystalline spires yielding Alien alloy."
+  },
+  {
+   "id": "nido_matriarca",
+   "zona": "hive",
+   "nombre": "Hive Matriarch Lair",
+   "tipo": "jefe",
+   "x": 1617,
+   "y": 882,
+   "radio": 77,
+   "recursos": [
+    "aleacion",
+    "racion",
+    "pieza_motor"
+   ],
+   "jefe": "matriarca_colmena",
+   "enemigos": 1,
+   "desc": "Far Hive Boss Zone: massive alloy cache guarded by the Hive Matriarch."
+  }
  ]
 }

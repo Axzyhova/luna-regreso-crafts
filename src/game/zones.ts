@@ -1,5 +1,5 @@
 import cfg from "@/data/zonas.json";
-import { addItem, addLog, hurt, notify, ZONAS, type Inv, type Sim } from "./sim";
+import { addItem, addLog, hurt, notify, ZONAS, type Inv, type Sim, giveItem } from "./sim";
 
 /**
  * Alien Hive creatures. Unlike the night aliens, they exist in every mode (Realistic
@@ -151,7 +151,7 @@ export function hitBoss(s: Sim, px: number, py: number, dmg = 1) {
     if (!s.bossesDefeated.includes(best.tipo)) s.bossesDefeated.push(best.tipo);
     s.stats.aliens++;
     if (def) {
-      for (const [k, n] of Object.entries(def.loot)) addItem(s, k as Inv[keyof Inv] extends number ? keyof Inv : never, n);
+      for (const [k, n] of Object.entries(def.loot)) giveItem(s, k as keyof Inv, n);
       addLog(s, `🏆 Defeated ${def.nombre}! Looted: ${Object.entries(def.loot).map(([k, n]) => `+${n} ${k}`).join(", ")}`);
       notify(s, "achievement", "Boss Defeated", def.nombre);
     }

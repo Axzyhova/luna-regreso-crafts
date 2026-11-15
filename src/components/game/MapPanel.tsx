@@ -3,8 +3,9 @@ import { useGame } from "@/game/store";
 import { ZONAS, WORLD, FOG_CELL, FOG_COLS, FOG_ROWS, BRIDGE, zoneBlock } from "@/game/sim";
 import { SUBZONAS, BOSS_DEFS, type Subzona } from "@/game/zones";
 import { ITEMS } from "@/game/items";
+import { ROCKET, SHADOW, RAVINE, BRIDGE_DECK } from "@/game/world";
 
-const S = 0.5; // map pixels per world pixel (world 1280x720 → map 640x360)
+const S = 0.5; // map pixels per world pixel
 
 /**
  * Full integrated map of the explorable world. Shows explored vs unexplored areas,
@@ -27,11 +28,11 @@ export function MapPanel() {
       g.fillStyle = z.suelo; g.fillRect(x * S, y * S, w * S, h * S);
     }
     // landing-site landmarks
-    g.fillStyle = "#141428"; g.beginPath(); g.ellipse(330 * S, 270 * S, 120 * S, 60 * S, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = "#07070c"; g.fillRect(640 * S, 356 * S, 640 * S, 8 * S); g.fillRect(636 * S, 360 * S, 8 * S, 360 * S);
-    if (s.bridge) { g.fillStyle = "#c9c9cf"; g.fillRect((BRIDGE.x - 12) * S, 346 * S, 24 * S, 20 * S); }
+    g.fillStyle = "#141428"; g.beginPath(); g.ellipse(SHADOW.x * S, SHADOW.y * S, SHADOW.rx * S, SHADOW.ry * S, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#07070c"; for (const r of RAVINE) g.fillRect(r.x * S, r.y * S, r.w * S, r.h * S);
+    if (s.bridge) { g.fillStyle = "#c9c9cf"; g.fillRect(BRIDGE_DECK.x * S, BRIDGE_DECK.y * S, BRIDGE_DECK.w * S, BRIDGE_DECK.h * S); }
     for (const m of s.modules) { g.fillStyle = m.tipo === "habitat" ? "#7fa8ff" : "#c9c9cf"; g.fillRect(m.x * S - 2, m.y * S - 2, m.tipo === "habitat" ? 8 : 4, m.tipo === "habitat" ? 6 : 4); }
-    g.fillStyle = "#ffffff"; g.fillRect(540 * S - 2, 150 * S - 6, 4, 12); // rocket
+    g.fillStyle = "#ffffff"; g.fillRect(ROCKET.x * S - 2, ROCKET.y * S - 6, 4, 12); // rocket
     for (const c of s.capsules) if (explored(c.x, c.y)) { g.fillStyle = "#f2d24f"; g.fillRect(c.x * S - 2, c.y * S - 3, 4, 6); }
     for (const d of s.drops) { g.fillStyle = "#b08a50"; g.beginPath(); g.arc(d.x * S, d.y * S, 3, 0, Math.PI * 2); g.fill(); }
     // fog of war
