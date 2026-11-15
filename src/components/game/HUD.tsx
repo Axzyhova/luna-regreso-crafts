@@ -85,17 +85,17 @@ export function BaseRocketPanel() {
 export function HUD() {
   return (
     <>
-      <div className="pointer-events-none absolute left-2 top-2 flex flex-col items-start gap-1.5">
+      <div className="hud-zoom origin-top-left pointer-events-none absolute left-2 top-2 flex flex-col items-start gap-1.5">
         <AstronautPanel />
         <NavCard />
       </div>
-      <HUDTop className="absolute left-1/2 top-2 -translate-x-1/2" />
-      <div className="pointer-events-none absolute right-2 top-2 flex flex-col items-end gap-1.5">
+      <HUDTop className="hud-zoom origin-top absolute left-1/2 top-2 -translate-x-1/2" />
+      <div className="hud-zoom origin-top-right pointer-events-none absolute right-2 top-2 flex flex-col items-end gap-1.5">
         <BaseRocketPanel />
         <AlertsPanel />
       </div>
       <Countdown />
-      <HUDBottom className="absolute inset-x-0 bottom-0" />
+      <HUDBottom className="hud-zoom origin-bottom absolute inset-x-0 bottom-0" />
     </>
   );
 }

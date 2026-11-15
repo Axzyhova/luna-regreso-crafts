@@ -30,7 +30,7 @@ export function MobileGame() {
       <ClientOnly fallback={null}><GameCanvas /></ClientOnly>
 
       {/* top-left: astronaut (vitals + gear), navigation chip below */}
-      <div className="pointer-events-none absolute left-[max(env(safe-area-inset-left),8px)] top-1.5 flex flex-col items-start gap-1">
+      <div className="hud-zoom origin-top-left pointer-events-none absolute left-[max(env(safe-area-inset-left),8px)] top-1.5 flex flex-col items-start gap-1">
         <div className="tr-hud flex flex-col gap-0.5 px-1.5 pb-1 pt-0.5">
           <Vitals />
           <GearRow />
@@ -39,13 +39,13 @@ export function MobileGame() {
       </div>
 
       {/* top-center: menu buttons and tutorial only (warnings live in the side panel) */}
-      <div className="pointer-events-none absolute inset-x-0 top-2 flex flex-col items-center gap-1 px-40">
+      <div className="hud-zoom origin-top pointer-events-none absolute inset-x-0 top-2 flex flex-col items-center gap-1 px-40">
         <div className="pointer-events-auto"><MenuBar /></div>
         <TutorialCard />
       </div>
 
       {/* top-right: clock, base power + rocket fuel, warnings panel below */}
-      <div className="pointer-events-none absolute right-[max(env(safe-area-inset-right),8px)] top-1.5 flex flex-col items-end gap-1">
+      <div className="hud-zoom origin-top-right pointer-events-none absolute right-[max(env(safe-area-inset-right),8px)] top-1.5 flex flex-col items-end gap-1">
         <DayClock />
         <div className="tr-hud flex flex-col items-end gap-0.5 px-1.5 py-1" aria-label="Base power and rocket fuel">
           <span className={`tr-text text-[6px] ${net >= 0 ? "!text-ok" : "!text-destructive"}`}>⚡ {net >= 0 ? "+" : ""}{net.toFixed(0)}/s</span>
@@ -59,10 +59,10 @@ export function MobileGame() {
       <Countdown />
 
       {/* bottom-left: D-pad */}
-      <div className={`absolute bottom-[max(env(safe-area-inset-bottom),10px)] left-[max(env(safe-area-inset-left),14px)] ${overlay ? "invisible" : ""}`}><DPad /></div>
+      <div className={`hud-zoom origin-bottom-left absolute bottom-[max(env(safe-area-inset-bottom),10px)] left-[max(env(safe-area-inset-left),14px)] ${overlay ? "invisible" : ""}`}><DPad /></div>
 
       {/* bottom-center: mission + hotbar + inventory */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-[max(env(safe-area-inset-bottom),6px)] flex flex-col items-center gap-1">
+      <div className="hud-zoom origin-bottom pointer-events-none absolute inset-x-0 bottom-[max(env(safe-area-inset-bottom),6px)] flex flex-col items-center gap-1">
         <div className="max-w-[46%] scale-90"><QuestTracker /></div>
         <div className="flex items-center gap-1">
           <Hotbar />
@@ -72,7 +72,7 @@ export function MobileGame() {
       </div>
 
       {/* bottom-right: actions */}
-      <div className={`absolute bottom-[max(env(safe-area-inset-bottom),10px)] right-[max(env(safe-area-inset-right),14px)] ${overlay ? "invisible" : ""}`}><ActionPad /></div>
+      <div className={`hud-zoom origin-bottom-right absolute bottom-[max(env(safe-area-inset-bottom),10px)] right-[max(env(safe-area-inset-right),14px)] ${overlay ? "invisible" : ""}`}><ActionPad /></div>
 
       <div className="absolute inset-x-0 bottom-24"><DialogBox /></div>
       <Overlays />
